@@ -416,16 +416,34 @@ through `Ui/OpticalGlyph.qml` for ink-centred alignment (`BarIconButton.qml:29-3
 `iconComponent: Component { ... }` is the escape hatch for a drawn mark
 (`plugins/panels/tailscale/TailscaleIcon.qml`).
 
-### HC-10 (open, must be verified empirically)
-The two explorations disagreed on whether `qs.Commons` / `qs.Ui` resolve for a
-plugin loaded from `~/.config/omarchy/plugins/`. Every first-party plugin
-importing them lives inside `/usr/share/omarchy/shell/`. The loaders use
-`Qt.createComponent(fileUrl)` (`shell.qml:294`) and `Loader.source`
-(`shell.qml:624`) into the same engine, which suggests it holds, but **no
-in-tree third-party plugin proves it.** This must be settled by loading a
-minimal plugin from `~/.config/omarchy/plugins/` before any UI work depends on
-it; if it does not resolve, the plugin needs its own vendored styling layer and
-the UI phase changes shape.
+### HC-10 (RESOLVED — `qs.*` resolves from outside the config root)
+The open question was whether `qs.Commons` / `qs.Ui` resolve for a plugin loaded
+from `~/.config/omarchy/plugins/`, since every first-party importer lives inside
+`/usr/share/omarchy/shell/` and no in-tree third-party plugin demonstrates it.
+
+Settled empirically on 2026-09-05 with a structural analogue that touches
+nothing in the real Omarchy configuration. A throwaway Quickshell config root at
+`/tmp/hc10/root` was given a `Commons/qmldir` declaring
+`module qs.Commons` with a `Probe` singleton. A QML file at
+`/tmp/hc10/outside/Outsider.qml` — deliberately **outside** that root —
+contained `import qs.Commons` and read `Probe.token`. The root `shell.qml`
+loaded it exactly as Omarchy loads a plugin, via
+`Qt.createComponent(fileUrl, Component.PreferSynchronous)`:
+
+```
+$ quickshell -p /tmp/hc10/root/shell.qml
+DEBUG qml: HC10 RESULT: PASS -> COMMONS_RESOLVED
+```
+
+The import resolved. Quickshell registers the config root as an **engine-global**
+QML import path rather than resolving `qs.*` relative to the importing file, so
+a plugin file anywhere on disk, loaded into the same engine, can import
+`qs.Commons` and `qs.Ui`.
+
+Residual risk is now low but not zero: this reproduces the mechanism, not the
+literal case, because it does not exercise Omarchy's own root. Confirm once at
+first staging (AC-026), but the UI phase no longer needs to be gated on it and
+no vendored styling fallback is required.
 
 ---
 
@@ -467,7 +485,7 @@ file under the plugin directory hot-reloads it.
 Load errors surface as `console.warn` (`shell.qml:297` services,
 `shell.qml:647` panels).
 
-### Qt tooling on this machine
+### Qt tooling on this machine (all verified 2026-09-05)
 `qmllint`, `qmlformat`, `qmltestrunner`, `qmlls` are all present under
 `/usr/lib/qt6/bin/` (Qt 6.11.2) but **none are on `$PATH`** — invoke by absolute
 path. `quickshell` 0.3.1 is at `/usr/bin/quickshell`.
@@ -475,6 +493,50 @@ path. `quickshell` 0.3.1 is at `/usr/bin/quickshell`.
 There is **no QML/JS test harness and no `.qmllint.ini`** anywhere in
 `/usr/share/omarchy/`. `omarchy-plugin-validate:95` references a
 `plugins-test.sh` that does not exist in the installed tree.
+
+#### HC-11: `qmltestrunner` cannot load `Quickshell.Io` — it is not a usable harness
+`/usr/lib/qt6/qml/Quickshell/Io/` contains only `qmldir`,
+`quickshell-io.qmltypes`, and `FileView.qml`. Its `qmldir` reads
+`linktarget quickshell-ioplugin` / `optional plugin quickshell-ioplugin`; the
+plugin is linked **statically into `/usr/bin/quickshell`** and has no
+loadable shared object. A `TestCase` importing `Quickshell.Io` therefore fails
+to compile:
+
+```
+$ /usr/lib/qt6/bin/qmltestrunner -input tst_io.qml ; echo $?
+FAIL!  : qmltestrunner::tst_io::compile() module "Quickshell.Io" plugin "quickshell-ioplugin" not found
+Totals: 0 passed, 1 failed, 0 skipped
+1
+```
+
+It does exit non-zero and does report `FAIL`, so it fails loudly rather than
+silently. But every construct this plugin's service layer depends on — `Process`,
+`StdioCollector`, `IpcHandler`, `FileView` — lives in `Quickshell.Io`. **A
+`tests/test_service.qml` run under `qmltestrunner` is impossible.**
+
+The only working harness is `quickshell -p <runner.qml>`, driving assertions and
+calling `Qt.exit(failures)`. Two constraints follow:
+- It **requires a live graphical Wayland session**; with
+  `QT_QPA_PLATFORM=offscreen` and no `WAYLAND_DISPLAY` it exits 1 with
+  `cannot open display`. The QML integration layer is a graphical-session test,
+  not a headless/CI one.
+- `Qt.exit()` warns `no receivers connected to handle it` under a bare
+  `ShellRoot`, so the runner must arrange its own exit path.
+
+#### HC-12: `qmllint` needs a synthetic import root to see `qs.*`
+Bare invocation, and `-I /usr/share/omarchy/shell`, both fail identically with
+`Failed to import qs.Commons`. Since a bare "failed to import" can be misread as
+"no findings", this matters. What works is an import root **containing** a `qs`
+symlink to the shell tree:
+
+```bash
+mkdir -p /tmp/qslint-root && ln -s /usr/share/omarchy/shell /tmp/qslint-root/qs
+/usr/lib/qt6/bin/qmllint -I /tmp/qslint-root <file>.qml
+```
+
+That resolves cleanly and produces real diagnostics. The import root must live
+**outside** the plugin folder, because `omarchy-plugin-validate:115` rejects any
+symlink inside it.
 
 ---
 
@@ -491,4 +553,6 @@ There is **no QML/JS test harness and no `.qmllint.ini`** anywhere in
 | HC-7 | `onExited` / `onStreamFinished` ordering is unspecified | Protocol parse must join both signals |
 | HC-8 | No kill API; `running = false` is asynchronous | Watchdog cannot reap synchronously; generation checks are mandatory |
 | HC-9 | No backoff helper exists | Build exponential backoff from scratch |
-| HC-10 | `qs.Commons` / `qs.Ui` resolution from a third-party plugin dir is unproven | Must be settled empirically before UI work |
+| HC-10 | **RESOLVED** — `qs.*` resolves from outside the config root; the import path is engine-global | UI phase is not gated; confirm once at staging |
+| HC-11 | `qmltestrunner` cannot load `Quickshell.Io` at all | QML integration tests run under `quickshell -p` in a live Wayland session |
+| HC-12 | `qmllint` sees `qs.*` only via an import root holding a `qs` symlink | Fixed lint invocation, with the root outside the plugin folder |
