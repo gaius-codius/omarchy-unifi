@@ -386,12 +386,19 @@ def accept_success():
                          "Device reported an unrecognised state: REBOOTING.",
                          {"state": "REBOOTING", "deviceId": uid(23)})])))
 
+    # AC-025 states this composition and its exact numbers: one device holding
+    # all three roles plus TWO AP-only devices. gateways.online == 1,
+    # switches.online == 1, accessPoints.online == 3, devicesTotal == 3, and the
+    # role rows sum to 5. Do not fold the featureless device into this fixture —
+    # it changes accessPoints.online to 2 and the criterion no longer has an
+    # input. It has its own fixture below.
     out.append(("success_multi_feature_roles",
-                "A Dream Machine reporting gateway + switching + accessPoint at "
-                "once, an AP-only device, and one with an EMPTY features array. "
-                "byClass counts three unique devices; the role objects sum to "
-                "five. They are NOT a partition and are not expected to agree — "
-                "that contrast is what roleCountsAreNotAPartition tells the panel.",
+                "AC-025 exactly: a Dream Machine reporting gateway + switching + "
+                "accessPoint at once, plus two AP-only devices. byClass counts 3 "
+                "unique devices while the role rows sum to 5. They are NOT a "
+                "partition and are not expected to agree — that contrast is what "
+                "roleCountsAreNotAPartition tells the panel, because rows summing "
+                "to 5 above a total of 3 otherwise read as a bug.",
                 success(data(
                     "Home",
                     wan("up", 864000, 12000000, 3000000),
@@ -399,7 +406,26 @@ def accept_success():
                              864000, 12000000, 3000000)],
                     counts(18, 3, 0,
                            cls(online=3),
-                           cls(online=1), cls(online=1), cls(online=2)),
+                           cls(online=1), cls(online=1), cls(online=3)),
+                    [],
+                ))))
+
+    # DATA-006b requires byClass to count a device whose `features` array is
+    # EMPTY. Such a device appears in no role object at all, so byClass is the
+    # only place it is visible — and a partition that silently dropped it would
+    # satisfy every role-based check while under-reporting the site.
+    out.append(("success_featureless_device",
+                "A device with an EMPTY features array, which appears in no role "
+                "object at all. byClass must still count it exactly once "
+                "(DATA-006b), so the role rows sum to 2 while devicesTotal is 3.",
+                success(data(
+                    "Home",
+                    wan("up", 864000, 12000000, 3000000),
+                    [gateway(10, "UDM Pro", "UDM-Pro", "ONLINE", "online",
+                             864000, 12000000, 3000000)],
+                    counts(6, 3, 0,
+                           cls(online=3),
+                           cls(online=1), cls(online=1), zero()),
                     [],
                 ))))
 

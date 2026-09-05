@@ -6,7 +6,7 @@
       "accessPoints": {
         "down": 0,
         "impaired": 0,
-        "online": 3,
+        "online": 0,
         "transitional": 0,
         "unknown": 0
       },
@@ -17,7 +17,7 @@
         "transitional": 0,
         "unknown": 0
       },
-      "clients": 18,
+      "clients": 6,
       "devicesTotal": 3,
       "gateways": {
         "down": 0,

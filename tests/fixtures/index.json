@@ -396,6 +396,13 @@
       "rule": "DATA-005 / DATA-006 / DATA-008",
       "verdict": "accept"
     },
+    "envelopes/accept/success_featureless_device": {
+      "enforcedBy": "service and helper",
+      "errorKind": null,
+      "note": "A device with an EMPTY features array, which appears in no role object at all. byClass must still count it exactly once (DATA-006b), so the role rows sum to 2 while devicesTotal is 3.",
+      "rule": "DATA-005 / DATA-006 / DATA-008",
+      "verdict": "accept"
+    },
     "envelopes/accept/success_five_gateways_truncated": {
       "enforcedBy": "service and helper",
       "errorKind": null,
@@ -434,7 +441,7 @@
     "envelopes/accept/success_multi_feature_roles": {
       "enforcedBy": "service and helper",
       "errorKind": null,
-      "note": "A Dream Machine reporting gateway + switching + accessPoint at once, an AP-only device, and one with an EMPTY features array. byClass counts three unique devices; the role objects sum to five. They are NOT a partition and are not expected to agree — that contrast is what roleCountsAreNotAPartition tells the panel.",
+      "note": "AC-025 exactly: a Dream Machine reporting gateway + switching + accessPoint at once, plus two AP-only devices. byClass counts 3 unique devices while the role rows sum to 5. They are NOT a partition and are not expected to agree — that contrast is what roleCountsAreNotAPartition tells the panel, because rows summing to 5 above a total of 3 otherwise read as a bug.",
       "rule": "DATA-005 / DATA-006 / DATA-008",
       "verdict": "accept"
     },
@@ -808,13 +815,13 @@
     "protocol": "docs/protocol-v1.md"
   },
   "coverage": {
-    "accept": 51,
+    "accept": 52,
     "errorKinds": 19,
     "reject": 55,
     "rejectEnforcedByHelper": 13,
     "rejectEnforcedByService": 42,
     "rejectionClasses": 36,
-    "total": 106
+    "total": 107
   },
   "generatedBy": "tests/tools/gen_index.py",
   "privacy": {

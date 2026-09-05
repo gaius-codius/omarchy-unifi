@@ -70,6 +70,16 @@ function collect(dir, re, acc = []) {
 }
 
 function suiteText() {
+  // SOURCE ONLY. An earlier version also counted fixture FILENAMES, on the
+  // theory that a table-driven suite names its subtests after the case ids in
+  // the corpus. It immediately reported DATA-008 as 36/36 and DATA-009 as 13/13
+  // while no test asserted a single one of those cases — the reject and
+  // pagination corpora existed, and that was enough to satisfy the scan.
+  //
+  // A false green here is worse than a reported gap, because the gap is the
+  // only thing that will make anyone write the missing test. So the scan stays
+  // narrow, and the burden is on the suites: see the note above for how a
+  // table-driven suite is expected to make its coverage visible.
   const files = [
     ...collect(path.join(REPO, "tests"), /\.test\.js$/),
     ...collect(path.join(REPO, "tests"), /^test_.*\.py$/),
@@ -97,10 +107,16 @@ function report(label, missing, total) {
 // obvious response would be to weaken or delete it.
 //
 // Do neither. Have the table-driven suite name each subtest after its case
-// (`test(\`rejects ${c.id}\`, ...)` / `with self.subTest(case=c["id"])`) and
-// additionally write the executed case ids to a small manifest this test reads.
-// AC-072 asks for a NAMED, EXECUTING test per case, and a generated subtest name
-// satisfies that — but only if the name reaches this check.
+// (`test(\`rejects ${c.id}\`, ...)` / `with self.subTest(case=c["id"])`) AND
+// assert the enumerated case list against an explicit list written out in the
+// suite source. The explicit list is what this check reads, and it is a real
+// assertion in its own right: deleting a fixture then fails the build, which is
+// exactly what AC-072 asks for.
+//
+// Do not be tempted to make this check read the corpus directory instead. That
+// was tried, and it reported 36/36 and 13/13 the moment the fixtures existed,
+// while nothing asserted any of them. tests/model/viewmodel.test.js shows the
+// intended pattern for the subtest half.
 function uncovered(terms, text) {
   return terms.filter((t) => !text.includes(t))
 }

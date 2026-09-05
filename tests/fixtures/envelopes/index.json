@@ -240,6 +240,16 @@
       "shape": "success",
       "verdict": "accept"
     },
+    "success_featureless_device": {
+      "consumedBy": [
+        "service (Protocol.js must accept)",
+        "helper (normalize.py must be able to produce)"
+      ],
+      "errorKind": null,
+      "note": "A device with an EMPTY features array, which appears in no role object at all. byClass must still count it exactly once (DATA-006b), so the role rows sum to 2 while devicesTotal is 3.",
+      "shape": "success",
+      "verdict": "accept"
+    },
     "success_five_gateways_truncated": {
       "consumedBy": [
         "service (Protocol.js must accept)",
@@ -296,7 +306,7 @@
         "helper (normalize.py must be able to produce)"
       ],
       "errorKind": null,
-      "note": "A Dream Machine reporting gateway + switching + accessPoint at once, an AP-only device, and one with an EMPTY features array. byClass counts three unique devices; the role objects sum to five. They are NOT a partition and are not expected to agree — that contrast is what roleCountsAreNotAPartition tells the panel.",
+      "note": "AC-025 exactly: a Dream Machine reporting gateway + switching + accessPoint at once, plus two AP-only devices. byClass counts 3 unique devices while the role rows sum to 5. They are NOT a partition and are not expected to agree — that contrast is what roleCountsAreNotAPartition tells the panel, because rows summing to 5 above a total of 3 otherwise read as a bug.",
       "shape": "success",
       "verdict": "accept"
     },
@@ -343,7 +353,7 @@
   },
   "contract": "docs/protocol-v1.md",
   "coverage": {
-    "acceptFixtures": 34,
+    "acceptFixtures": 35,
     "errorKinds": 19,
     "rejectFixtures": 42,
     "rejectionClasses": 36
