@@ -1,4 +1,25 @@
-tests/fixtures/private/
+# Nothing here should ever be needed: no_repo_writes.sh asserts the suite adds
+# no untracked file to this tree. These entries are a second line of defence,
+# not a licence to write.
+
+# HC-14: a __pycache__ write inside a staged plugin folder is seen by
+# PluginRegistry.localPluginIdForPath() and hot-reloads the plugin mid-poll.
+# Every Python invocation, tests included, uses -B.
 __pycache__/
 *.pyc
+
+# mise installs into ~/.local/share/mise, but its shim/cache dirs can appear
+# under a project when a task is misconfigured.
+.mise/
+.mise.local.toml
+
+# Never commit anything resembling real controller data (SEC-011) or a
+# credential (SEC-001). tests/fixtures/private/ is the scratch path used when
+# hand-checking against a real controller; it must not be tracked.
+tests/fixtures/private/
+*.api-key
+api-key
+
+# Local scratch
 .venv/
+/tmp-*

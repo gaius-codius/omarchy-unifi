@@ -1,0 +1,28 @@
+# Project-scoped toolchain (AMD-3).
+#
+# This file exists so the Phase 0 gates have named, reproducible tools:
+#   - gitleaks  is AC-013's scanner and is not in the system PATH.
+#   - python    is pinned to both ends of the SPEC §11 support range, so
+#               tests/run.sh can prove the 3.9 floor rather than assert it.
+#               The first entry is the default `python3` on PATH; the suite
+#               runs explicitly under each.
+#   - node      runs the AUTO model layer via `node --test`.
+#
+# Deliberately project-scoped: ~/.config/mise/config.toml is never modified,
+# so the user's other projects are unaffected.
+
+[tools]
+gitleaks = "8.29.0"
+python = ["3.14.7", "3.9.25"]
+node = "26.7.0"
+
+[settings]
+# Never write bytecode anywhere in this tree (HC-14): a __pycache__ write
+# inside a staged plugin folder triggers a shell hot-reload.
+python.compile = false
+
+[env]
+# Belt-and-braces for interactive `python` use inside this project. Note it does
+# NOT cover the test suite: tests/run.sh passes -E, which discards every PYTHON*
+# variable, so -B on the command line is what actually enforces HC-14 there.
+PYTHONDONTWRITEBYTECODE = "1"
