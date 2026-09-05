@@ -157,7 +157,7 @@ colour is defined for every possible state.
 | 1 | unconfigured, `site_unselected`, `uncommitted`, `configuration_conflict`, no complete snapshot yet, or the snapshot has passed `staleAt` | **grey** |
 | 2 | the snapshot contains zero adopted devices | **grey** (empty state, UX-005) |
 | 3 | at least one gateway exists **and** every gateway is `down` | **red** |
-| 4 | any device is `down`, `impaired`, or `unknown` | **amber** |
+| 4 | `byClass.down + byClass.impaired + byClass.unknown > 0` | **amber** |
 | 5 | otherwise | **green** |
 
 Consequences that are intentional and must be preserved:
@@ -628,15 +628,46 @@ DATA-006: `data` normalizes to:
 `site {id, name}`,
 `wan {status, uptimeSec|null, downloadBps|null, uploadBps|null}`,
 `gateways [{id, name, model, state, class, uptimeSec|null, downloadBps|null, uploadBps|null}]`,
-`counts {clients|null, devicesTotal, offlineTotal, gateways{...}, switches{...}, accessPoints{...}}` where each role object is `{online, transitional, down, impaired, unknown}`,
+`counts {clients|null, devicesTotal, offlineTotal, byClass{...}, gateways{...}, switches{...}, accessPoints{...}}` where each role object is `{online, transitional, down, impaired, unknown}`,
 `offlineDevices [{id, name, model, state, class}]` (bounded to 10; see REQ-010),
 `applicationVersion`.
 `wan.latencyMs` and `wan.packetLossPct` are **absent from the model**, not
 present-and-null, because no supported API version can populate them.
 
+DATA-006b: `counts.byClass` is a **unique-device partition** of the snapshot
+over the five REQ-000 classes: `{online, transitional, down, impaired,
+unknown}`. Every adopted device is counted exactly once, including a device
+whose `features` array is empty. It exists because REQ-002 rule 4 asks a
+question about unique devices that the per-role objects cannot answer — those
+double-count by design (REQ-009) and omit featureless devices — and because
+`offlineTotal` is `down + impaired` only and so cannot isolate the `unknown`
+class. Two invariants are enforced and are checked by the service on every
+success envelope (DATA-008):
+
+```
+sum(byClass) == devicesTotal
+byClass.down + byClass.impaired == offlineTotal
+```
+
+`byClass` is a partition; the role objects are deliberately **not** one. That
+contrast is what AC-025's `roleCountsAreNotAPartition` flag communicates to the
+panel.
+
 DATA-006a: `meta` is present on **both** envelope shapes, so the UI can render
 transport facts even when no batch has succeeded:
-`{commitGeneration, apiRootHost, siteId|null, allowInsecureTls, customCaInUse, helperVersion}`.
+`{commitGeneration|null, apiRootHost|null, siteId|null, allowInsecureTls|null, customCaInUse|null, helperVersion}`.
+
+**`meta` itself is always present as an object, and every field except
+`helperVersion` is nullable.** Every field other than `helperVersion` derives
+from the committed configuration, and the two failure kinds that most need a
+`meta` — `unconfigured` and `uncommitted` — are precisely the cases where that
+configuration could not be read. A nullable field with an unconditional
+container gives the validator one rule instead of two and removes the shape
+ambiguity in which the Python producer and the JS consumer would otherwise
+drift. `ViewModel` renders a null field as "unknown" rather than omitting the
+row, so UX-009's insecure-TLS warning still appears whenever
+`allowInsecureTls` was in fact readable.
+
 `apiRootHost` is the host component only — never the full URL, never userinfo.
 This is the data channel that makes UX-009 and REQ-012's dashboard fallback
 implementable, since `config.json` is helper-only and QML cannot read it.
@@ -672,8 +703,12 @@ five minutes before service launch and not after receipt. `ok: true`
 additionally requires exit status zero, `error: null`, an `observedAt` with
 `attemptedAt <= observedAt <= receiptTime`, and a `data` object that **satisfies
 the DATA-006 schema** — `site.id`, `site.name`, `wan.status` in its domain, all
-five count buckets present per role, `devicesTotal` and `offlineTotal`
-non-negative integers, and `offlineDevices` an array. A success envelope with
+five count buckets present per role, `counts.byClass` present with all five
+classes, `devicesTotal` and `offlineTotal` non-negative integers, and
+`offlineDevices` an array. The two DATA-006b arithmetic invariants
+(`sum(byClass) == devicesTotal` and
+`byClass.down + byClass.impaired == offlineTotal`) are checked here and a
+violation is rejected. A success envelope with
 `data: {}` is rejected. `ok: false` requires a non-zero exit, `data: null`,
 `observedAt: null`, and a DATA-007a-consistent error. Warnings, strings,
 numbers, arrays, and nested object sizes are all bounded. `ok` must be the JSON boolean `true` or `false` — the service tests identity
@@ -993,9 +1028,13 @@ plus two AP-only devices yields `gateways.online == 1`, `switches.online == 1`,
 model exposes `roleCountsAreNotAPartition == true`, and the panel label carries
 the unique total.
 
-AC-033 (AUTO): `Model.js` contains no reference to `Qt.` or `qs.` — enforced by
-a lint gate — so the entire health, staleness, scheduler, and formatting layer
-executes under `node --test`.
+AC-033 (AUTO): **Every dual-use `.js` module at the repository root** contains
+no reference to `Qt.` or `qs.`, no `.pragma library`, no `.import`, and no
+mutable top-level binding — enforced by a lint gate over the whole glob, not a
+single filename — so the entire health, staleness, scheduler, protocol,
+settings, and formatting layer executes under `node --test`. The glob form is
+required by HC-16: dual-use files cannot import one another, so the layer is
+necessarily several files rather than one.
 
 AC-034 (AUTO): `grep -nE '#[0-9a-fA-F]{3,8}' *.qml` finds no colour literal, and
 every health level maps to one of the four REQ-001a theme expressions.
@@ -1066,8 +1105,11 @@ accepted as a complete empty collection and drives UX-005; `count == 0` with
 `offset < totalCount` is rejected as premature.
 
 AC-044 (AUTO): A success envelope with `data: {}`, with a missing count bucket,
-with a negative `devicesTotal`, or with `wan.status` outside its domain is
-**rejected**. `ok: 1`, `ok: "true"`, and a missing `ok` are all rejected.
+with a missing `counts.byClass`, with a negative `devicesTotal`, or with
+`wan.status` outside its domain is **rejected**. An envelope violating either
+DATA-006b invariant — `sum(byClass) != devicesTotal`, or
+`byClass.down + byClass.impaired != offlineTotal` — is rejected. `ok: 1`,
+`ok: "true"`, and a missing `ok` are all rejected.
 
 AC-045 (AUTO): An error object violating DATA-007a — for example
 `kind: "credential"` with `httpStatus: 429` — is rejected as
@@ -1105,8 +1147,11 @@ warning, and the snapshot replaced. A required-collection failure (`/info`,
 `/sites`, `/devices`) yields an unsuccessful batch that does not replace the
 snapshot.
 
-AC-052 (AUTO): `meta` is present and correctly populated on **both** envelope
-shapes, including on a failure envelope produced before any request was sent.
+AC-052 (AUTO): `meta` is present as an object on **both** envelope shapes,
+including on an `unconfigured` or `uncommitted` failure produced before any
+request was sent, where every field except `helperVersion` is `null` and the
+panel renders those rows as "unknown". Where the configuration *was* readable,
+each field is populated.
 
 ### Configuration and IPC
 AC-009 (AUTO): A helper sends traffic only when `config.json` and `api-key`
@@ -1464,6 +1509,10 @@ Must stop and ask (Tier 3):
 | 2026-09-05 | Spec review | Claude | Rollback left the API key on disk with no revocation guidance | SEC-012 and §11 rollback updated |
 | 2026-09-05 | Spec approval | User | R8 colour rendering decision | Theme-native visual levels confirmed; REQ-001a is final; no colour-override setting in v1 |
 | 2026-09-05 | Spec approval | User | Spec approved and frozen as **spec-v1** | §1 State set to Approved; planning begins |
+| 2026-09-05 | Planning (DEV-1) | Architecture review, user-approved | REQ-002 rule 4 asked about unique devices but `counts` could not answer it — role objects double-count and omit featureless devices, `offlineTotal` cannot isolate `unknown` | DATA-006b adds `counts.byClass` as a unique-device partition with two enforced invariants; rule 4 restated against it; AC-044 extended |
+| 2026-09-05 | Planning (DEV-2) | Architecture review, user-approved | `meta` was unsatisfiable on `unconfigured`/`uncommitted` failures, where its source configuration is by definition unreadable | DATA-006a makes every field except `helperVersion` nullable with `meta` always present; AC-052 restated |
+| 2026-09-05 | Planning | Host verification | Earlier HC-13 was **wrong**: one `Bar` `Item` fans out via `Variants`, so `activePopout` is global | REQ-007a is satisfied by `Ui/Panel` + `KeyboardPanel` with no implementation; the service holds no panel state; AC-068 is a confirmation |
+| 2026-09-05 | Planning | Host verification (HC-16) | Dual-use QML/Node `.js` files cannot import each other or hold top-level state | AC-033 generalized from the filename `Model.js` to a glob over all root dual-use modules — a strengthening of the gate |
 
 Rejected findings:
 - *"AC-018 should test a self-hosted API root"* — the published contract defines
