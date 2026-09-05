@@ -9,7 +9,7 @@
 // `counts` could not answer the question `healthLevel` asked of it.
 //
 // A TEST file has no such restriction: node can require all of them at once. So
-// this is where the copies are held to each other. If a fourth dual-use module
+// this is where the copies are held to each other. If a fifth dual-use module
 // appears, add it here first.
 
 const { test } = require("node:test")
@@ -20,6 +20,7 @@ const path = require("node:path")
 const Health = require("../../Health.js")
 const Settings = require("../../Settings.js")
 const ViewModel = require("../../ViewModel.js")
+const Schedule = require("../../Schedule.js")
 
 const REPO = path.resolve(__dirname, "../..")
 const SPEC = fs.readFileSync(
@@ -123,7 +124,8 @@ test("the dual-export tail is present in every root module", () => {
   // EVERY assertion in this directory passes while testing nothing. It is the
   // largest silent failure available in this plan, so it gets two checks.
   const modules = fs.readdirSync(REPO).filter((f) => f.endsWith(".js"))
-  assert.ok(modules.length >= 3, "expected at least Health, Settings and ViewModel")
+  assert.ok(modules.length >= 4,
+    "expected at least Health, Settings, ViewModel and Schedule")
   for (const name of modules) {
     const module = require(path.join(REPO, name))
     assert.ok(module && typeof module === "object", name + ": exported nothing")
@@ -140,5 +142,98 @@ test("no dual-use module imports another (HC-16)", () => {
     // stops being dual-use, which is the property the whole AUTO layer rests on.
     assert.ok(!/^\s*\.(import|pragma)\b/m.test(source), name + ": QML-only directive")
     assert.ok(!/(^|[^.\w])require\s*\(/.test(source), name + ": require() is not dual-use")
+  }
+})
+
+// --- Schedule.js (Phase 3) ------------------------------------------------
+
+test("Schedule.js's interval bounds are the ones Settings.js validates against", () => {
+  // Settings.js owns the user-facing clamp; Schedule.js re-clamps because a
+  // caller can reach it without going through Settings. Two copies of a bound
+  // is exactly the drift this file exists to catch — a Schedule that allowed
+  // 5 s would poll five times faster than any setting the user can express.
+  assert.strictEqual(Schedule.INTERVAL_MIN_SEC, Settings.BOUNDS.refreshIntervalSec.min)
+  assert.strictEqual(Schedule.INTERVAL_MAX_SEC, Settings.BOUNDS.refreshIntervalSec.max)
+  assert.strictEqual(Schedule.INTERVAL_DEFAULT_SEC, Settings.DEFAULTS.refreshIntervalSec)
+})
+
+test("the retry class of every kind agrees with the DATA-007a matrix, both ways", () => {
+  // protocol-v1.md's matrix is what Protocol.js (Phase 4) validates an
+  // envelope's `retryable` against, and what Schedule.js schedules from. If the
+  // two disagree, an envelope the helper considers retryable is scheduled as
+  // fatal — the controller recovers and the widget never notices.
+  const rows = /\| kind \| httpStatus \| retryAfterSec \| retryable \| retry class \|\n\|[-| ]+\|\n((?:\|.*\n)+)/
+    .exec(PROTOCOL)
+  assert.ok(rows, "protocol-v1.md: could not locate the DATA-007a matrix")
+
+  const seen = []
+  for (const line of rows[1].split("\n")) {
+    if (!line.startsWith("|")) continue
+    const cells = line.split("|").map((c) => c.trim())
+    const kind = cells[1].replace(/`/g, "")
+    const retryable = cells[4].replace(/`/g, "")
+    const cls = cells[5]
+    seen.push(kind)
+
+    if (kind === "http") {
+      // The one status-dependent kind; its own sub-table is checked below.
+      assert.strictEqual(cls, "see below",
+        "the matrix stopped deferring `http` to its sub-table")
+      continue
+    }
+    assert.strictEqual(Schedule.retryClassFor(kind, null), cls,
+      kind + ": Schedule.js and protocol-v1.md disagree on the retry class")
+    assert.strictEqual(String(Schedule.isRetryable(kind, null)), retryable,
+      kind + ": `retryable` disagrees with the class")
+  }
+
+  assert.deepStrictEqual(seen.slice().sort(), Schedule.ERROR_KINDS.slice().sort(),
+    "the matrix and Schedule.ERROR_KINDS cover different kinds")
+})
+
+test("the `http` sub-table's transient statuses are the ones Schedule.js retries", () => {
+  const sub = /\| `httpStatus` \| `retryable` \| class \|\n\|[-| ]+\|\n\| ([^|]+) \| `true` \| transient \|/
+    .exec(PROTOCOL)
+  assert.ok(sub, "protocol-v1.md: could not locate the `http` sub-table")
+  const statuses = sub[1].match(/\d{3}/g).map(Number)
+
+  assert.deepStrictEqual(statuses.slice().sort(), Schedule.TRANSIENT_HTTP_STATUSES.slice().sort())
+  for (const status of statuses) {
+    assert.strictEqual(Schedule.retryClassFor("http", status), "transient", String(status))
+  }
+  // "anything else" is fatal — including the three statuses the matrix excludes
+  // from `http` entirely, which must never be treated as transient here.
+  for (const status of [200, 400, 401, 403, 404, 429, 501, 505, 599]) {
+    assert.strictEqual(Schedule.retryClassFor("http", status), "fatal", String(status))
+  }
+})
+
+test("every DATA-007 kind Schedule.js schedules has a REQ-013 panel state", () => {
+  // The two enumerations are duplicated across ViewModel.js and Schedule.js.
+  // A kind the scheduler knows but the panel does not would back off correctly
+  // while showing the user the fallback sentence for `internal`.
+  for (const kind of Schedule.ERROR_KINDS) {
+    assert.ok(ViewModel.PANEL_STATES.indexOf(kind) !== -1,
+      kind + ": scheduled but has no panel state")
+  }
+})
+
+test("the suspending kinds are a subset of the fatal kinds", () => {
+  // Suspension is strictly stronger than fatal: it removes the deadline
+  // entirely. A suspending kind that classified as retryable would suspend
+  // polling and then never resume it, with no error the user could act on.
+  for (const kind of Schedule.SUSPENDING_KINDS) {
+    assert.strictEqual(Schedule.retryClassFor(kind, null), "fatal", kind)
+    assert.ok(Health.CONFIG_FAULT_KINDS.indexOf(kind) !== -1,
+      kind + ": suspends polling but is not a REQ-002 rule 1 configuration fault")
+  }
+})
+
+test("the warning codes Schedule.js emits are in protocol-v1.md's closed enumeration", () => {
+  // AMD-8 made `warnings` a closed 14-value enumeration. A code invented here
+  // would be rejected by the same validator that accepts the helper's.
+  for (const code of ["retry_after_clamped", "retry_after_ignored"]) {
+    assert.ok(PROTOCOL.indexOf("| `" + code + "` |") !== -1,
+      code + ": not in the protocol-v1.md warning table")
   }
 })
