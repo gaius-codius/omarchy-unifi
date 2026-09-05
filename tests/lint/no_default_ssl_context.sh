@@ -8,6 +8,11 @@
 # OSError from within the constructor and, when it succeeds, writes session keys
 # for every connection. Clearing keylog_filename afterwards is too late — the
 # only fix is to never call the convenience constructor.
+#
+# The second pattern is the other half of the same rule: `keylog_filename` is
+# never ASSIGNED either. Reading it is fine and the tests do, to assert it
+# stayed None; writing it is the thing create_default_context does behind your
+# back, and doing it deliberately is no better.
 source "$(dirname "$0")/../lib/gate.sh"
 ROOT="$(gate_root "${1:-}")"
 
@@ -16,7 +21,7 @@ for dir in helper scripts; do
   while IFS= read -r -d '' rel; do
     while IFS= read -r hit; do
       gate_violation "${rel#./}:$hit  (SEC-007: build the context explicitly)"
-    done < <(gate_code_lines "$ROOT/${rel#./}" | grep -E 'create_default_context|_create_unverified_context|_create_stdlib_context' || true)
+    done < <(gate_code_lines "$ROOT/${rel#./}" | grep -E 'create_default_context|_create_unverified_context|_create_stdlib_context|keylog_filename[[:space:]]*=' || true)
   done < <( cd "$ROOT" && find "$dir" -type f -name '*.py' -print0 )
 done
 
