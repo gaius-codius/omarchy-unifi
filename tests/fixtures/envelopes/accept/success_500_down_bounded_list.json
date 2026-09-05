@@ -1,0 +1,156 @@
+{
+  "attemptedAt": "2026-01-15T12:00:00Z",
+  "data": {
+    "applicationVersion": "9.1.0",
+    "counts": {
+      "accessPoints": {
+        "down": 0,
+        "impaired": 0,
+        "online": 0,
+        "transitional": 0,
+        "unknown": 0
+      },
+      "byClass": {
+        "down": 500,
+        "impaired": 0,
+        "online": 0,
+        "transitional": 0,
+        "unknown": 0
+      },
+      "clients": 0,
+      "devicesTotal": 500,
+      "gateways": {
+        "down": 1,
+        "impaired": 0,
+        "online": 0,
+        "transitional": 0,
+        "unknown": 0
+      },
+      "offlineTotal": 500,
+      "switches": {
+        "down": 499,
+        "impaired": 0,
+        "online": 0,
+        "transitional": 0,
+        "unknown": 0
+      }
+    },
+    "gateways": [
+      {
+        "class": "down",
+        "downloadBps": null,
+        "id": "00000000-0000-5000-9000-00000000000a",
+        "model": "UDM-Pro",
+        "name": "UDM Pro",
+        "state": "OFFLINE",
+        "uploadBps": null,
+        "uptimeSec": null
+      }
+    ],
+    "offlineDevices": [
+      {
+        "class": "down",
+        "id": "00000000-0000-5000-9000-000000000064",
+        "model": "USW-Lite-8-PoE",
+        "name": "Bulk Switch 000",
+        "state": "OFFLINE"
+      },
+      {
+        "class": "down",
+        "id": "00000000-0000-5000-9000-000000000065",
+        "model": "USW-Lite-8-PoE",
+        "name": "Bulk Switch 001",
+        "state": "OFFLINE"
+      },
+      {
+        "class": "down",
+        "id": "00000000-0000-5000-9000-000000000066",
+        "model": "USW-Lite-8-PoE",
+        "name": "Bulk Switch 002",
+        "state": "OFFLINE"
+      },
+      {
+        "class": "down",
+        "id": "00000000-0000-5000-9000-000000000067",
+        "model": "USW-Lite-8-PoE",
+        "name": "Bulk Switch 003",
+        "state": "OFFLINE"
+      },
+      {
+        "class": "down",
+        "id": "00000000-0000-5000-9000-000000000068",
+        "model": "USW-Lite-8-PoE",
+        "name": "Bulk Switch 004",
+        "state": "OFFLINE"
+      },
+      {
+        "class": "down",
+        "id": "00000000-0000-5000-9000-000000000069",
+        "model": "USW-Lite-8-PoE",
+        "name": "Bulk Switch 005",
+        "state": "OFFLINE"
+      },
+      {
+        "class": "down",
+        "id": "00000000-0000-5000-9000-00000000006a",
+        "model": "USW-Lite-8-PoE",
+        "name": "Bulk Switch 006",
+        "state": "OFFLINE"
+      },
+      {
+        "class": "down",
+        "id": "00000000-0000-5000-9000-00000000006b",
+        "model": "USW-Lite-8-PoE",
+        "name": "Bulk Switch 007",
+        "state": "OFFLINE"
+      },
+      {
+        "class": "down",
+        "id": "00000000-0000-5000-9000-00000000006c",
+        "model": "USW-Lite-8-PoE",
+        "name": "Bulk Switch 008",
+        "state": "OFFLINE"
+      },
+      {
+        "class": "down",
+        "id": "00000000-0000-5000-9000-00000000006d",
+        "model": "USW-Lite-8-PoE",
+        "name": "Bulk Switch 009",
+        "state": "OFFLINE"
+      }
+    ],
+    "site": {
+      "id": "00000000-0000-5000-9000-000000000001",
+      "name": "Campus"
+    },
+    "wan": {
+      "downloadBps": null,
+      "status": "down",
+      "uploadBps": null,
+      "uptimeSec": null
+    }
+  },
+  "error": null,
+  "meta": {
+    "allowInsecureTls": false,
+    "apiRootHost": "192.168.1.1",
+    "commitGeneration": 7,
+    "customCaInUse": false,
+    "helperVersion": "0.1.0",
+    "siteId": "00000000-0000-5000-9000-000000000001"
+  },
+  "nonce": "b7c1d4e9f2a68035",
+  "observedAt": "2026-01-15T12:00:02Z",
+  "ok": true,
+  "protocolVersion": 1,
+  "warnings": [
+    {
+      "code": "offline_list_truncated",
+      "detail": {
+        "listed": 10,
+        "total": 500
+      },
+      "message": "Showing 10 of 500 offline devices."
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "batch": {
+    "exitStatus": 0,
+    "launchAt": "2026-01-15T11:58:00Z",
+    "nonce": "b7c1d4e9f2a68035",
+    "receiptAt": "2026-01-15T12:00:03Z"
+  },
+  "envelope": null,
+  "id": "stdout_not_json",
+  "neverEmittedBy": "helper",
+  "note": "stdout is not JSON. The likely real cause is a Python traceback, which is exactly the case that must not throw.",
+  "publishedAs": "malformed_response",
+  "rejectedBy": "service",
+  "rejectionClass": "stdout_not_json",
+  "rule": "DATA-008 / stdout_not_json",
+  "stdout": "Traceback (most recent call last):\n  File \"unifi_status.py\"\n",
+  "synthesize": null
+}

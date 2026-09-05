@@ -1,0 +1,94 @@
+{
+  "attemptedAt": "2026-01-15T12:00:00Z",
+  "data": {
+    "applicationVersion": "9.1.0",
+    "counts": {
+      "accessPoints": {
+        "down": 0,
+        "impaired": 0,
+        "online": 2,
+        "transitional": 0,
+        "unknown": 0
+      },
+      "byClass": {
+        "down": 0,
+        "impaired": 0,
+        "online": 5,
+        "transitional": 0,
+        "unknown": 0
+      },
+      "clients": null,
+      "devicesTotal": 5,
+      "gateways": {
+        "down": 0,
+        "impaired": 0,
+        "online": 1,
+        "transitional": 0,
+        "unknown": 0
+      },
+      "offlineTotal": 0,
+      "switches": {
+        "down": 0,
+        "impaired": 0,
+        "online": 2,
+        "transitional": 0,
+        "unknown": 0
+      }
+    },
+    "gateways": [
+      {
+        "class": "online",
+        "downloadBps": null,
+        "id": "00000000-0000-5000-9000-00000000000a",
+        "model": "UDM-Pro",
+        "name": "UDM Pro",
+        "state": "ONLINE",
+        "uploadBps": null,
+        "uptimeSec": null
+      }
+    ],
+    "offlineDevices": [],
+    "site": {
+      "id": "00000000-0000-5000-9000-000000000001",
+      "name": "Home"
+    },
+    "wan": {
+      "downloadBps": null,
+      "status": "up",
+      "uploadBps": null,
+      "uptimeSec": null
+    }
+  },
+  "error": null,
+  "meta": {
+    "allowInsecureTls": false,
+    "apiRootHost": "192.168.1.1",
+    "commitGeneration": 7,
+    "customCaInUse": false,
+    "helperVersion": "0.1.0",
+    "siteId": "00000000-0000-5000-9000-000000000001"
+  },
+  "nonce": "b7c1d4e9f2a68035",
+  "observedAt": "2026-01-15T12:00:02Z",
+  "ok": true,
+  "protocolVersion": 1,
+  "warnings": [
+    {
+      "code": "clients_unavailable",
+      "detail": null,
+      "message": "Client list unavailable; count shown as unknown."
+    },
+    {
+      "code": "statistics_unavailable",
+      "detail": {
+        "deviceId": "00000000-0000-5000-9000-00000000000a"
+      },
+      "message": "Gateway statistics unavailable."
+    },
+    {
+      "code": "wans_unavailable",
+      "detail": null,
+      "message": "WAN names unavailable."
+    }
+  ]
+}

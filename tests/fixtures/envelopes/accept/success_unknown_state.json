@@ -1,0 +1,85 @@
+{
+  "attemptedAt": "2026-01-15T12:00:00Z",
+  "data": {
+    "applicationVersion": "9.1.0",
+    "counts": {
+      "accessPoints": {
+        "down": 0,
+        "impaired": 0,
+        "online": 0,
+        "transitional": 0,
+        "unknown": 0
+      },
+      "byClass": {
+        "down": 0,
+        "impaired": 0,
+        "online": 2,
+        "transitional": 0,
+        "unknown": 1
+      },
+      "clients": 8,
+      "devicesTotal": 3,
+      "gateways": {
+        "down": 0,
+        "impaired": 0,
+        "online": 1,
+        "transitional": 0,
+        "unknown": 0
+      },
+      "offlineTotal": 0,
+      "switches": {
+        "down": 0,
+        "impaired": 0,
+        "online": 1,
+        "transitional": 0,
+        "unknown": 1
+      }
+    },
+    "gateways": [
+      {
+        "class": "online",
+        "downloadBps": 12000000,
+        "id": "00000000-0000-5000-9000-00000000000a",
+        "model": "UDM-Pro",
+        "name": "UDM Pro",
+        "state": "ONLINE",
+        "uploadBps": 3000000,
+        "uptimeSec": 864000
+      }
+    ],
+    "offlineDevices": [],
+    "site": {
+      "id": "00000000-0000-5000-9000-000000000001",
+      "name": "Home"
+    },
+    "wan": {
+      "downloadBps": 12000000,
+      "status": "up",
+      "uploadBps": 3000000,
+      "uptimeSec": 864000
+    }
+  },
+  "error": null,
+  "meta": {
+    "allowInsecureTls": false,
+    "apiRootHost": "192.168.1.1",
+    "commitGeneration": 7,
+    "customCaInUse": false,
+    "helperVersion": "0.1.0",
+    "siteId": "00000000-0000-5000-9000-000000000001"
+  },
+  "nonce": "b7c1d4e9f2a68035",
+  "observedAt": "2026-01-15T12:00:02Z",
+  "ok": true,
+  "protocolVersion": 1,
+  "warnings": [
+    {
+      "code": "unknown_device_state",
+      "detail": {
+        "deviceId": "00000000-0000-5000-9000-000000000017",
+        "state": "REBOOTING"
+      },
+      "message": "Device reported an unrecognised state: REBOOTING."
+    }
+  ]
+}

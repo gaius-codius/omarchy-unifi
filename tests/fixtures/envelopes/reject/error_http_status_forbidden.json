@@ -1,0 +1,40 @@
+{
+  "batch": {
+    "exitStatus": 1,
+    "launchAt": "2026-01-15T11:58:00Z",
+    "nonce": "b7c1d4e9f2a68035",
+    "receiptAt": "2026-01-15T12:00:03Z"
+  },
+  "envelope": {
+    "attemptedAt": "2026-01-15T12:00:00Z",
+    "data": null,
+    "error": {
+      "httpStatus": 429,
+      "kind": "credential",
+      "message": "x",
+      "retryable": false
+    },
+    "meta": {
+      "allowInsecureTls": false,
+      "apiRootHost": "192.168.1.1",
+      "commitGeneration": 7,
+      "customCaInUse": false,
+      "helperVersion": "0.1.0",
+      "siteId": "00000000-0000-5000-9000-000000000001"
+    },
+    "nonce": "b7c1d4e9f2a68035",
+    "observedAt": null,
+    "ok": false,
+    "protocolVersion": 1,
+    "warnings": []
+  },
+  "id": "error_http_status_forbidden",
+  "neverEmittedBy": "helper",
+  "note": "kind `credential` carrying httpStatus 429. The spec's own example: it is rejected as malformed_response, NOT acted on as a rate limit. Acting on it would let a bad envelope steer the scheduler.",
+  "publishedAs": "malformed_response",
+  "rejectedBy": "service",
+  "rejectionClass": "error_http_status_forbidden",
+  "rule": "DATA-008 / error_http_status_forbidden",
+  "stdout": null,
+  "synthesize": null
+}

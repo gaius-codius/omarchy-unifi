@@ -1,0 +1,84 @@
+{
+  "collection": "devices",
+  "expect": "non_terminal_page_progresses",
+  "id": "non_terminal_page_progresses",
+  "limit": 2,
+  "note": "A middle page is empty while offset < totalCount: premature, and the deliberate twin of accept_empty_collection.",
+  "responses": [
+    {
+      "count": 2,
+      "data": [
+        {
+          "features": [
+            "switching"
+          ],
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "a75eea43-c207-5551-bb42-8c40cb5a2838",
+          "interfaces": [
+            "ports"
+          ],
+          "ipAddress": "192.168.10.239",
+          "macAddress": "02:00:00:00:03:e8",
+          "model": "USW-Lite-8-PoE",
+          "name": "Page 0000",
+          "state": "ONLINE",
+          "supported": true
+        },
+        {
+          "features": [
+            "switching"
+          ],
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "ade50815-9f10-5b7f-8547-d494579bdc68",
+          "interfaces": [
+            "ports"
+          ],
+          "ipAddress": "192.168.10.240",
+          "macAddress": "02:00:00:00:03:e9",
+          "model": "USW-Lite-8-PoE",
+          "name": "Page 0001",
+          "state": "ONLINE",
+          "supported": true
+        }
+      ],
+      "limit": 2,
+      "offset": 0,
+      "totalCount": 5
+    },
+    {
+      "count": 0,
+      "data": [],
+      "limit": 2,
+      "offset": 2,
+      "totalCount": 5
+    },
+    {
+      "count": 1,
+      "data": [
+        {
+          "features": [
+            "switching"
+          ],
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "8444498a-f956-5053-a12a-70b1697724ed",
+          "interfaces": [
+            "ports"
+          ],
+          "ipAddress": "192.168.10.243",
+          "macAddress": "02:00:00:00:03:ec",
+          "model": "USW-Lite-8-PoE",
+          "name": "Page 0004",
+          "state": "ONLINE",
+          "supported": true
+        }
+      ],
+      "limit": 2,
+      "offset": 4,
+      "totalCount": 5
+    }
+  ],
+  "synthesize": null
+}

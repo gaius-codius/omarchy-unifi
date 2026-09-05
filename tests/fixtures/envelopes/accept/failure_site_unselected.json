@@ -1,0 +1,39 @@
+{
+  "attemptedAt": "2026-01-15T12:00:00Z",
+  "data": null,
+  "error": {
+    "kind": "site_unselected",
+    "message": "Several sites are available; choose one.",
+    "retryable": false
+  },
+  "meta": {
+    "allowInsecureTls": false,
+    "apiRootHost": "192.168.1.1",
+    "commitGeneration": 7,
+    "customCaInUse": false,
+    "helperVersion": "0.1.0",
+    "siteId": "00000000-0000-5000-9000-000000000001"
+  },
+  "nonce": "b7c1d4e9f2a68035",
+  "observedAt": null,
+  "ok": false,
+  "protocolVersion": 1,
+  "warnings": [
+    {
+      "code": "sites_discovered",
+      "detail": {
+        "sites": [
+          {
+            "id": "00000000-0000-5000-9000-000000000001",
+            "name": "Home"
+          },
+          {
+            "id": "00000000-0000-5000-9000-000000000002",
+            "name": "Office"
+          }
+        ]
+      },
+      "message": "Several sites are available."
+    }
+  ]
+}

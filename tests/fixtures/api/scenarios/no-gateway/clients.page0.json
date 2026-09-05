@@ -1,0 +1,92 @@
+{
+  "count": 7,
+  "data": [
+    {
+      "access": {
+        "type": "DEFAULT"
+      },
+      "connectedAt": "2026-01-15T12:00:00Z",
+      "id": "ba3ed303-20cd-5d16-80d0-304f15074fba",
+      "ipAddress": "192.168.20.1",
+      "macAddress": "02:00:00:10:00:00",
+      "name": "Client 000",
+      "type": "WIRED",
+      "uplinkDeviceId": "ab612103-aea1-5771-8ba7-140d11e4d864"
+    },
+    {
+      "access": {
+        "type": "DEFAULT"
+      },
+      "connectedAt": "2026-01-15T12:00:00Z",
+      "id": "1db5bb47-d3ad-5a29-92e7-d0d339afa82c",
+      "ipAddress": "192.168.20.2",
+      "macAddress": "02:00:00:10:00:01",
+      "name": "Client 001",
+      "type": "WIRELESS",
+      "uplinkDeviceId": "ab612103-aea1-5771-8ba7-140d11e4d864"
+    },
+    {
+      "access": {
+        "type": "DEFAULT"
+      },
+      "connectedAt": "2026-01-15T12:00:00Z",
+      "id": "f67ea3a4-8146-5463-a681-cca6e62c6327",
+      "ipAddress": "192.168.20.3",
+      "macAddress": "02:00:00:10:00:02",
+      "name": "Client 002",
+      "type": "WIRED",
+      "uplinkDeviceId": "ab612103-aea1-5771-8ba7-140d11e4d864"
+    },
+    {
+      "access": {
+        "type": "DEFAULT"
+      },
+      "connectedAt": "2026-01-15T12:00:00Z",
+      "id": "0ab352fb-cdce-51fa-b455-5906f46640dd",
+      "ipAddress": "192.168.20.4",
+      "macAddress": "02:00:00:10:00:03",
+      "name": "Client 003",
+      "type": "WIRELESS",
+      "uplinkDeviceId": "ab612103-aea1-5771-8ba7-140d11e4d864"
+    },
+    {
+      "access": {
+        "type": "DEFAULT"
+      },
+      "connectedAt": "2026-01-15T12:00:00Z",
+      "id": "53e84de1-b470-5fb8-a6b0-e2696248108f",
+      "ipAddress": "192.168.20.5",
+      "macAddress": "02:00:00:10:00:04",
+      "name": "Client 004",
+      "type": "WIRED",
+      "uplinkDeviceId": "ab612103-aea1-5771-8ba7-140d11e4d864"
+    },
+    {
+      "access": {
+        "type": "DEFAULT"
+      },
+      "connectedAt": "2026-01-15T12:00:00Z",
+      "id": "e94c4c64-bcd8-5486-a2ce-2e774a42efab",
+      "ipAddress": "192.168.20.6",
+      "macAddress": "02:00:00:10:00:05",
+      "name": "Client 005",
+      "type": "WIRELESS",
+      "uplinkDeviceId": "ab612103-aea1-5771-8ba7-140d11e4d864"
+    },
+    {
+      "access": {
+        "type": "DEFAULT"
+      },
+      "connectedAt": "2026-01-15T12:00:00Z",
+      "id": "195504f8-7306-5230-951c-824699c5f3d9",
+      "ipAddress": "192.168.20.7",
+      "macAddress": "02:00:00:10:00:06",
+      "name": "Client 006",
+      "type": "WIRED",
+      "uplinkDeviceId": "ab612103-aea1-5771-8ba7-140d11e4d864"
+    }
+  ],
+  "limit": 200,
+  "offset": 0,
+  "totalCount": 7
+}

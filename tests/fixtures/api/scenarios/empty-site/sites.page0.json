@@ -1,0 +1,13 @@
+{
+  "count": 1,
+  "data": [
+    {
+      "id": "ca63838d-8f4b-5a6c-9454-e6951b200209",
+      "internalReference": "empty-site-0",
+      "name": "Site 1"
+    }
+  ],
+  "limit": 200,
+  "offset": 0,
+  "totalCount": 1
+}

@@ -1,0 +1,831 @@
+{
+  "cases": {
+    "api/pagination/accept_boundary_200": {
+      "enforcedBy": "helper",
+      "invariant": null,
+      "note": "Exactly 200 records: one page filled to the API maximum limit. The terminal page is FULL, so a reader that stops only on a short page loops forever here.",
+      "rule": "DATA-009",
+      "synthesized": false,
+      "verdict": "accept"
+    },
+    "api/pagination/accept_boundary_201": {
+      "enforcedBy": "helper",
+      "invariant": null,
+      "note": "201 records: the first record past the limit, so page two holds exactly one.",
+      "rule": "DATA-009",
+      "synthesized": false,
+      "verdict": "accept"
+    },
+    "api/pagination/accept_empty_collection": {
+      "enforcedBy": "helper",
+      "invariant": null,
+      "note": "A genuinely empty collection: count == 0 AND totalCount == 0, which DATA-009b makes a COMPLETE result. The empty site is exactly the site whose owner is setting the plugin up for the first time.",
+      "rule": "DATA-009",
+      "synthesized": false,
+      "verdict": "accept"
+    },
+    "api/pagination/accept_single_page_25": {
+      "enforcedBy": "helper",
+      "invariant": null,
+      "note": "25 records: one page, at the >25 default-limit boundary.",
+      "rule": "DATA-009",
+      "synthesized": false,
+      "verdict": "accept"
+    },
+    "api/pagination/accept_three_pages_413": {
+      "enforcedBy": "helper",
+      "invariant": null,
+      "note": "413 records over three pages (200 + 200 + 13).",
+      "rule": "DATA-009",
+      "synthesized": false,
+      "verdict": "accept"
+    },
+    "api/pagination/advance_by_validated_count": {
+      "enforcedBy": "helper",
+      "invariant": "advance_by_validated_count",
+      "note": "The response echoes a limit of four when two was requested. Advancing by response arithmetic rather than the validated count skips records.",
+      "rule": "DATA-009 / advance_by_validated_count",
+      "synthesized": false,
+      "verdict": "reject"
+    },
+    "api/pagination/count_equals_data_length": {
+      "enforcedBy": "helper",
+      "invariant": "count_equals_data_length",
+      "note": "count says 1 while data holds 2.",
+      "rule": "DATA-009 / count_equals_data_length",
+      "synthesized": false,
+      "verdict": "reject"
+    },
+    "api/pagination/count_within_limit": {
+      "enforcedBy": "helper",
+      "invariant": "count_within_limit",
+      "note": "A page returns three records for a limit of two.",
+      "rule": "DATA-009 / count_within_limit",
+      "synthesized": false,
+      "verdict": "reject"
+    },
+    "api/pagination/empty_is_valid_not_premature": {
+      "enforcedBy": "helper",
+      "invariant": "empty_is_valid_not_premature",
+      "note": "count == 0 while offset < totalCount. Read together with accept_empty_collection this pair is the whole of DATA-009b; either one alone can be satisfied by a wrong rule.",
+      "rule": "DATA-009 / empty_is_valid_not_premature",
+      "synthesized": false,
+      "verdict": "reject"
+    },
+    "api/pagination/max_decoded_bytes_enforced": {
+      "enforcedBy": "helper",
+      "invariant": "max_decoded_bytes_enforced",
+      "note": "Pages whose accumulated decoded size crosses the 8 MiB per-collection bound before the page count does. Synthesized, as above.",
+      "rule": "DATA-009 / max_decoded_bytes_enforced",
+      "synthesized": true,
+      "verdict": "reject"
+    },
+    "api/pagination/max_pages_enforced": {
+      "enforcedBy": "helper",
+      "invariant": "max_pages_enforced",
+      "note": "65 pages: one past the 64-page bound. A controller that never reports a terminal page must not hang the batch. Synthesized rather than committed — materialising it is 6 MB of near-identical records in a repository that gets cloned into the plugins directory on install.",
+      "rule": "DATA-009 / max_pages_enforced",
+      "synthesized": true,
+      "verdict": "reject"
+    },
+    "api/pagination/non_terminal_page_progresses": {
+      "enforcedBy": "helper",
+      "invariant": "non_terminal_page_progresses",
+      "note": "A middle page is empty while offset < totalCount: premature, and the deliberate twin of accept_empty_collection.",
+      "rule": "DATA-009 / non_terminal_page_progresses",
+      "synthesized": false,
+      "verdict": "reject"
+    },
+    "api/pagination/offset_matches_request": {
+      "enforcedBy": "helper",
+      "invariant": "offset_matches_request",
+      "note": "Page 2 answers with offset 1 for a request at offset 2.",
+      "rule": "DATA-009 / offset_matches_request",
+      "synthesized": false,
+      "verdict": "reject"
+    },
+    "api/pagination/record_ids_unique": {
+      "enforcedBy": "helper",
+      "invariant": "record_ids_unique",
+      "note": "Two records on one page share an id, so accumulation reaches four unique records for a totalCount of five and never terminates.",
+      "rule": "DATA-009 / record_ids_unique",
+      "synthesized": false,
+      "verdict": "reject"
+    },
+    "api/pagination/reread_page_zero_matches": {
+      "enforcedBy": "helper",
+      "invariant": "reread_page_zero_matches",
+      "note": "OFFSET DRIFT AT CONSTANT CARDINALITY. One record is deleted and another appended after page 0 is read, so every later page slides by one and exactly one record is never returned. Offsets, counts, id uniqueness, totalCount stability and terminal completeness ALL still pass. The trailing response is the DATA-009a re-read of page 0, which is the only thing in the contract that catches this.",
+      "rule": "DATA-009 / reread_page_zero_matches",
+      "synthesized": false,
+      "verdict": "reject"
+    },
+    "api/pagination/terminal_completeness": {
+      "enforcedBy": "helper",
+      "invariant": "terminal_completeness",
+      "note": "The collection terminates with fewer unique records accumulated than the terminal totalCount claims.",
+      "rule": "DATA-009 / terminal_completeness",
+      "synthesized": false,
+      "verdict": "reject"
+    },
+    "api/pagination/total_count_non_negative": {
+      "enforcedBy": "helper",
+      "invariant": "total_count_non_negative",
+      "note": "A negative totalCount.",
+      "rule": "DATA-009 / total_count_non_negative",
+      "synthesized": false,
+      "verdict": "reject"
+    },
+    "api/pagination/total_count_stable": {
+      "enforcedBy": "helper",
+      "invariant": "total_count_stable",
+      "note": "totalCount changes between the first page and the last.",
+      "rule": "DATA-009 / total_count_stable",
+      "synthesized": false,
+      "verdict": "reject"
+    },
+    "api/scenarios/all-down": {
+      "enforcedBy": "helper",
+      "note": "Every gateway down. REQ-002 rule 3 (red), which strictly precedes amber.",
+      "rule": "BIZ-004 / REQ-000 / REQ-008a",
+      "schemaDeviation": null,
+      "verdict": "accept"
+    },
+    "api/scenarios/all-states": {
+      "enforcedBy": "helper",
+      "note": "One device in each of the ten API states plus REBOOTING, which is outside the enum and must land in `unknown` with a warning (REQ-000).",
+      "rule": "BIZ-004 / REQ-000 / REQ-008a",
+      "schemaDeviation": "device.state enum relaxed: REBOOTING is deliberately outside the published enum, because REQ-000's `unknown` class has no other way to be exercised.",
+      "verdict": "accept"
+    },
+    "api/scenarios/degraded": {
+      "enforcedBy": "helper",
+      "note": "One down, one impaired, one transitional. REQ-002 rule 4 (amber); the UPDATING AP must NOT contribute.",
+      "rule": "BIZ-004 / REQ-000 / REQ-008a",
+      "schemaDeviation": null,
+      "verdict": "accept"
+    },
+    "api/scenarios/empty-site": {
+      "enforcedBy": "helper",
+      "note": "Zero adopted devices. REQ-002 rule 2 (grey) and UX-005; the page is a VALID empty result, not a premature one (DATA-009b).",
+      "rule": "BIZ-004 / REQ-000 / REQ-008a",
+      "schemaDeviation": null,
+      "verdict": "accept"
+    },
+    "api/scenarios/five-gateways": {
+      "enforcedBy": "helper",
+      "note": "Five gateways: statistics are fetched for at most four (REQ-008a), the fifth listed without metrics plus a warning.",
+      "rule": "BIZ-004 / REQ-000 / REQ-008a",
+      "schemaDeviation": null,
+      "verdict": "accept"
+    },
+    "api/scenarios/healthy": {
+      "enforcedBy": "helper",
+      "note": "Every device online, one gateway. REQ-002 rule 5 (green).",
+      "rule": "BIZ-004 / REQ-000 / REQ-008a",
+      "schemaDeviation": null,
+      "verdict": "accept"
+    },
+    "api/scenarios/large-500-down": {
+      "enforcedBy": "helper",
+      "note": "500 devices, every one down. Three pages at limit 200; the envelope bounds offlineDevices to 10 while offlineTotal stays 500, which is what AC-063's \"and 490 more\" is computed from.",
+      "rule": "BIZ-004 / REQ-000 / REQ-008a",
+      "schemaDeviation": null,
+      "verdict": "accept"
+    },
+    "api/scenarios/multi-feature": {
+      "enforcedBy": "helper",
+      "note": "A Dream Machine reporting all three roles at once, an AP-only device, and a device with an EMPTY features array. byClass must count all three exactly once; the role objects must not sum to devicesTotal.",
+      "rule": "BIZ-004 / REQ-000 / REQ-008a",
+      "schemaDeviation": null,
+      "verdict": "accept"
+    },
+    "api/scenarios/multi-site": {
+      "enforcedBy": "helper",
+      "note": "Several sites and no committed siteId: DATA-012 requires site_unselected with the {id, name} pairs carried in warnings.",
+      "rule": "BIZ-004 / REQ-000 / REQ-008a",
+      "schemaDeviation": null,
+      "verdict": "accept"
+    },
+    "api/scenarios/no-gateway": {
+      "enforcedBy": "helper",
+      "note": "No gateway-featured device: can never be red (rule 3 needs one) and reports wan.status == unknown.",
+      "rule": "BIZ-004 / REQ-000 / REQ-008a",
+      "schemaDeviation": null,
+      "verdict": "accept"
+    },
+    "api/scenarios/two-gateways": {
+      "enforcedBy": "helper",
+      "note": "One ONLINE, one ISOLATED: amber via rule 4, NOT red, and wan.status == degraded.",
+      "rule": "BIZ-004 / REQ-000 / REQ-008a",
+      "schemaDeviation": null,
+      "verdict": "accept"
+    },
+    "api/scenarios/zero-site": {
+      "enforcedBy": "helper",
+      "note": "Zero sites: DATA-012 requires `unsupported`, not an empty success.",
+      "rule": "BIZ-004 / REQ-000 / REQ-008a",
+      "schemaDeviation": null,
+      "verdict": "accept"
+    },
+    "envelopes/accept/failure_configuration_conflict": {
+      "enforcedBy": "service and helper",
+      "errorKind": "configuration_conflict",
+      "note": "DATA-007 kind `configuration_conflict` (fatal class). Protocol-VALID: the consumer must accept it and publish the kind.",
+      "rule": "DATA-005 / DATA-006 / DATA-008",
+      "verdict": "accept"
+    },
+    "envelopes/accept/failure_credential": {
+      "enforcedBy": "service and helper",
+      "errorKind": "credential",
+      "note": "DATA-007 kind `credential` (fatal class). Protocol-VALID: the consumer must accept it and publish the kind.",
+      "rule": "DATA-005 / DATA-006 / DATA-008",
+      "verdict": "accept"
+    },
+    "envelopes/accept/failure_forbidden": {
+      "enforcedBy": "service and helper",
+      "errorKind": "forbidden",
+      "note": "DATA-007 kind `forbidden` (fatal class). Protocol-VALID: the consumer must accept it and publish the kind.",
+      "rule": "DATA-005 / DATA-006 / DATA-008",
+      "verdict": "accept"
+    },
+    "envelopes/accept/failure_helper_unavailable": {
+      "enforcedBy": "service and helper",
+      "errorKind": "helper_unavailable",
+      "note": "DATA-007 kind `helper_unavailable` (fatal class). Protocol-VALID: the consumer must accept it and publish the kind.",
+      "rule": "DATA-005 / DATA-006 / DATA-008",
+      "verdict": "accept"
+    },
+    "envelopes/accept/failure_http_fatal": {
+      "enforcedBy": "service and helper",
+      "errorKind": "http",
+      "note": "DATA-007 kind `http` (see below class), not a transient 5xx, so fatal. Protocol-VALID: the consumer must accept it and publish the kind.",
+      "rule": "DATA-005 / DATA-006 / DATA-008",
+      "verdict": "accept"
+    },
+    "envelopes/accept/failure_http_transient": {
+      "enforcedBy": "service and helper",
+      "errorKind": "http",
+      "note": "DATA-007 kind `http` (see below class), a transient 5xx, so retryable. Protocol-VALID: the consumer must accept it and publish the kind.",
+      "rule": "DATA-005 / DATA-006 / DATA-008",
+      "verdict": "accept"
+    },
+    "envelopes/accept/failure_internal": {
+      "enforcedBy": "service and helper",
+      "errorKind": "internal",
+      "note": "DATA-007 kind `internal` (integrity class). Protocol-VALID: the consumer must accept it and publish the kind.",
+      "rule": "DATA-005 / DATA-006 / DATA-008",
+      "verdict": "accept"
+    },
+    "envelopes/accept/failure_malformed_response": {
+      "enforcedBy": "service and helper",
+      "errorKind": "malformed_response",
+      "note": "DATA-007 kind `malformed_response` (integrity class). Protocol-VALID: the consumer must accept it and publish the kind.",
+      "rule": "DATA-005 / DATA-006 / DATA-008",
+      "verdict": "accept"
+    },
+    "envelopes/accept/failure_network": {
+      "enforcedBy": "service and helper",
+      "errorKind": "network",
+      "note": "DATA-007 kind `network` (transient class). Protocol-VALID: the consumer must accept it and publish the kind.",
+      "rule": "DATA-005 / DATA-006 / DATA-008",
+      "verdict": "accept"
+    },
+    "envelopes/accept/failure_oversized_response": {
+      "enforcedBy": "service and helper",
+      "errorKind": "oversized_response",
+      "note": "DATA-007 kind `oversized_response` (integrity class). Protocol-VALID: the consumer must accept it and publish the kind.",
+      "rule": "DATA-005 / DATA-006 / DATA-008",
+      "verdict": "accept"
+    },
+    "envelopes/accept/failure_partial_response": {
+      "enforcedBy": "service and helper",
+      "errorKind": "partial_response",
+      "note": "DATA-007 kind `partial_response` (integrity class). Protocol-VALID: the consumer must accept it and publish the kind.",
+      "rule": "DATA-005 / DATA-006 / DATA-008",
+      "verdict": "accept"
+    },
+    "envelopes/accept/failure_rate_limited": {
+      "enforcedBy": "service and helper",
+      "errorKind": "rate_limited",
+      "note": "DATA-007 kind `rate_limited` (transient class). Protocol-VALID: the consumer must accept it and publish the kind.",
+      "rule": "DATA-005 / DATA-006 / DATA-008",
+      "verdict": "accept"
+    },
+    "envelopes/accept/failure_redirect": {
+      "enforcedBy": "service and helper",
+      "errorKind": "redirect",
+      "note": "DATA-007 kind `redirect` (integrity class). Protocol-VALID: the consumer must accept it and publish the kind.",
+      "rule": "DATA-005 / DATA-006 / DATA-008",
+      "verdict": "accept"
+    },
+    "envelopes/accept/failure_site_unselected": {
+      "enforcedBy": "service and helper",
+      "errorKind": "site_unselected",
+      "note": "DATA-007 kind `site_unselected` (fatal class). Protocol-VALID: the consumer must accept it and publish the kind.",
+      "rule": "DATA-005 / DATA-006 / DATA-008",
+      "verdict": "accept"
+    },
+    "envelopes/accept/failure_timeout": {
+      "enforcedBy": "service and helper",
+      "errorKind": "timeout",
+      "note": "DATA-007 kind `timeout` (transient class). Protocol-VALID: the consumer must accept it and publish the kind.",
+      "rule": "DATA-005 / DATA-006 / DATA-008",
+      "verdict": "accept"
+    },
+    "envelopes/accept/failure_tls": {
+      "enforcedBy": "service and helper",
+      "errorKind": "tls",
+      "note": "DATA-007 kind `tls` (fatal class). Protocol-VALID: the consumer must accept it and publish the kind.",
+      "rule": "DATA-005 / DATA-006 / DATA-008",
+      "verdict": "accept"
+    },
+    "envelopes/accept/failure_unauthorized": {
+      "enforcedBy": "service and helper",
+      "errorKind": "unauthorized",
+      "note": "DATA-007 kind `unauthorized` (fatal class). Protocol-VALID: the consumer must accept it and publish the kind.",
+      "rule": "DATA-005 / DATA-006 / DATA-008",
+      "verdict": "accept"
+    },
+    "envelopes/accept/failure_uncommitted": {
+      "enforcedBy": "service and helper",
+      "errorKind": "uncommitted",
+      "note": "DATA-007 kind `uncommitted` (fatal class). Protocol-VALID: the consumer must accept it and publish the kind. meta is all-null here because the configuration it derives from is by definition unreadable for this kind (DEV-2).",
+      "rule": "DATA-005 / DATA-006 / DATA-008",
+      "verdict": "accept"
+    },
+    "envelopes/accept/failure_unconfigured": {
+      "enforcedBy": "service and helper",
+      "errorKind": "unconfigured",
+      "note": "DATA-007 kind `unconfigured` (fatal class). Protocol-VALID: the consumer must accept it and publish the kind. meta is all-null here because the configuration it derives from is by definition unreadable for this kind (DEV-2).",
+      "rule": "DATA-005 / DATA-006 / DATA-008",
+      "verdict": "accept"
+    },
+    "envelopes/accept/failure_unsupported": {
+      "enforcedBy": "service and helper",
+      "errorKind": "unsupported",
+      "note": "DATA-007 kind `unsupported` (fatal class). Protocol-VALID: the consumer must accept it and publish the kind.",
+      "rule": "DATA-005 / DATA-006 / DATA-008",
+      "verdict": "accept"
+    },
+    "envelopes/accept/success_500_down_bounded_list": {
+      "enforcedBy": "service and helper",
+      "errorKind": null,
+      "note": "500 devices, every one down. offlineDevices is bounded to 10 by REQ-010 while offlineTotal stays 500, which is what AC-063's \"and 490 more\" is computed from. Computing it from the array length instead would understate an outage by 98%.",
+      "rule": "DATA-005 / DATA-006 / DATA-008",
+      "verdict": "accept"
+    },
+    "envelopes/accept/success_all_gateways_down": {
+      "enforcedBy": "service and helper",
+      "errorKind": null,
+      "note": "REQ-002 rule 3 (red): at least one gateway exists and every gateway is down. Rule 3 strictly precedes rule 4, so the presence of other non-online devices must not downgrade this to amber.",
+      "rule": "DATA-005 / DATA-006 / DATA-008",
+      "verdict": "accept"
+    },
+    "envelopes/accept/success_degraded": {
+      "enforcedBy": "service and helper",
+      "errorKind": null,
+      "note": "REQ-002 rule 4 (amber): one down, one impaired, one transitional. The UPDATING access point must NOT reach rule 4 — transitional is excluded by design, so an updating AP on a healthy site stays out of the amber condition.",
+      "rule": "DATA-005 / DATA-006 / DATA-008",
+      "verdict": "accept"
+    },
+    "envelopes/accept/success_empty_site": {
+      "enforcedBy": "service and helper",
+      "errorKind": null,
+      "note": "REQ-002 rule 2 (grey) and UX-005: zero adopted devices. A complete, successful, empty result — not a failure.",
+      "rule": "DATA-005 / DATA-006 / DATA-008",
+      "verdict": "accept"
+    },
+    "envelopes/accept/success_five_gateways_truncated": {
+      "enforcedBy": "service and helper",
+      "errorKind": null,
+      "note": "Five gateways: REQ-008a fetches statistics for at most four, in primary order. The fifth is listed with null metrics and a warning — a bound on route 4's contribution to the REQ-017 time budget, not a failure.",
+      "rule": "DATA-005 / DATA-006 / DATA-008",
+      "verdict": "accept"
+    },
+    "envelopes/accept/success_healthy": {
+      "enforcedBy": "service and helper",
+      "errorKind": null,
+      "note": "REQ-002 rule 5 (green): one gateway online, everything up.",
+      "rule": "DATA-005 / DATA-006 / DATA-008",
+      "verdict": "accept"
+    },
+    "envelopes/accept/success_insecure_tls": {
+      "enforcedBy": "service and helper",
+      "errorKind": null,
+      "note": "allowInsecureTls in force. UX-009 needs this to reach the panel, and meta is the only channel that can carry it — config.json is helper-only and QML cannot read it.",
+      "rule": "DATA-005 / DATA-006 / DATA-008",
+      "verdict": "accept"
+    },
+    "envelopes/accept/success_meta_all_null": {
+      "enforcedBy": "service and helper",
+      "errorKind": null,
+      "note": "DEV-2: meta present as an object with every field except helperVersion null, on a success envelope. A conditional container would give the validator two rules and the two implementations a shape to disagree about.",
+      "rule": "DATA-005 / DATA-006 / DATA-008",
+      "verdict": "accept"
+    },
+    "envelopes/accept/success_mixed_gateways": {
+      "enforcedBy": "service and helper",
+      "errorKind": null,
+      "note": "One gateway ONLINE and another ISOLATED. Amber via rule 4, NOT red — rule 3 needs EVERY gateway down — and wan.status degraded.",
+      "rule": "DATA-005 / DATA-006 / DATA-008",
+      "verdict": "accept"
+    },
+    "envelopes/accept/success_multi_feature_roles": {
+      "enforcedBy": "service and helper",
+      "errorKind": null,
+      "note": "A Dream Machine reporting gateway + switching + accessPoint at once, an AP-only device, and one with an EMPTY features array. byClass counts three unique devices; the role objects sum to five. They are NOT a partition and are not expected to agree — that contrast is what roleCountsAreNotAPartition tells the panel.",
+      "rule": "DATA-005 / DATA-006 / DATA-008",
+      "verdict": "accept"
+    },
+    "envelopes/accept/success_no_gateway": {
+      "enforcedBy": "service and helper",
+      "errorKind": null,
+      "note": "No gateway-featured device. Rule 3 requires at least one, so this site can NEVER be red however bad it gets; it is judged on rules 4 and 5 alone and reports wan.status == unknown.",
+      "rule": "DATA-005 / DATA-006 / DATA-008",
+      "verdict": "accept"
+    },
+    "envelopes/accept/success_optional_gaps": {
+      "enforcedBy": "service and helper",
+      "errorKind": null,
+      "note": "BIZ-004: every optional collection failed. clients is null, the WAN and gateway metrics are null, and warnings say so — but the batch still SUCCEEDS and still replaces the snapshot. A device health indicator must not be disabled by an unavailable throughput metric.",
+      "rule": "DATA-005 / DATA-006 / DATA-008",
+      "verdict": "accept"
+    },
+    "envelopes/accept/success_transitional_only": {
+      "enforcedBy": "service and helper",
+      "errorKind": null,
+      "note": "Every non-online device is transitional. Rule 4 does not match transitional, so this is GREEN. offlineTotal is 0 and the offline list is empty, because REQ-003 keeps a transitional device out of it entirely.",
+      "rule": "DATA-005 / DATA-006 / DATA-008",
+      "verdict": "accept"
+    },
+    "envelopes/accept/success_unknown_state": {
+      "enforcedBy": "service and helper",
+      "errorKind": null,
+      "note": "A device whose API state is outside the ten-value enum. REQ-000 puts it in `unknown`, which rule 4 DOES match, so this is amber. It is not in offlineTotal, which is down+impaired only — the exact gap that made byClass necessary (DEV-1).",
+      "rule": "DATA-005 / DATA-006 / DATA-008",
+      "verdict": "accept"
+    },
+    "envelopes/reject/attempted_at_future": {
+      "enforcedBy": "service",
+      "note": "attemptedAt is after receipt.",
+      "publishedAs": "malformed_response",
+      "rejectionClass": "attempted_at_future",
+      "rule": "DATA-008 / attempted_at_future",
+      "verdict": "reject"
+    },
+    "envelopes/reject/attempted_at_malformed": {
+      "enforcedBy": "service",
+      "note": "A timezone-less timestamp. Accepting it would silently reinterpret the helper's clock as local time.",
+      "publishedAs": "malformed_response",
+      "rejectionClass": "attempted_at_malformed",
+      "rule": "DATA-008 / attempted_at_malformed",
+      "verdict": "reject"
+    },
+    "envelopes/reject/attempted_at_too_early": {
+      "enforcedBy": "service",
+      "note": "attemptedAt is 40 minutes before service launch. DATA-008a makes this the ONE rejection that re-baselines and retries once, because it is the signature of a laptop resuming with a slow RTC rather than a bad helper. A second consecutive one is a genuine protocol error.",
+      "publishedAs": "malformed_response",
+      "rejectionClass": "attempted_at_too_early",
+      "rule": "DATA-008 / attempted_at_too_early",
+      "verdict": "reject"
+    },
+    "envelopes/reject/bound_exceeded": {
+      "enforcedBy": "service",
+      "note": "A 513-character site name, one past the 512-char string bound.",
+      "publishedAs": "malformed_response",
+      "rejectionClass": "bound_exceeded",
+      "rule": "DATA-008 / bound_exceeded",
+      "verdict": "reject"
+    },
+    "envelopes/reject/byclass_offline_mismatch": {
+      "enforcedBy": "service",
+      "note": "byClass.down + byClass.impaired is 2 while offlineTotal says 0.",
+      "publishedAs": "malformed_response",
+      "rejectionClass": "byclass_offline_mismatch",
+      "rule": "DATA-008 / byclass_offline_mismatch",
+      "verdict": "reject"
+    },
+    "envelopes/reject/byclass_sum_mismatch": {
+      "enforcedBy": "service",
+      "note": "byClass sums to 4 while devicesTotal says 5. Constructed by mutating a valid envelope, because counts() refuses to build it — which is the point: the generator asserts the invariant, so only an explicit mutation can violate it.",
+      "publishedAs": "malformed_response",
+      "rejectionClass": "byclass_sum_mismatch",
+      "rule": "DATA-008 / byclass_sum_mismatch",
+      "verdict": "reject"
+    },
+    "envelopes/reject/data_schema_violation_missing_class": {
+      "enforcedBy": "service",
+      "note": "counts.byClass omits `impaired`. Absence must never be read as zero.",
+      "publishedAs": "malformed_response",
+      "rejectionClass": "data_schema_violation",
+      "rule": "DATA-008 / data_schema_violation",
+      "verdict": "reject"
+    },
+    "envelopes/reject/data_schema_violation_negative": {
+      "enforcedBy": "service",
+      "note": "devicesTotal is negative.",
+      "publishedAs": "malformed_response",
+      "rejectionClass": "data_schema_violation",
+      "rule": "DATA-008 / data_schema_violation",
+      "verdict": "reject"
+    },
+    "envelopes/reject/data_schema_violation_wan_status": {
+      "enforcedBy": "service",
+      "note": "wan.status is \"flapping\", outside the four-value domain.",
+      "publishedAs": "malformed_response",
+      "rejectionClass": "data_schema_violation",
+      "rule": "DATA-008 / data_schema_violation",
+      "verdict": "reject"
+    },
+    "envelopes/reject/envelope_not_object": {
+      "enforcedBy": "service",
+      "note": "The top-level JSON value is an array.",
+      "publishedAs": "malformed_response",
+      "rejectionClass": "envelope_not_object",
+      "rule": "DATA-008 / envelope_not_object",
+      "verdict": "reject"
+    },
+    "envelopes/reject/envelope_unknown_key": {
+      "enforcedBy": "service",
+      "note": "A tenth top-level key. Unknown keys are rejected rather than ignored, so a future protocol cannot be half-read by an old consumer.",
+      "publishedAs": "malformed_response",
+      "rejectionClass": "envelope_unknown_key",
+      "rule": "DATA-008 / envelope_unknown_key",
+      "verdict": "reject"
+    },
+    "envelopes/reject/error_http_status_forbidden": {
+      "enforcedBy": "service",
+      "note": "kind `credential` carrying httpStatus 429. The spec's own example: it is rejected as malformed_response, NOT acted on as a rate limit. Acting on it would let a bad envelope steer the scheduler.",
+      "publishedAs": "malformed_response",
+      "rejectionClass": "error_http_status_forbidden",
+      "rule": "DATA-008 / error_http_status_forbidden",
+      "verdict": "reject"
+    },
+    "envelopes/reject/error_http_status_typed_as_http": {
+      "enforcedBy": "service",
+      "note": "kind `http` carrying 401. DATA-007 requires a received status to keep its TYPED kind, so 401 must be `unauthorized` and never `http`.",
+      "publishedAs": "malformed_response",
+      "rejectionClass": "error_http_status_wrong",
+      "rule": "DATA-008 / error_http_status_wrong",
+      "verdict": "reject"
+    },
+    "envelopes/reject/error_http_status_wrong": {
+      "enforcedBy": "service",
+      "note": "kind `unauthorized` carrying httpStatus 500 instead of 401.",
+      "publishedAs": "malformed_response",
+      "rejectionClass": "error_http_status_wrong",
+      "rule": "DATA-008 / error_http_status_wrong",
+      "verdict": "reject"
+    },
+    "envelopes/reject/error_kind_missing": {
+      "enforcedBy": "service",
+      "note": "error without a kind.",
+      "publishedAs": "malformed_response",
+      "rejectionClass": "error_kind_missing",
+      "rule": "DATA-008 / error_kind_missing",
+      "verdict": "reject"
+    },
+    "envelopes/reject/error_retry_after_forbidden": {
+      "enforcedBy": "service",
+      "note": "kind `timeout` carrying retryAfterSec, which only rate_limited may.",
+      "publishedAs": "malformed_response",
+      "rejectionClass": "error_retry_after_forbidden",
+      "rule": "DATA-008 / error_retry_after_forbidden",
+      "verdict": "reject"
+    },
+    "envelopes/reject/error_retryable_mismatch": {
+      "enforcedBy": "service",
+      "note": "kind `credential` claiming retryable: true. The kind is fatal, so this would turn a permanent misconfiguration into an endless poll.",
+      "publishedAs": "malformed_response",
+      "rejectionClass": "error_retryable_mismatch",
+      "rule": "DATA-008 / error_retryable_mismatch",
+      "verdict": "reject"
+    },
+    "envelopes/reject/failure_data_not_null": {
+      "enforcedBy": "service",
+      "note": "ok: false carrying data.",
+      "publishedAs": "malformed_response",
+      "rejectionClass": "failure_data_not_null",
+      "rule": "DATA-008 / failure_data_not_null",
+      "verdict": "reject"
+    },
+    "envelopes/reject/failure_error_missing": {
+      "enforcedBy": "service",
+      "note": "ok: false with error null.",
+      "publishedAs": "malformed_response",
+      "rejectionClass": "failure_error_missing",
+      "rule": "DATA-008 / failure_error_missing",
+      "verdict": "reject"
+    },
+    "envelopes/reject/failure_exit_zero": {
+      "enforcedBy": "service",
+      "note": "ok: false with exit status 0.",
+      "publishedAs": "malformed_response",
+      "rejectionClass": "failure_exit_zero",
+      "rule": "DATA-008 / failure_exit_zero",
+      "verdict": "reject"
+    },
+    "envelopes/reject/failure_observed_at_not_null": {
+      "enforcedBy": "service",
+      "note": "ok: false carrying observedAt.",
+      "publishedAs": "malformed_response",
+      "rejectionClass": "failure_observed_at_not_null",
+      "rule": "DATA-008 / failure_observed_at_not_null",
+      "verdict": "reject"
+    },
+    "envelopes/reject/meta_helper_version_missing": {
+      "enforcedBy": "service",
+      "note": "meta.helperVersion is null. It is the ONE field DEV-2 does not make nullable.",
+      "publishedAs": "malformed_response",
+      "rejectionClass": "meta_helper_version_missing",
+      "rule": "DATA-008 / meta_helper_version_missing",
+      "verdict": "reject"
+    },
+    "envelopes/reject/meta_missing": {
+      "enforcedBy": "service",
+      "note": "meta is null.",
+      "publishedAs": "malformed_response",
+      "rejectionClass": "meta_missing",
+      "rule": "DATA-008 / meta_missing",
+      "verdict": "reject"
+    },
+    "envelopes/reject/nonce_mismatch": {
+      "enforcedBy": "service",
+      "note": "A well-formed envelope carrying a nonce the service never issued. This is the shape of output from a PREVIOUS service instance after a plugin hot-reload, which an in-memory generation counter cannot detect because the reload reset it (DATA-005a).",
+      "publishedAs": "malformed_response",
+      "rejectionClass": "nonce_mismatch",
+      "rule": "DATA-008 / nonce_mismatch",
+      "verdict": "reject"
+    },
+    "envelopes/reject/nonce_missing": {
+      "enforcedBy": "service",
+      "note": "nonce absent.",
+      "publishedAs": "malformed_response",
+      "rejectionClass": "nonce_missing",
+      "rule": "DATA-008 / nonce_missing",
+      "verdict": "reject"
+    },
+    "envelopes/reject/ok_not_boolean_integer": {
+      "enforcedBy": "service",
+      "note": "ok is the integer 1. Truthiness would accept it; identity must not.",
+      "publishedAs": "malformed_response",
+      "rejectionClass": "ok_not_boolean",
+      "rule": "DATA-008 / ok_not_boolean",
+      "verdict": "reject"
+    },
+    "envelopes/reject/ok_not_boolean_missing": {
+      "enforcedBy": "service",
+      "note": "ok is absent.",
+      "publishedAs": "malformed_response",
+      "rejectionClass": "ok_not_boolean",
+      "rule": "DATA-008 / ok_not_boolean",
+      "verdict": "reject"
+    },
+    "envelopes/reject/ok_not_boolean_string": {
+      "enforcedBy": "service",
+      "note": "ok is the string \"true\".",
+      "publishedAs": "malformed_response",
+      "rejectionClass": "ok_not_boolean",
+      "rule": "DATA-008 / ok_not_boolean",
+      "verdict": "reject"
+    },
+    "envelopes/reject/protocol_version_string": {
+      "enforcedBy": "service",
+      "note": "protocolVersion is the STRING \"1\". It must be the integer.",
+      "publishedAs": "malformed_response",
+      "rejectionClass": "protocol_version_wrong",
+      "rule": "DATA-008 / protocol_version_wrong",
+      "verdict": "reject"
+    },
+    "envelopes/reject/protocol_version_wrong": {
+      "enforcedBy": "service",
+      "note": "protocolVersion is 2.",
+      "publishedAs": "malformed_response",
+      "rejectionClass": "protocol_version_wrong",
+      "rule": "DATA-008 / protocol_version_wrong",
+      "verdict": "reject"
+    },
+    "envelopes/reject/stdout_multiple_values": {
+      "enforcedBy": "service",
+      "note": "Two JSON objects on stdout. A reader taking the first would act on a half-written batch.",
+      "publishedAs": "malformed_response",
+      "rejectionClass": "stdout_multiple_values",
+      "rule": "DATA-008 / stdout_multiple_values",
+      "verdict": "reject"
+    },
+    "envelopes/reject/stdout_not_json": {
+      "enforcedBy": "service",
+      "note": "stdout is not JSON. The likely real cause is a Python traceback, which is exactly the case that must not throw.",
+      "publishedAs": "malformed_response",
+      "rejectionClass": "stdout_not_json",
+      "rule": "DATA-008 / stdout_not_json",
+      "verdict": "reject"
+    },
+    "envelopes/reject/stdout_oversized": {
+      "enforcedBy": "service",
+      "note": "A valid envelope padded past the 256 KiB stdout bound. Synthesized rather than committed so the corpus does not carry a quarter-megabyte file into every user's plugins directory.",
+      "publishedAs": "malformed_response",
+      "rejectionClass": "stdout_oversized",
+      "rule": "DATA-008 / stdout_oversized",
+      "verdict": "reject"
+    },
+    "envelopes/reject/stdout_trailing_garbage": {
+      "enforcedBy": "service",
+      "note": "A valid envelope followed by non-whitespace.",
+      "publishedAs": "malformed_response",
+      "rejectionClass": "stdout_trailing_garbage",
+      "rule": "DATA-008 / stdout_trailing_garbage",
+      "verdict": "reject"
+    },
+    "envelopes/reject/success_data_empty": {
+      "enforcedBy": "service",
+      "note": "ok: true with data: {}. This passed EVERY stated rule in the original spec draft and is why DATA-008 now requires data to satisfy the DATA-006 schema.",
+      "publishedAs": "malformed_response",
+      "rejectionClass": "success_data_empty",
+      "rule": "DATA-008 / success_data_empty",
+      "verdict": "reject"
+    },
+    "envelopes/reject/success_data_missing": {
+      "enforcedBy": "service",
+      "note": "ok: true with data null.",
+      "publishedAs": "malformed_response",
+      "rejectionClass": "success_data_missing",
+      "rule": "DATA-008 / success_data_missing",
+      "verdict": "reject"
+    },
+    "envelopes/reject/success_error_not_null": {
+      "enforcedBy": "service",
+      "note": "ok: true with a populated error.",
+      "publishedAs": "malformed_response",
+      "rejectionClass": "success_error_not_null",
+      "rule": "DATA-008 / success_error_not_null",
+      "verdict": "reject"
+    },
+    "envelopes/reject/success_exit_nonzero": {
+      "enforcedBy": "service",
+      "note": "ok: true paired with a non-zero exit status.",
+      "publishedAs": "malformed_response",
+      "rejectionClass": "success_exit_nonzero",
+      "rule": "DATA-008 / success_exit_nonzero",
+      "verdict": "reject"
+    },
+    "envelopes/reject/success_observed_at_missing": {
+      "enforcedBy": "service",
+      "note": "ok: true with observedAt null.",
+      "publishedAs": "malformed_response",
+      "rejectionClass": "success_observed_at_missing",
+      "rule": "DATA-008 / success_observed_at_missing",
+      "verdict": "reject"
+    },
+    "envelopes/reject/success_observed_at_unordered": {
+      "enforcedBy": "service",
+      "note": "observedAt precedes attemptedAt.",
+      "publishedAs": "malformed_response",
+      "rejectionClass": "success_observed_at_unordered",
+      "rule": "DATA-008 / success_observed_at_unordered",
+      "verdict": "reject"
+    },
+    "envelopes/reject/warning_shape_invalid": {
+      "enforcedBy": "service",
+      "note": "A warning is a bare string. The panel would have to parse prose, and DATA-012's {id, name} site pairs could not be carried at all.",
+      "publishedAs": "malformed_response",
+      "rejectionClass": "warning_shape_invalid",
+      "rule": "DATA-008 / warning_shape_invalid",
+      "verdict": "reject"
+    },
+    "envelopes/reject/warnings_not_array": {
+      "enforcedBy": "service",
+      "note": "warnings is null rather than an empty array.",
+      "publishedAs": "malformed_response",
+      "rejectionClass": "warnings_not_array",
+      "rule": "DATA-008 / warnings_not_array",
+      "verdict": "reject"
+    }
+  },
+  "contracts": {
+    "api": "docs/feature-specs/omarchy-unifi-plugin/api-contract.md",
+    "protocol": "docs/protocol-v1.md"
+  },
+  "coverage": {
+    "accept": 51,
+    "errorKinds": 19,
+    "reject": 55,
+    "rejectEnforcedByHelper": 13,
+    "rejectEnforcedByService": 42,
+    "rejectionClasses": 36,
+    "total": 106
+  },
+  "generatedBy": "tests/tools/gen_index.py",
+  "privacy": {
+    "ipv4": "RFC1918 only: 192.168.10.0/24 for devices, 192.168.20.0/24 for clients.",
+    "macs": "02:00:00:xx:xx:xx only. The 0x02 first octet sets the locally-administered bit, which by IEEE 802 definition means the address belongs to no assigned OUI.",
+    "rule": "SEC-011 / AC-059",
+    "uuids": "uuid5 under a namespace derived from fixtures.omarchy-unifi.invalid (RFC 2606 reserves .invalid, so it can never be a real host). tests/test_fixtures.py regenerates and compares rather than pattern-matching, so this is proof and not a heuristic."
+  },
+  "regenerate": [
+    "python3 -B tests/tools/gen_fixtures.py",
+    "python3 -B tests/tools/gen_envelopes.py",
+    "python3 -B tests/tools/gen_index.py"
+  ]
+}

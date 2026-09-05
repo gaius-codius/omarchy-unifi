@@ -1,0 +1,61 @@
+{
+  "count": 3,
+  "data": [
+    {
+      "features": [
+        "gateway",
+        "switching"
+      ],
+      "firmwareUpdatable": false,
+      "firmwareVersion": "9.1.0",
+      "id": "140d6676-08f6-5cbd-806a-bff7222ccc5d",
+      "interfaces": [
+        "ports"
+      ],
+      "ipAddress": "192.168.10.2",
+      "macAddress": "02:00:00:00:00:01",
+      "model": "UDM-Pro",
+      "name": "Gw 1",
+      "state": "ONLINE",
+      "supported": true
+    },
+    {
+      "features": [
+        "gateway",
+        "switching"
+      ],
+      "firmwareUpdatable": false,
+      "firmwareVersion": "9.1.0",
+      "id": "47c53529-88cc-5d8b-9d2e-d15c8d965691",
+      "interfaces": [
+        "ports"
+      ],
+      "ipAddress": "192.168.10.3",
+      "macAddress": "02:00:00:00:00:02",
+      "model": "UXG-Pro",
+      "name": "Gw 2",
+      "state": "ISOLATED",
+      "supported": true
+    },
+    {
+      "features": [
+        "switching"
+      ],
+      "firmwareUpdatable": false,
+      "firmwareVersion": "9.1.0",
+      "id": "ab612103-aea1-5771-8ba7-140d11e4d864",
+      "interfaces": [
+        "ports"
+      ],
+      "ipAddress": "192.168.10.4",
+      "macAddress": "02:00:00:00:00:03",
+      "model": "USW-Lite-8-PoE",
+      "name": "Switch 1",
+      "state": "ONLINE",
+      "supported": true
+    }
+  ],
+  "limit": 200,
+  "offset": 0,
+  "totalCount": 3
+}

@@ -1,0 +1,23 @@
+{
+  "count": 3,
+  "data": [
+    {
+      "id": "a5a3050a-c02d-5ada-991e-a133f79b81a4",
+      "internalReference": "multi-site-0",
+      "name": "Site 1"
+    },
+    {
+      "id": "6a57bb62-0c04-5634-86ce-84aa2c3842f3",
+      "internalReference": "multi-site-1",
+      "name": "Site 2"
+    },
+    {
+      "id": "f5952b78-c346-5310-87bc-159b4831d464",
+      "internalReference": "multi-site-2",
+      "name": "Site 3"
+    }
+  ],
+  "limit": 200,
+  "offset": 0,
+  "totalCount": 3
+}

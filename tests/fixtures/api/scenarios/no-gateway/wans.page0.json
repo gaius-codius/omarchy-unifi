@@ -1,0 +1,12 @@
+{
+  "count": 1,
+  "data": [
+    {
+      "id": "2fcb18c5-97fd-5756-9350-069155702eaf",
+      "name": "Internet 1"
+    }
+  ],
+  "limit": 200,
+  "offset": 0,
+  "totalCount": 1
+}

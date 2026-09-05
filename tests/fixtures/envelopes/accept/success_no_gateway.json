@@ -1,0 +1,73 @@
+{
+  "attemptedAt": "2026-01-15T12:00:00Z",
+  "data": {
+    "applicationVersion": "9.1.0",
+    "counts": {
+      "accessPoints": {
+        "down": 1,
+        "impaired": 0,
+        "online": 0,
+        "transitional": 0,
+        "unknown": 0
+      },
+      "byClass": {
+        "down": 1,
+        "impaired": 0,
+        "online": 1,
+        "transitional": 0,
+        "unknown": 0
+      },
+      "clients": 7,
+      "devicesTotal": 2,
+      "gateways": {
+        "down": 0,
+        "impaired": 0,
+        "online": 0,
+        "transitional": 0,
+        "unknown": 0
+      },
+      "offlineTotal": 1,
+      "switches": {
+        "down": 0,
+        "impaired": 0,
+        "online": 1,
+        "transitional": 0,
+        "unknown": 0
+      }
+    },
+    "gateways": [],
+    "offlineDevices": [
+      {
+        "class": "down",
+        "id": "00000000-0000-5000-9000-000000000016",
+        "model": "U6-Pro",
+        "name": "Attic AP",
+        "state": "OFFLINE"
+      }
+    ],
+    "site": {
+      "id": "00000000-0000-5000-9000-000000000001",
+      "name": "Switch Closet"
+    },
+    "wan": {
+      "downloadBps": null,
+      "status": "unknown",
+      "uploadBps": null,
+      "uptimeSec": null
+    }
+  },
+  "error": null,
+  "meta": {
+    "allowInsecureTls": false,
+    "apiRootHost": "192.168.1.1",
+    "commitGeneration": 7,
+    "customCaInUse": false,
+    "helperVersion": "0.1.0",
+    "siteId": "00000000-0000-5000-9000-000000000001"
+  },
+  "nonce": "b7c1d4e9f2a68035",
+  "observedAt": "2026-01-15T12:00:02Z",
+  "ok": true,
+  "protocolVersion": 1,
+  "warnings": []
+}

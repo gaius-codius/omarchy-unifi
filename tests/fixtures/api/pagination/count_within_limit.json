@@ -1,0 +1,136 @@
+{
+  "collection": "devices",
+  "expect": "count_within_limit",
+  "id": "count_within_limit",
+  "limit": 2,
+  "note": "A page returns three records for a limit of two.",
+  "responses": [
+    {
+      "count": 3,
+      "data": [
+        {
+          "features": [
+            "switching"
+          ],
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "a75eea43-c207-5551-bb42-8c40cb5a2838",
+          "interfaces": [
+            "ports"
+          ],
+          "ipAddress": "192.168.10.239",
+          "macAddress": "02:00:00:00:03:e8",
+          "model": "USW-Lite-8-PoE",
+          "name": "Page 0000",
+          "state": "ONLINE",
+          "supported": true
+        },
+        {
+          "features": [
+            "switching"
+          ],
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "ade50815-9f10-5b7f-8547-d494579bdc68",
+          "interfaces": [
+            "ports"
+          ],
+          "ipAddress": "192.168.10.240",
+          "macAddress": "02:00:00:00:03:e9",
+          "model": "USW-Lite-8-PoE",
+          "name": "Page 0001",
+          "state": "ONLINE",
+          "supported": true
+        },
+        {
+          "features": [
+            "switching"
+          ],
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "125d589d-85d4-5a9a-94b2-9fcd6ed9967e",
+          "interfaces": [
+            "ports"
+          ],
+          "ipAddress": "192.168.10.241",
+          "macAddress": "02:00:00:00:03:ea",
+          "model": "USW-Lite-8-PoE",
+          "name": "Page 0002",
+          "state": "ONLINE",
+          "supported": true
+        }
+      ],
+      "limit": 2,
+      "offset": 0,
+      "totalCount": 5
+    },
+    {
+      "count": 2,
+      "data": [
+        {
+          "features": [
+            "switching"
+          ],
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "125d589d-85d4-5a9a-94b2-9fcd6ed9967e",
+          "interfaces": [
+            "ports"
+          ],
+          "ipAddress": "192.168.10.241",
+          "macAddress": "02:00:00:00:03:ea",
+          "model": "USW-Lite-8-PoE",
+          "name": "Page 0002",
+          "state": "ONLINE",
+          "supported": true
+        },
+        {
+          "features": [
+            "switching"
+          ],
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "c33683eb-50af-542f-98fd-da995979c280",
+          "interfaces": [
+            "ports"
+          ],
+          "ipAddress": "192.168.10.242",
+          "macAddress": "02:00:00:00:03:eb",
+          "model": "USW-Lite-8-PoE",
+          "name": "Page 0003",
+          "state": "ONLINE",
+          "supported": true
+        }
+      ],
+      "limit": 2,
+      "offset": 2,
+      "totalCount": 5
+    },
+    {
+      "count": 1,
+      "data": [
+        {
+          "features": [
+            "switching"
+          ],
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "8444498a-f956-5053-a12a-70b1697724ed",
+          "interfaces": [
+            "ports"
+          ],
+          "ipAddress": "192.168.10.243",
+          "macAddress": "02:00:00:00:03:ec",
+          "model": "USW-Lite-8-PoE",
+          "name": "Page 0004",
+          "state": "ONLINE",
+          "supported": true
+        }
+      ],
+      "limit": 2,
+      "offset": 4,
+      "totalCount": 5
+    }
+  ],
+  "synthesize": null
+}

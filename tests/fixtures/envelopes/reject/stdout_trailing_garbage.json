@@ -1,0 +1,18 @@
+{
+  "batch": {
+    "exitStatus": 0,
+    "launchAt": "2026-01-15T11:58:00Z",
+    "nonce": "b7c1d4e9f2a68035",
+    "receiptAt": "2026-01-15T12:00:03Z"
+  },
+  "envelope": null,
+  "id": "stdout_trailing_garbage",
+  "neverEmittedBy": "helper",
+  "note": "A valid envelope followed by non-whitespace.",
+  "publishedAs": "malformed_response",
+  "rejectedBy": "service",
+  "rejectionClass": "stdout_trailing_garbage",
+  "rule": "DATA-008 / stdout_trailing_garbage",
+  "stdout": "{\"protocolVersion\": 1, \"ok\": true, \"nonce\": \"b7c1d4e9f2a68035\", \"attemptedAt\": \"2026-01-15T12:00:00Z\", \"observedAt\": \"2026-01-15T12:00:02Z\", \"meta\": {\"commitGeneration\": 7, \"apiRootHost\": \"192.168.1.1\", \"siteId\": \"00000000-0000-5000-9000-000000000001\", \"allowInsecureTls\": false, \"customCaInUse\": false, \"helperVersion\": \"0.1.0\"}, \"data\": {\"site\": {\"id\": \"00000000-0000-5000-9000-000000000001\", \"name\": \"Home\"}, \"wan\": {\"status\": \"up\", \"uptimeSec\": 864000, \"downloadBps\": 12000000, \"uploadBps\": 3000000}, \"gateways\": [{\"id\": \"00000000-0000-5000-9000-00000000000a\", \"name\": \"UDM Pro\", \"model\": \"UDM-Pro\", \"state\": \"ONLINE\", \"class\": \"online\", \"uptimeSec\": 864000, \"downloadBps\": 12000000, \"uploadBps\": 3000000}], \"counts\": {\"clients\": 42, \"devicesTotal\": 5, \"offlineTotal\": 0, \"byClass\": {\"online\": 5, \"transitional\": 0, \"down\": 0, \"impaired\": 0, \"unknown\": 0}, \"gateways\": {\"online\": 1, \"transitional\": 0, \"down\": 0, \"impaired\": 0, \"unknown\": 0}, \"switches\": {\"online\": 2, \"transitional\": 0, \"down\": 0, \"impaired\": 0, \"unknown\": 0}, \"accessPoints\": {\"online\": 2, \"transitional\": 0, \"down\": 0, \"impaired\": 0, \"unknown\": 0}}, \"offlineDevices\": [], \"applicationVersion\": \"9.1.0\"}, \"warnings\": [], \"error\": null} oops\n",
+  "synthesize": null
+}

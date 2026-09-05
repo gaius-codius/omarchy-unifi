@@ -1,0 +1,115 @@
+{
+  "count": 6,
+  "data": [
+    {
+      "features": [
+        "gateway",
+        "switching"
+      ],
+      "firmwareUpdatable": false,
+      "firmwareVersion": "9.1.0",
+      "id": "140d6676-08f6-5cbd-806a-bff7222ccc5d",
+      "interfaces": [
+        "ports"
+      ],
+      "ipAddress": "192.168.10.2",
+      "macAddress": "02:00:00:00:00:01",
+      "model": "UDM-Pro",
+      "name": "Gw 1",
+      "state": "ONLINE",
+      "supported": true
+    },
+    {
+      "features": [
+        "gateway",
+        "switching"
+      ],
+      "firmwareUpdatable": false,
+      "firmwareVersion": "9.1.0",
+      "id": "47c53529-88cc-5d8b-9d2e-d15c8d965691",
+      "interfaces": [
+        "ports"
+      ],
+      "ipAddress": "192.168.10.3",
+      "macAddress": "02:00:00:00:00:02",
+      "model": "UDM-Pro",
+      "name": "Gw 2",
+      "state": "ONLINE",
+      "supported": true
+    },
+    {
+      "features": [
+        "gateway",
+        "switching"
+      ],
+      "firmwareUpdatable": false,
+      "firmwareVersion": "9.1.0",
+      "id": "b8028173-5c97-5682-bb49-cea8c08122fd",
+      "interfaces": [
+        "ports"
+      ],
+      "ipAddress": "192.168.10.4",
+      "macAddress": "02:00:00:00:00:03",
+      "model": "UDM-Pro",
+      "name": "Gw 3",
+      "state": "ONLINE",
+      "supported": true
+    },
+    {
+      "features": [
+        "gateway",
+        "switching"
+      ],
+      "firmwareUpdatable": false,
+      "firmwareVersion": "9.1.0",
+      "id": "83a8f994-a402-55d0-89d5-a1a5937be8e6",
+      "interfaces": [
+        "ports"
+      ],
+      "ipAddress": "192.168.10.5",
+      "macAddress": "02:00:00:00:00:04",
+      "model": "UDM-Pro",
+      "name": "Gw 4",
+      "state": "ONLINE",
+      "supported": true
+    },
+    {
+      "features": [
+        "gateway",
+        "switching"
+      ],
+      "firmwareUpdatable": false,
+      "firmwareVersion": "9.1.0",
+      "id": "6ad37e61-e4f2-5738-9a83-525ae3e6f168",
+      "interfaces": [
+        "ports"
+      ],
+      "ipAddress": "192.168.10.6",
+      "macAddress": "02:00:00:00:00:05",
+      "model": "UDM-Pro",
+      "name": "Gw 5",
+      "state": "ONLINE",
+      "supported": true
+    },
+    {
+      "features": [
+        "accessPoint"
+      ],
+      "firmwareUpdatable": false,
+      "firmwareVersion": "9.1.0",
+      "id": "25022792-c586-561b-842e-953d6fe0ca58",
+      "interfaces": [
+        "radios"
+      ],
+      "ipAddress": "192.168.10.7",
+      "macAddress": "02:00:00:00:00:06",
+      "model": "U6-Pro",
+      "name": "Ap 1",
+      "state": "ONLINE",
+      "supported": true
+    }
+  ],
+  "limit": 200,
+  "offset": 0,
+  "totalCount": 6
+}

@@ -89,6 +89,18 @@ function report(label, missing, total) {
 // A term is covered if a test file mentions it verbatim. Deliberately crude:
 // the point is to notice a DELETED case, and a term that appears nowhere in
 // any test file certainly has no test.
+//
+// TRAP FOR PHASES 4 AND 5. The natural way to consume the fixture corpus is a
+// TABLE-DRIVEN test that reads tests/fixtures/ and loops. Written that way, the
+// case names live in fixture FILENAMES and never appear in the test source — so
+// this check would report gaps for cases that are in fact fully covered, and the
+// obvious response would be to weaken or delete it.
+//
+// Do neither. Have the table-driven suite name each subtest after its case
+// (`test(\`rejects ${c.id}\`, ...)` / `with self.subTest(case=c["id"])`) and
+// additionally write the executed case ids to a small manifest this test reads.
+// AC-072 asks for a NAMED, EXECUTING test per case, and a generated subtest name
+// satisfies that — but only if the name reaches this check.
 function uncovered(terms, text) {
   return terms.filter((t) => !text.includes(t))
 }

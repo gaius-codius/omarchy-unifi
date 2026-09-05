@@ -1,0 +1,21 @@
+{
+  "batch": {
+    "exitStatus": 0,
+    "launchAt": "2026-01-15T11:58:00Z",
+    "nonce": "b7c1d4e9f2a68035",
+    "receiptAt": "2026-01-15T12:00:03Z"
+  },
+  "envelope": null,
+  "id": "stdout_oversized",
+  "neverEmittedBy": "helper",
+  "note": "A valid envelope padded past the 256 KiB stdout bound. Synthesized rather than committed so the corpus does not carry a quarter-megabyte file into every user's plugins directory.",
+  "publishedAs": "malformed_response",
+  "rejectedBy": "service",
+  "rejectionClass": "stdout_oversized",
+  "rule": "DATA-008 / stdout_oversized",
+  "stdout": null,
+  "synthesize": {
+    "bytes": 262145,
+    "kind": "padded_success"
+  }
+}

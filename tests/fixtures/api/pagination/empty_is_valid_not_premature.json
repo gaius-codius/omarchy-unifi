@@ -1,0 +1,17 @@
+{
+  "collection": "devices",
+  "expect": "empty_is_valid_not_premature",
+  "id": "empty_is_valid_not_premature",
+  "limit": 2,
+  "note": "count == 0 while offset < totalCount. Read together with accept_empty_collection this pair is the whole of DATA-009b; either one alone can be satisfied by a wrong rule.",
+  "responses": [
+    {
+      "count": 0,
+      "data": [],
+      "limit": 2,
+      "offset": 0,
+      "totalCount": 5
+    }
+  ],
+  "synthesize": null
+}

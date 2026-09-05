@@ -1,0 +1,13 @@
+{
+  "count": 1,
+  "data": [
+    {
+      "id": "7ff47b3f-e0c2-5ba2-88c6-c099998a41e0",
+      "internalReference": "two-gateways-0",
+      "name": "Site 1"
+    }
+  ],
+  "limit": 200,
+  "offset": 0,
+  "totalCount": 1
+}

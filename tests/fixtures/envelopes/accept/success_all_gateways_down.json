@@ -1,0 +1,98 @@
+{
+  "attemptedAt": "2026-01-15T12:00:00Z",
+  "data": {
+    "applicationVersion": "9.1.0",
+    "counts": {
+      "accessPoints": {
+        "down": 1,
+        "impaired": 0,
+        "online": 0,
+        "transitional": 0,
+        "unknown": 0
+      },
+      "byClass": {
+        "down": 3,
+        "impaired": 0,
+        "online": 0,
+        "transitional": 0,
+        "unknown": 0
+      },
+      "clients": 0,
+      "devicesTotal": 3,
+      "gateways": {
+        "down": 1,
+        "impaired": 0,
+        "online": 0,
+        "transitional": 0,
+        "unknown": 0
+      },
+      "offlineTotal": 3,
+      "switches": {
+        "down": 1,
+        "impaired": 0,
+        "online": 0,
+        "transitional": 0,
+        "unknown": 0
+      }
+    },
+    "gateways": [
+      {
+        "class": "down",
+        "downloadBps": null,
+        "id": "00000000-0000-5000-9000-00000000000a",
+        "model": "UDM-Pro",
+        "name": "UDM Pro",
+        "state": "OFFLINE",
+        "uploadBps": null,
+        "uptimeSec": null
+      }
+    ],
+    "offlineDevices": [
+      {
+        "class": "down",
+        "id": "00000000-0000-5000-9000-00000000000a",
+        "model": "UDM-Pro",
+        "name": "UDM Pro",
+        "state": "OFFLINE"
+      },
+      {
+        "class": "down",
+        "id": "00000000-0000-5000-9000-000000000015",
+        "model": "USW-Lite-8-PoE",
+        "name": "Garage Switch",
+        "state": "OFFLINE"
+      },
+      {
+        "class": "down",
+        "id": "00000000-0000-5000-9000-000000000016",
+        "model": "U6-Pro",
+        "name": "Attic AP",
+        "state": "OFFLINE"
+      }
+    ],
+    "site": {
+      "id": "00000000-0000-5000-9000-000000000001",
+      "name": "Home"
+    },
+    "wan": {
+      "downloadBps": null,
+      "status": "down",
+      "uploadBps": null,
+      "uptimeSec": null
+    }
+  },
+  "error": null,
+  "meta": {
+    "allowInsecureTls": false,
+    "apiRootHost": "192.168.1.1",
+    "commitGeneration": 7,
+    "customCaInUse": false,
+    "helperVersion": "0.1.0",
+    "siteId": "00000000-0000-5000-9000-000000000001"
+  },
+  "nonce": "b7c1d4e9f2a68035",
+  "observedAt": "2026-01-15T12:00:02Z",
+  "ok": true,
+  "protocolVersion": 1,
+  "warnings": []
+}

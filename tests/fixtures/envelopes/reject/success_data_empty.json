@@ -1,0 +1,35 @@
+{
+  "batch": {
+    "exitStatus": 0,
+    "launchAt": "2026-01-15T11:58:00Z",
+    "nonce": "b7c1d4e9f2a68035",
+    "receiptAt": "2026-01-15T12:00:03Z"
+  },
+  "envelope": {
+    "attemptedAt": "2026-01-15T12:00:00Z",
+    "data": {},
+    "error": null,
+    "meta": {
+      "allowInsecureTls": false,
+      "apiRootHost": "192.168.1.1",
+      "commitGeneration": 7,
+      "customCaInUse": false,
+      "helperVersion": "0.1.0",
+      "siteId": "00000000-0000-5000-9000-000000000001"
+    },
+    "nonce": "b7c1d4e9f2a68035",
+    "observedAt": "2026-01-15T12:00:02Z",
+    "ok": true,
+    "protocolVersion": 1,
+    "warnings": []
+  },
+  "id": "success_data_empty",
+  "neverEmittedBy": "helper",
+  "note": "ok: true with data: {}. This passed EVERY stated rule in the original spec draft and is why DATA-008 now requires data to satisfy the DATA-006 schema.",
+  "publishedAs": "malformed_response",
+  "rejectedBy": "service",
+  "rejectionClass": "success_data_empty",
+  "rule": "DATA-008 / success_data_empty",
+  "stdout": null,
+  "synthesize": null
+}

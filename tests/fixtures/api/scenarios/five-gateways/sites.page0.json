@@ -1,0 +1,13 @@
+{
+  "count": 1,
+  "data": [
+    {
+      "id": "2651b92b-0608-5ac0-8b27-258d874a53f2",
+      "internalReference": "five-gateways-0",
+      "name": "Site 1"
+    }
+  ],
+  "limit": 200,
+  "offset": 0,
+  "totalCount": 1
+}

@@ -1,0 +1,10 @@
+{
+  "interfaces": {
+    "radios": []
+  },
+  "uplink": {
+    "rxRateBps": 12004000,
+    "txRateBps": 3004000
+  },
+  "uptimeSec": 878400
+}

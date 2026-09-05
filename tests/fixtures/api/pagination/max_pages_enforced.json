@@ -1,0 +1,13 @@
+{
+  "collection": "devices",
+  "expect": "max_pages_enforced",
+  "id": "max_pages_enforced",
+  "limit": 200,
+  "note": "65 pages: one past the 64-page bound. A controller that never reports a terminal page must not hang the batch. Synthesized rather than committed — materialising it is 6 MB of near-identical records in a repository that gets cloned into the plugins directory on install.",
+  "responses": null,
+  "synthesize": {
+    "pages": 65,
+    "recordsPerPage": 200,
+    "totalCount": 100000
+  }
+}

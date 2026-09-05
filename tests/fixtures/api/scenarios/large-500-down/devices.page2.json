@@ -1,0 +1,1708 @@
+{
+  "count": 100,
+  "data": [
+    {
+      "features": [
+        "switching"
+      ],
+      "firmwareUpdatable": false,
+      "firmwareVersion": "9.1.0",
+      "id": "8290a8cf-f0c2-505b-9117-fbd8178855a4",
+      "interfaces": [
+        "ports"
+      ],
+      "ipAddress": "192.168.10.247",
+      "macAddress": "02:00:00:00:01:f4",
+      "model": "USW-Lite-8-PoE",
+      "name": "Bulk 400",
+      "state": "OFFLINE",
+      "supported": true
+    },
+    {
+      "features": [
+        "switching"
+      ],
+      "firmwareUpdatable": false,
+      "firmwareVersion": "9.1.0",
+      "id": "59a3f096-bf4f-5a56-8391-ec029e58cc00",
+      "interfaces": [
+        "ports"
+      ],
+      "ipAddress": "192.168.10.248",
+      "macAddress": "02:00:00:00:01:f5",
+      "model": "USW-Lite-8-PoE",
+      "name": "Bulk 401",
+      "state": "OFFLINE",
+      "supported": true
+    },
+    {
+      "features": [
+        "switching"
+      ],
+      "firmwareUpdatable": false,
+      "firmwareVersion": "9.1.0",
+      "id": "0dd652dc-bfae-596d-8a3b-2a30062e2be5",
+      "interfaces": [
+        "ports"
+      ],
+      "ipAddress": "192.168.10.249",
+      "macAddress": "02:00:00:00:01:f6",
+      "model": "USW-Lite-8-PoE",
+      "name": "Bulk 402",
+      "state": "OFFLINE",
+      "supported": true
+    },
+    {
+      "features": [
+        "switching"
+      ],
+      "firmwareUpdatable": false,
+      "firmwareVersion": "9.1.0",
+      "id": "3765e222-f03f-5e7c-818c-299d08ada941",
+      "interfaces": [
+        "ports"
+      ],
+      "ipAddress": "192.168.10.250",
+      "macAddress": "02:00:00:00:01:f7",
+      "model": "USW-Lite-8-PoE",
+      "name": "Bulk 403",
+      "state": "OFFLINE",
+      "supported": true
+    },
+    {
+      "features": [
+        "switching"
+      ],
+      "firmwareUpdatable": false,
+      "firmwareVersion": "9.1.0",
+      "id": "e79442f7-c480-5c87-93f1-7b69c02842ed",
+      "interfaces": [
+        "ports"
+      ],
+      "ipAddress": "192.168.10.251",
+      "macAddress": "02:00:00:00:01:f8",
+      "model": "USW-Lite-8-PoE",
+      "name": "Bulk 404",
+      "state": "OFFLINE",
+      "supported": true
+    },
+    {
+      "features": [
+        "switching"
+      ],
+      "firmwareUpdatable": false,
+      "firmwareVersion": "9.1.0",
+      "id": "173a8e89-963a-5657-a73e-360b1a2b0844",
+      "interfaces": [
+        "ports"
+      ],
+      "ipAddress": "192.168.10.252",
+      "macAddress": "02:00:00:00:01:f9",
+      "model": "USW-Lite-8-PoE",
+      "name": "Bulk 405",
+      "state": "OFFLINE",
+      "supported": true
+    },
+    {
+      "features": [
+        "switching"
+      ],
+      "firmwareUpdatable": false,
+      "firmwareVersion": "9.1.0",
+      "id": "5d4054df-979a-5f48-a86d-d66fc4d72165",
+      "interfaces": [
+        "ports"
+      ],
+      "ipAddress": "192.168.10.253",
+      "macAddress": "02:00:00:00:01:fa",
+      "model": "USW-Lite-8-PoE",
+      "name": "Bulk 406",
+      "state": "OFFLINE",
+      "supported": true
+    },
+    {
+      "features": [
+        "switching"
+      ],
+      "firmwareUpdatable": false,
+      "firmwareVersion": "9.1.0",
+      "id": "5a8e1a21-9e97-5802-81af-6daff5add684",
+      "interfaces": [
+        "ports"
+      ],
+      "ipAddress": "192.168.10.254",
+      "macAddress": "02:00:00:00:01:fb",
+      "model": "USW-Lite-8-PoE",
+      "name": "Bulk 407",
+      "state": "OFFLINE",
+      "supported": true
+    },
+    {
+      "features": [
+        "switching"
+      ],
+      "firmwareUpdatable": false,
+      "firmwareVersion": "9.1.0",
+      "id": "ebe18ca4-b97c-5af4-af08-30f81fe9f53c",
+      "interfaces": [
+        "ports"
+      ],
+      "ipAddress": "192.168.10.1",
+      "macAddress": "02:00:00:00:01:fc",
+      "model": "USW-Lite-8-PoE",
+      "name": "Bulk 408",
+      "state": "OFFLINE",
+      "supported": true
+    },
+    {
+      "features": [
+        "switching"
+      ],
+      "firmwareUpdatable": false,
+      "firmwareVersion": "9.1.0",
+      "id": "5ec04798-2dee-5fa0-955f-f5b4c07356db",
+      "interfaces": [
+        "ports"
+      ],
+      "ipAddress": "192.168.10.2",
+      "macAddress": "02:00:00:00:01:fd",
+      "model": "USW-Lite-8-PoE",
+      "name": "Bulk 409",
+      "state": "OFFLINE",
+      "supported": true
+    },
+    {
+      "features": [
+        "switching"
+      ],
+      "firmwareUpdatable": false,
+      "firmwareVersion": "9.1.0",
+      "id": "efe70b10-8b53-5b7c-b474-2f2693266094",
+      "interfaces": [
+        "ports"
+      ],
+      "ipAddress": "192.168.10.3",
+      "macAddress": "02:00:00:00:01:fe",
+      "model": "USW-Lite-8-PoE",
+      "name": "Bulk 410",
+      "state": "OFFLINE",
+      "supported": true
+    },
+    {
+      "features": [
+        "switching"
+      ],
+      "firmwareUpdatable": false,
+      "firmwareVersion": "9.1.0",
+      "id": "55dab48c-e0c2-5122-944d-46f7032bfcc6",
+      "interfaces": [
+        "ports"
+      ],
+      "ipAddress": "192.168.10.4",
+      "macAddress": "02:00:00:00:01:ff",
+      "model": "USW-Lite-8-PoE",
+      "name": "Bulk 411",
+      "state": "OFFLINE",
+      "supported": true
+    },
+    {
+      "features": [
+        "switching"
+      ],
+      "firmwareUpdatable": false,
+      "firmwareVersion": "9.1.0",
+      "id": "446d0e07-b6d5-589c-a8f5-e4cc43fcb09f",
+      "interfaces": [
+        "ports"
+      ],
+      "ipAddress": "192.168.10.5",
+      "macAddress": "02:00:00:00:02:00",
+      "model": "USW-Lite-8-PoE",
+      "name": "Bulk 412",
+      "state": "OFFLINE",
+      "supported": true
+    },
+    {
+      "features": [
+        "switching"
+      ],
+      "firmwareUpdatable": false,
+      "firmwareVersion": "9.1.0",
+      "id": "990d5d85-505e-5b22-8cae-6d61d2b199c6",
+      "interfaces": [
+        "ports"
+      ],
+      "ipAddress": "192.168.10.6",
+      "macAddress": "02:00:00:00:02:01",
+      "model": "USW-Lite-8-PoE",
+      "name": "Bulk 413",
+      "state": "OFFLINE",
+      "supported": true
+    },
+    {
+      "features": [
+        "switching"
+      ],
+      "firmwareUpdatable": false,
+      "firmwareVersion": "9.1.0",
+      "id": "66677ab8-5fbd-5205-9b8e-330d3d0282d3",
+      "interfaces": [
+        "ports"
+      ],
+      "ipAddress": "192.168.10.7",
+      "macAddress": "02:00:00:00:02:02",
+      "model": "USW-Lite-8-PoE",
+      "name": "Bulk 414",
+      "state": "OFFLINE",
+      "supported": true
+    },
+    {
+      "features": [
+        "switching"
+      ],
+      "firmwareUpdatable": false,
+      "firmwareVersion": "9.1.0",
+      "id": "6fef7de2-163a-5a00-9638-66654ee79e13",
+      "interfaces": [
+        "ports"
+      ],
+      "ipAddress": "192.168.10.8",
+      "macAddress": "02:00:00:00:02:03",
+      "model": "USW-Lite-8-PoE",
+      "name": "Bulk 415",
+      "state": "OFFLINE",
+      "supported": true
+    },
+    {
+      "features": [
+        "switching"
+      ],
+      "firmwareUpdatable": false,
+      "firmwareVersion": "9.1.0",
+      "id": "98f955b4-1b0a-5dbb-a9b4-3ea912313386",
+      "interfaces": [
+        "ports"
+      ],
+      "ipAddress": "192.168.10.9",
+      "macAddress": "02:00:00:00:02:04",
+      "model": "USW-Lite-8-PoE",
+      "name": "Bulk 416",
+      "state": "OFFLINE",
+      "supported": true
+    },
+    {
+      "features": [
+        "switching"
+      ],
+      "firmwareUpdatable": false,
+      "firmwareVersion": "9.1.0",
+      "id": "cef3a9f7-93d5-583e-b50c-7865b2251ca0",
+      "interfaces": [
+        "ports"
+      ],
+      "ipAddress": "192.168.10.10",
+      "macAddress": "02:00:00:00:02:05",
+      "model": "USW-Lite-8-PoE",
+      "name": "Bulk 417",
+      "state": "OFFLINE",
+      "supported": true
+    },
+    {
+      "features": [
+        "switching"
+      ],
+      "firmwareUpdatable": false,
+      "firmwareVersion": "9.1.0",
+      "id": "59b3ed1a-7971-55bb-92b3-699b8a8d8cb8",
+      "interfaces": [
+        "ports"
+      ],
+      "ipAddress": "192.168.10.11",
+      "macAddress": "02:00:00:00:02:06",
+      "model": "USW-Lite-8-PoE",
+      "name": "Bulk 418",
+      "state": "OFFLINE",
+      "supported": true
+    },
+    {
+      "features": [
+        "switching"
+      ],
+      "firmwareUpdatable": false,
+      "firmwareVersion": "9.1.0",
+      "id": "19c98267-96a2-5701-bce5-a61dfbca4a10",
+      "interfaces": [
+        "ports"
+      ],
+      "ipAddress": "192.168.10.12",
+      "macAddress": "02:00:00:00:02:07",
+      "model": "USW-Lite-8-PoE",
+      "name": "Bulk 419",
+      "state": "OFFLINE",
+      "supported": true
+    },
+    {
+      "features": [
+        "switching"
+      ],
+      "firmwareUpdatable": false,
+      "firmwareVersion": "9.1.0",
+      "id": "44a49005-5bd4-5570-8e40-7093ba077f71",
+      "interfaces": [
+        "ports"
+      ],
+      "ipAddress": "192.168.10.13",
+      "macAddress": "02:00:00:00:02:08",
+      "model": "USW-Lite-8-PoE",
+      "name": "Bulk 420",
+      "state": "OFFLINE",
+      "supported": true
+    },
+    {
+      "features": [
+        "switching"
+      ],
+      "firmwareUpdatable": false,
+      "firmwareVersion": "9.1.0",
+      "id": "632d1b79-b632-55ec-902f-fcde0fdeda36",
+      "interfaces": [
+        "ports"
+      ],
+      "ipAddress": "192.168.10.14",
+      "macAddress": "02:00:00:00:02:09",
+      "model": "USW-Lite-8-PoE",
+      "name": "Bulk 421",
+      "state": "OFFLINE",
+      "supported": true
+    },
+    {
+      "features": [
+        "switching"
+      ],
+      "firmwareUpdatable": false,
+      "firmwareVersion": "9.1.0",
+      "id": "13fda5b1-1d03-51e5-ae95-3c883a085123",
+      "interfaces": [
+        "ports"
+      ],
+      "ipAddress": "192.168.10.15",
+      "macAddress": "02:00:00:00:02:0a",
+      "model": "USW-Lite-8-PoE",
+      "name": "Bulk 422",
+      "state": "OFFLINE",
+      "supported": true
+    },
+    {
+      "features": [
+        "switching"
+      ],
+      "firmwareUpdatable": false,
+      "firmwareVersion": "9.1.0",
+      "id": "34209870-d995-5a89-b022-f633d0e927eb",
+      "interfaces": [
+        "ports"
+      ],
+      "ipAddress": "192.168.10.16",
+      "macAddress": "02:00:00:00:02:0b",
+      "model": "USW-Lite-8-PoE",
+      "name": "Bulk 423",
+      "state": "OFFLINE",
+      "supported": true
+    },
+    {
+      "features": [
+        "switching"
+      ],
+      "firmwareUpdatable": false,
+      "firmwareVersion": "9.1.0",
+      "id": "7d803d29-e521-587d-86d4-c6aa5140669a",
+      "interfaces": [
+        "ports"
+      ],
+      "ipAddress": "192.168.10.17",
+      "macAddress": "02:00:00:00:02:0c",
+      "model": "USW-Lite-8-PoE",
+      "name": "Bulk 424",
+      "state": "OFFLINE",
+      "supported": true
+    },
+    {
+      "features": [
+        "switching"
+      ],
+      "firmwareUpdatable": false,
+      "firmwareVersion": "9.1.0",
+      "id": "6da9e7bc-6092-5146-8b6f-4fec8160cc85",
+      "interfaces": [
+        "ports"
+      ],
+      "ipAddress": "192.168.10.18",
+      "macAddress": "02:00:00:00:02:0d",
+      "model": "USW-Lite-8-PoE",
+      "name": "Bulk 425",
+      "state": "OFFLINE",
+      "supported": true
+    },
+    {
+      "features": [
+        "switching"
+      ],
+      "firmwareUpdatable": false,
+      "firmwareVersion": "9.1.0",
+      "id": "a46244a2-96fd-5ad6-bfb0-e05b08ec5cc2",
+      "interfaces": [
+        "ports"
+      ],
+      "ipAddress": "192.168.10.19",
+      "macAddress": "02:00:00:00:02:0e",
+      "model": "USW-Lite-8-PoE",
+      "name": "Bulk 426",
+      "state": "OFFLINE",
+      "supported": true
+    },
+    {
+      "features": [
+        "switching"
+      ],
+      "firmwareUpdatable": false,
+      "firmwareVersion": "9.1.0",
+      "id": "11e0270f-ee0a-52ba-9450-0bd09266bc97",
+      "interfaces": [
+        "ports"
+      ],
+      "ipAddress": "192.168.10.20",
+      "macAddress": "02:00:00:00:02:0f",
+      "model": "USW-Lite-8-PoE",
+      "name": "Bulk 427",
+      "state": "OFFLINE",
+      "supported": true
+    },
+    {
+      "features": [
+        "switching"
+      ],
+      "firmwareUpdatable": false,
+      "firmwareVersion": "9.1.0",
+      "id": "2647e4d1-e6b3-59d3-acaf-1ebe97d8aeea",
+      "interfaces": [
+        "ports"
+      ],
+      "ipAddress": "192.168.10.21",
+      "macAddress": "02:00:00:00:02:10",
+      "model": "USW-Lite-8-PoE",
+      "name": "Bulk 428",
+      "state": "OFFLINE",
+      "supported": true
+    },
+    {
+      "features": [
+        "switching"
+      ],
+      "firmwareUpdatable": false,
+      "firmwareVersion": "9.1.0",
+      "id": "33b23a13-8e45-5cc6-8fe1-35e541abbae3",
+      "interfaces": [
+        "ports"
+      ],
+      "ipAddress": "192.168.10.22",
+      "macAddress": "02:00:00:00:02:11",
+      "model": "USW-Lite-8-PoE",
+      "name": "Bulk 429",
+      "state": "OFFLINE",
+      "supported": true
+    },
+    {
+      "features": [
+        "switching"
+      ],
+      "firmwareUpdatable": false,
+      "firmwareVersion": "9.1.0",
+      "id": "e5bb607c-9c13-58ab-bd06-a9547cb35812",
+      "interfaces": [
+        "ports"
+      ],
+      "ipAddress": "192.168.10.23",
+      "macAddress": "02:00:00:00:02:12",
+      "model": "USW-Lite-8-PoE",
+      "name": "Bulk 430",
+      "state": "OFFLINE",
+      "supported": true
+    },
+    {
+      "features": [
+        "switching"
+      ],
+      "firmwareUpdatable": false,
+      "firmwareVersion": "9.1.0",
+      "id": "412a4f5e-74f5-5234-a227-34c7b5dfe570",
+      "interfaces": [
+        "ports"
+      ],
+      "ipAddress": "192.168.10.24",
+      "macAddress": "02:00:00:00:02:13",
+      "model": "USW-Lite-8-PoE",
+      "name": "Bulk 431",
+      "state": "OFFLINE",
+      "supported": true
+    },
+    {
+      "features": [
+        "switching"
+      ],
+      "firmwareUpdatable": false,
+      "firmwareVersion": "9.1.0",
+      "id": "cefed27b-9bcd-5de6-a09c-e9f49a9309b6",
+      "interfaces": [
+        "ports"
+      ],
+      "ipAddress": "192.168.10.25",
+      "macAddress": "02:00:00:00:02:14",
+      "model": "USW-Lite-8-PoE",
+      "name": "Bulk 432",
+      "state": "OFFLINE",
+      "supported": true
+    },
+    {
+      "features": [
+        "switching"
+      ],
+      "firmwareUpdatable": false,
+      "firmwareVersion": "9.1.0",
+      "id": "b0a18e7d-9816-5b8e-9361-39f391d74026",
+      "interfaces": [
+        "ports"
+      ],
+      "ipAddress": "192.168.10.26",
+      "macAddress": "02:00:00:00:02:15",
+      "model": "USW-Lite-8-PoE",
+      "name": "Bulk 433",
+      "state": "OFFLINE",
+      "supported": true
+    },
+    {
+      "features": [
+        "switching"
+      ],
+      "firmwareUpdatable": false,
+      "firmwareVersion": "9.1.0",
+      "id": "bf3dcfa3-2dce-5b3d-bc0a-809b061c5f12",
+      "interfaces": [
+        "ports"
+      ],
+      "ipAddress": "192.168.10.27",
+      "macAddress": "02:00:00:00:02:16",
+      "model": "USW-Lite-8-PoE",
+      "name": "Bulk 434",
+      "state": "OFFLINE",
+      "supported": true
+    },
+    {
+      "features": [
+        "switching"
+      ],
+      "firmwareUpdatable": false,
+      "firmwareVersion": "9.1.0",
+      "id": "3c376477-fbc8-5e59-af41-7d22536074e8",
+      "interfaces": [
+        "ports"
+      ],
+      "ipAddress": "192.168.10.28",
+      "macAddress": "02:00:00:00:02:17",
+      "model": "USW-Lite-8-PoE",
+      "name": "Bulk 435",
+      "state": "OFFLINE",
+      "supported": true
+    },
+    {
+      "features": [
+        "switching"
+      ],
+      "firmwareUpdatable": false,
+      "firmwareVersion": "9.1.0",
+      "id": "ac716eb4-e9a9-55ec-b9f2-19c6eb2d1158",
+      "interfaces": [
+        "ports"
+      ],
+      "ipAddress": "192.168.10.29",
+      "macAddress": "02:00:00:00:02:18",
+      "model": "USW-Lite-8-PoE",
+      "name": "Bulk 436",
+      "state": "OFFLINE",
+      "supported": true
+    },
+    {
+      "features": [
+        "switching"
+      ],
+      "firmwareUpdatable": false,
+      "firmwareVersion": "9.1.0",
+      "id": "ff9ad28b-3e3e-57db-b38c-5de9a0717007",
+      "interfaces": [
+        "ports"
+      ],
+      "ipAddress": "192.168.10.30",
+      "macAddress": "02:00:00:00:02:19",
+      "model": "USW-Lite-8-PoE",
+      "name": "Bulk 437",
+      "state": "OFFLINE",
+      "supported": true
+    },
+    {
+      "features": [
+        "switching"
+      ],
+      "firmwareUpdatable": false,
+      "firmwareVersion": "9.1.0",
+      "id": "d6e74d43-4037-5e58-9ede-5a621bb6f221",
+      "interfaces": [
+        "ports"
+      ],
+      "ipAddress": "192.168.10.31",
+      "macAddress": "02:00:00:00:02:1a",
+      "model": "USW-Lite-8-PoE",
+      "name": "Bulk 438",
+      "state": "OFFLINE",
+      "supported": true
+    },
+    {
+      "features": [
+        "switching"
+      ],
+      "firmwareUpdatable": false,
+      "firmwareVersion": "9.1.0",
+      "id": "ffe1f339-ea7f-5197-a28e-588099b3dcbc",
+      "interfaces": [
+        "ports"
+      ],
+      "ipAddress": "192.168.10.32",
+      "macAddress": "02:00:00:00:02:1b",
+      "model": "USW-Lite-8-PoE",
+      "name": "Bulk 439",
+      "state": "OFFLINE",
+      "supported": true
+    },
+    {
+      "features": [
+        "switching"
+      ],
+      "firmwareUpdatable": false,
+      "firmwareVersion": "9.1.0",
+      "id": "cd3209f8-2d1d-52ac-ba5d-c2c7d6dd7475",
+      "interfaces": [
+        "ports"
+      ],
+      "ipAddress": "192.168.10.33",
+      "macAddress": "02:00:00:00:02:1c",
+      "model": "USW-Lite-8-PoE",
+      "name": "Bulk 440",
+      "state": "OFFLINE",
+      "supported": true
+    },
+    {
+      "features": [
+        "switching"
+      ],
+      "firmwareUpdatable": false,
+      "firmwareVersion": "9.1.0",
+      "id": "579828f3-1d48-5bd9-9378-c41deada56eb",
+      "interfaces": [
+        "ports"
+      ],
+      "ipAddress": "192.168.10.34",
+      "macAddress": "02:00:00:00:02:1d",
+      "model": "USW-Lite-8-PoE",
+      "name": "Bulk 441",
+      "state": "OFFLINE",
+      "supported": true
+    },
+    {
+      "features": [
+        "switching"
+      ],
+      "firmwareUpdatable": false,
+      "firmwareVersion": "9.1.0",
+      "id": "d26f695a-43ef-51cb-be8f-16644442f41b",
+      "interfaces": [
+        "ports"
+      ],
+      "ipAddress": "192.168.10.35",
+      "macAddress": "02:00:00:00:02:1e",
+      "model": "USW-Lite-8-PoE",
+      "name": "Bulk 442",
+      "state": "OFFLINE",
+      "supported": true
+    },
+    {
+      "features": [
+        "switching"
+      ],
+      "firmwareUpdatable": false,
+      "firmwareVersion": "9.1.0",
+      "id": "e3e52eee-69a9-5e89-a8ec-67b16ac454aa",
+      "interfaces": [
+        "ports"
+      ],
+      "ipAddress": "192.168.10.36",
+      "macAddress": "02:00:00:00:02:1f",
+      "model": "USW-Lite-8-PoE",
+      "name": "Bulk 443",
+      "state": "OFFLINE",
+      "supported": true
+    },
+    {
+      "features": [
+        "switching"
+      ],
+      "firmwareUpdatable": false,
+      "firmwareVersion": "9.1.0",
+      "id": "58b45fbd-1410-5acc-89fd-91799b090fd5",
+      "interfaces": [
+        "ports"
+      ],
+      "ipAddress": "192.168.10.37",
+      "macAddress": "02:00:00:00:02:20",
+      "model": "USW-Lite-8-PoE",
+      "name": "Bulk 444",
+      "state": "OFFLINE",
+      "supported": true
+    },
+    {
+      "features": [
+        "switching"
+      ],
+      "firmwareUpdatable": false,
+      "firmwareVersion": "9.1.0",
+      "id": "ee379cac-1ef6-555e-9f43-4b4ef06c972e",
+      "interfaces": [
+        "ports"
+      ],
+      "ipAddress": "192.168.10.38",
+      "macAddress": "02:00:00:00:02:21",
+      "model": "USW-Lite-8-PoE",
+      "name": "Bulk 445",
+      "state": "OFFLINE",
+      "supported": true
+    },
+    {
+      "features": [
+        "switching"
+      ],
+      "firmwareUpdatable": false,
+      "firmwareVersion": "9.1.0",
+      "id": "08902201-864d-567b-bed2-4fc6d5925f8f",
+      "interfaces": [
+        "ports"
+      ],
+      "ipAddress": "192.168.10.39",
+      "macAddress": "02:00:00:00:02:22",
+      "model": "USW-Lite-8-PoE",
+      "name": "Bulk 446",
+      "state": "OFFLINE",
+      "supported": true
+    },
+    {
+      "features": [
+        "switching"
+      ],
+      "firmwareUpdatable": false,
+      "firmwareVersion": "9.1.0",
+      "id": "c08fc2f2-7197-5e34-a9cd-89e5db53a29b",
+      "interfaces": [
+        "ports"
+      ],
+      "ipAddress": "192.168.10.40",
+      "macAddress": "02:00:00:00:02:23",
+      "model": "USW-Lite-8-PoE",
+      "name": "Bulk 447",
+      "state": "OFFLINE",
+      "supported": true
+    },
+    {
+      "features": [
+        "switching"
+      ],
+      "firmwareUpdatable": false,
+      "firmwareVersion": "9.1.0",
+      "id": "0fc677cb-671e-5794-bffd-9dabe4e83151",
+      "interfaces": [
+        "ports"
+      ],
+      "ipAddress": "192.168.10.41",
+      "macAddress": "02:00:00:00:02:24",
+      "model": "USW-Lite-8-PoE",
+      "name": "Bulk 448",
+      "state": "OFFLINE",
+      "supported": true
+    },
+    {
+      "features": [
+        "switching"
+      ],
+      "firmwareUpdatable": false,
+      "firmwareVersion": "9.1.0",
+      "id": "6223445c-bc5f-5ca6-82c9-0d4b1dbcd659",
+      "interfaces": [
+        "ports"
+      ],
+      "ipAddress": "192.168.10.42",
+      "macAddress": "02:00:00:00:02:25",
+      "model": "USW-Lite-8-PoE",
+      "name": "Bulk 449",
+      "state": "OFFLINE",
+      "supported": true
+    },
+    {
+      "features": [
+        "switching"
+      ],
+      "firmwareUpdatable": false,
+      "firmwareVersion": "9.1.0",
+      "id": "f2a3af40-1723-5800-8c20-f3ec01f14141",
+      "interfaces": [
+        "ports"
+      ],
+      "ipAddress": "192.168.10.43",
+      "macAddress": "02:00:00:00:02:26",
+      "model": "USW-Lite-8-PoE",
+      "name": "Bulk 450",
+      "state": "OFFLINE",
+      "supported": true
+    },
+    {
+      "features": [
+        "switching"
+      ],
+      "firmwareUpdatable": false,
+      "firmwareVersion": "9.1.0",
+      "id": "1e51574e-2730-50d1-bab5-87c38d8e9030",
+      "interfaces": [
+        "ports"
+      ],
+      "ipAddress": "192.168.10.44",
+      "macAddress": "02:00:00:00:02:27",
+      "model": "USW-Lite-8-PoE",
+      "name": "Bulk 451",
+      "state": "OFFLINE",
+      "supported": true
+    },
+    {
+      "features": [
+        "switching"
+      ],
+      "firmwareUpdatable": false,
+      "firmwareVersion": "9.1.0",
+      "id": "b80dc0d7-fe1a-51ff-959e-6c26d0a0b197",
+      "interfaces": [
+        "ports"
+      ],
+      "ipAddress": "192.168.10.45",
+      "macAddress": "02:00:00:00:02:28",
+      "model": "USW-Lite-8-PoE",
+      "name": "Bulk 452",
+      "state": "OFFLINE",
+      "supported": true
+    },
+    {
+      "features": [
+        "switching"
+      ],
+      "firmwareUpdatable": false,
+      "firmwareVersion": "9.1.0",
+      "id": "80208b1c-bdad-533d-bf3d-5839131b0c65",
+      "interfaces": [
+        "ports"
+      ],
+      "ipAddress": "192.168.10.46",
+      "macAddress": "02:00:00:00:02:29",
+      "model": "USW-Lite-8-PoE",
+      "name": "Bulk 453",
+      "state": "OFFLINE",
+      "supported": true
+    },
+    {
+      "features": [
+        "switching"
+      ],
+      "firmwareUpdatable": false,
+      "firmwareVersion": "9.1.0",
+      "id": "31f175cb-d3a2-53fd-b4be-e9ac58ef198f",
+      "interfaces": [
+        "ports"
+      ],
+      "ipAddress": "192.168.10.47",
+      "macAddress": "02:00:00:00:02:2a",
+      "model": "USW-Lite-8-PoE",
+      "name": "Bulk 454",
+      "state": "OFFLINE",
+      "supported": true
+    },
+    {
+      "features": [
+        "switching"
+      ],
+      "firmwareUpdatable": false,
+      "firmwareVersion": "9.1.0",
+      "id": "898fdde5-c018-574f-8c88-05cfa33c4a20",
+      "interfaces": [
+        "ports"
+      ],
+      "ipAddress": "192.168.10.48",
+      "macAddress": "02:00:00:00:02:2b",
+      "model": "USW-Lite-8-PoE",
+      "name": "Bulk 455",
+      "state": "OFFLINE",
+      "supported": true
+    },
+    {
+      "features": [
+        "switching"
+      ],
+      "firmwareUpdatable": false,
+      "firmwareVersion": "9.1.0",
+      "id": "0ddd5356-d60b-501f-98fe-adbf77031857",
+      "interfaces": [
+        "ports"
+      ],
+      "ipAddress": "192.168.10.49",
+      "macAddress": "02:00:00:00:02:2c",
+      "model": "USW-Lite-8-PoE",
+      "name": "Bulk 456",
+      "state": "OFFLINE",
+      "supported": true
+    },
+    {
+      "features": [
+        "switching"
+      ],
+      "firmwareUpdatable": false,
+      "firmwareVersion": "9.1.0",
+      "id": "1586e290-57ec-51d1-8611-42af0bc7498c",
+      "interfaces": [
+        "ports"
+      ],
+      "ipAddress": "192.168.10.50",
+      "macAddress": "02:00:00:00:02:2d",
+      "model": "USW-Lite-8-PoE",
+      "name": "Bulk 457",
+      "state": "OFFLINE",
+      "supported": true
+    },
+    {
+      "features": [
+        "switching"
+      ],
+      "firmwareUpdatable": false,
+      "firmwareVersion": "9.1.0",
+      "id": "339bc2be-acfc-572d-9f71-9c05b8d5ba24",
+      "interfaces": [
+        "ports"
+      ],
+      "ipAddress": "192.168.10.51",
+      "macAddress": "02:00:00:00:02:2e",
+      "model": "USW-Lite-8-PoE",
+      "name": "Bulk 458",
+      "state": "OFFLINE",
+      "supported": true
+    },
+    {
+      "features": [
+        "switching"
+      ],
+      "firmwareUpdatable": false,
+      "firmwareVersion": "9.1.0",
+      "id": "ec5fad75-2483-5c1d-8fc1-47eed8cc1d3e",
+      "interfaces": [
+        "ports"
+      ],
+      "ipAddress": "192.168.10.52",
+      "macAddress": "02:00:00:00:02:2f",
+      "model": "USW-Lite-8-PoE",
+      "name": "Bulk 459",
+      "state": "OFFLINE",
+      "supported": true
+    },
+    {
+      "features": [
+        "switching"
+      ],
+      "firmwareUpdatable": false,
+      "firmwareVersion": "9.1.0",
+      "id": "537197a0-0f3e-5c15-8fcf-05a4096ff6c5",
+      "interfaces": [
+        "ports"
+      ],
+      "ipAddress": "192.168.10.53",
+      "macAddress": "02:00:00:00:02:30",
+      "model": "USW-Lite-8-PoE",
+      "name": "Bulk 460",
+      "state": "OFFLINE",
+      "supported": true
+    },
+    {
+      "features": [
+        "switching"
+      ],
+      "firmwareUpdatable": false,
+      "firmwareVersion": "9.1.0",
+      "id": "73767061-6746-5606-a386-03a8146d4596",
+      "interfaces": [
+        "ports"
+      ],
+      "ipAddress": "192.168.10.54",
+      "macAddress": "02:00:00:00:02:31",
+      "model": "USW-Lite-8-PoE",
+      "name": "Bulk 461",
+      "state": "OFFLINE",
+      "supported": true
+    },
+    {
+      "features": [
+        "switching"
+      ],
+      "firmwareUpdatable": false,
+      "firmwareVersion": "9.1.0",
+      "id": "4e215bdf-46f0-50f6-91a7-e66f5e0bd8f4",
+      "interfaces": [
+        "ports"
+      ],
+      "ipAddress": "192.168.10.55",
+      "macAddress": "02:00:00:00:02:32",
+      "model": "USW-Lite-8-PoE",
+      "name": "Bulk 462",
+      "state": "OFFLINE",
+      "supported": true
+    },
+    {
+      "features": [
+        "switching"
+      ],
+      "firmwareUpdatable": false,
+      "firmwareVersion": "9.1.0",
+      "id": "19f8f07e-fdf0-5310-a6b6-5df543e1db32",
+      "interfaces": [
+        "ports"
+      ],
+      "ipAddress": "192.168.10.56",
+      "macAddress": "02:00:00:00:02:33",
+      "model": "USW-Lite-8-PoE",
+      "name": "Bulk 463",
+      "state": "OFFLINE",
+      "supported": true
+    },
+    {
+      "features": [
+        "switching"
+      ],
+      "firmwareUpdatable": false,
+      "firmwareVersion": "9.1.0",
+      "id": "0a4d52de-b4ad-5cb2-9c5a-ec1b8d401ee1",
+      "interfaces": [
+        "ports"
+      ],
+      "ipAddress": "192.168.10.57",
+      "macAddress": "02:00:00:00:02:34",
+      "model": "USW-Lite-8-PoE",
+      "name": "Bulk 464",
+      "state": "OFFLINE",
+      "supported": true
+    },
+    {
+      "features": [
+        "switching"
+      ],
+      "firmwareUpdatable": false,
+      "firmwareVersion": "9.1.0",
+      "id": "7713af95-5442-5659-b969-2d4912262f5e",
+      "interfaces": [
+        "ports"
+      ],
+      "ipAddress": "192.168.10.58",
+      "macAddress": "02:00:00:00:02:35",
+      "model": "USW-Lite-8-PoE",
+      "name": "Bulk 465",
+      "state": "OFFLINE",
+      "supported": true
+    },
+    {
+      "features": [
+        "switching"
+      ],
+      "firmwareUpdatable": false,
+      "firmwareVersion": "9.1.0",
+      "id": "3b914391-1316-5646-9215-2308e5ec3d1f",
+      "interfaces": [
+        "ports"
+      ],
+      "ipAddress": "192.168.10.59",
+      "macAddress": "02:00:00:00:02:36",
+      "model": "USW-Lite-8-PoE",
+      "name": "Bulk 466",
+      "state": "OFFLINE",
+      "supported": true
+    },
+    {
+      "features": [
+        "switching"
+      ],
+      "firmwareUpdatable": false,
+      "firmwareVersion": "9.1.0",
+      "id": "8efc4474-eed4-5972-b571-b316d10dea21",
+      "interfaces": [
+        "ports"
+      ],
+      "ipAddress": "192.168.10.60",
+      "macAddress": "02:00:00:00:02:37",
+      "model": "USW-Lite-8-PoE",
+      "name": "Bulk 467",
+      "state": "OFFLINE",
+      "supported": true
+    },
+    {
+      "features": [
+        "switching"
+      ],
+      "firmwareUpdatable": false,
+      "firmwareVersion": "9.1.0",
+      "id": "694871b2-0570-5406-a6f5-aa42ddf28b76",
+      "interfaces": [
+        "ports"
+      ],
+      "ipAddress": "192.168.10.61",
+      "macAddress": "02:00:00:00:02:38",
+      "model": "USW-Lite-8-PoE",
+      "name": "Bulk 468",
+      "state": "OFFLINE",
+      "supported": true
+    },
+    {
+      "features": [
+        "switching"
+      ],
+      "firmwareUpdatable": false,
+      "firmwareVersion": "9.1.0",
+      "id": "d8af1a6f-2fe2-5972-a1ed-c328f9e6b2d1",
+      "interfaces": [
+        "ports"
+      ],
+      "ipAddress": "192.168.10.62",
+      "macAddress": "02:00:00:00:02:39",
+      "model": "USW-Lite-8-PoE",
+      "name": "Bulk 469",
+      "state": "OFFLINE",
+      "supported": true
+    },
+    {
+      "features": [
+        "switching"
+      ],
+      "firmwareUpdatable": false,
+      "firmwareVersion": "9.1.0",
+      "id": "804e977c-2a63-532a-847f-93084fd0c3d5",
+      "interfaces": [
+        "ports"
+      ],
+      "ipAddress": "192.168.10.63",
+      "macAddress": "02:00:00:00:02:3a",
+      "model": "USW-Lite-8-PoE",
+      "name": "Bulk 470",
+      "state": "OFFLINE",
+      "supported": true
+    },
+    {
+      "features": [
+        "switching"
+      ],
+      "firmwareUpdatable": false,
+      "firmwareVersion": "9.1.0",
+      "id": "e84fd98a-6b89-5f0b-9248-c8f123681afd",
+      "interfaces": [
+        "ports"
+      ],
+      "ipAddress": "192.168.10.64",
+      "macAddress": "02:00:00:00:02:3b",
+      "model": "USW-Lite-8-PoE",
+      "name": "Bulk 471",
+      "state": "OFFLINE",
+      "supported": true
+    },
+    {
+      "features": [
+        "switching"
+      ],
+      "firmwareUpdatable": false,
+      "firmwareVersion": "9.1.0",
+      "id": "97772210-5e03-5190-8186-6fc0d1cc55f3",
+      "interfaces": [
+        "ports"
+      ],
+      "ipAddress": "192.168.10.65",
+      "macAddress": "02:00:00:00:02:3c",
+      "model": "USW-Lite-8-PoE",
+      "name": "Bulk 472",
+      "state": "OFFLINE",
+      "supported": true
+    },
+    {
+      "features": [
+        "switching"
+      ],
+      "firmwareUpdatable": false,
+      "firmwareVersion": "9.1.0",
+      "id": "4ecdc3f3-f34a-5986-bcff-84af531fb513",
+      "interfaces": [
+        "ports"
+      ],
+      "ipAddress": "192.168.10.66",
+      "macAddress": "02:00:00:00:02:3d",
+      "model": "USW-Lite-8-PoE",
+      "name": "Bulk 473",
+      "state": "OFFLINE",
+      "supported": true
+    },
+    {
+      "features": [
+        "switching"
+      ],
+      "firmwareUpdatable": false,
+      "firmwareVersion": "9.1.0",
+      "id": "675b9306-f1f5-5caf-9f4e-9b9ccc5b04ce",
+      "interfaces": [
+        "ports"
+      ],
+      "ipAddress": "192.168.10.67",
+      "macAddress": "02:00:00:00:02:3e",
+      "model": "USW-Lite-8-PoE",
+      "name": "Bulk 474",
+      "state": "OFFLINE",
+      "supported": true
+    },
+    {
+      "features": [
+        "switching"
+      ],
+      "firmwareUpdatable": false,
+      "firmwareVersion": "9.1.0",
+      "id": "8c03014f-c789-53db-be50-246d70c8f56b",
+      "interfaces": [
+        "ports"
+      ],
+      "ipAddress": "192.168.10.68",
+      "macAddress": "02:00:00:00:02:3f",
+      "model": "USW-Lite-8-PoE",
+      "name": "Bulk 475",
+      "state": "OFFLINE",
+      "supported": true
+    },
+    {
+      "features": [
+        "switching"
+      ],
+      "firmwareUpdatable": false,
+      "firmwareVersion": "9.1.0",
+      "id": "6a988d57-2684-5e3f-80cf-c7714ed39cc7",
+      "interfaces": [
+        "ports"
+      ],
+      "ipAddress": "192.168.10.69",
+      "macAddress": "02:00:00:00:02:40",
+      "model": "USW-Lite-8-PoE",
+      "name": "Bulk 476",
+      "state": "OFFLINE",
+      "supported": true
+    },
+    {
+      "features": [
+        "switching"
+      ],
+      "firmwareUpdatable": false,
+      "firmwareVersion": "9.1.0",
+      "id": "ff96acaf-1ff8-59bb-8adc-691232a213f2",
+      "interfaces": [
+        "ports"
+      ],
+      "ipAddress": "192.168.10.70",
+      "macAddress": "02:00:00:00:02:41",
+      "model": "USW-Lite-8-PoE",
+      "name": "Bulk 477",
+      "state": "OFFLINE",
+      "supported": true
+    },
+    {
+      "features": [
+        "switching"
+      ],
+      "firmwareUpdatable": false,
+      "firmwareVersion": "9.1.0",
+      "id": "06793452-538a-5594-8738-4f95675c7fa6",
+      "interfaces": [
+        "ports"
+      ],
+      "ipAddress": "192.168.10.71",
+      "macAddress": "02:00:00:00:02:42",
+      "model": "USW-Lite-8-PoE",
+      "name": "Bulk 478",
+      "state": "OFFLINE",
+      "supported": true
+    },
+    {
+      "features": [
+        "switching"
+      ],
+      "firmwareUpdatable": false,
+      "firmwareVersion": "9.1.0",
+      "id": "878808da-aa02-54ce-806b-6705608dd894",
+      "interfaces": [
+        "ports"
+      ],
+      "ipAddress": "192.168.10.72",
+      "macAddress": "02:00:00:00:02:43",
+      "model": "USW-Lite-8-PoE",
+      "name": "Bulk 479",
+      "state": "OFFLINE",
+      "supported": true
+    },
+    {
+      "features": [
+        "switching"
+      ],
+      "firmwareUpdatable": false,
+      "firmwareVersion": "9.1.0",
+      "id": "c0fc90bc-11ed-5a4a-8d60-fcfdd0758d30",
+      "interfaces": [
+        "ports"
+      ],
+      "ipAddress": "192.168.10.73",
+      "macAddress": "02:00:00:00:02:44",
+      "model": "USW-Lite-8-PoE",
+      "name": "Bulk 480",
+      "state": "OFFLINE",
+      "supported": true
+    },
+    {
+      "features": [
+        "switching"
+      ],
+      "firmwareUpdatable": false,
+      "firmwareVersion": "9.1.0",
+      "id": "bc5b66aa-ed36-50fa-a93d-ba4d9f8451d2",
+      "interfaces": [
+        "ports"
+      ],
+      "ipAddress": "192.168.10.74",
+      "macAddress": "02:00:00:00:02:45",
+      "model": "USW-Lite-8-PoE",
+      "name": "Bulk 481",
+      "state": "OFFLINE",
+      "supported": true
+    },
+    {
+      "features": [
+        "switching"
+      ],
+      "firmwareUpdatable": false,
+      "firmwareVersion": "9.1.0",
+      "id": "9f407e07-11d1-54fe-b965-ed9234b2fb53",
+      "interfaces": [
+        "ports"
+      ],
+      "ipAddress": "192.168.10.75",
+      "macAddress": "02:00:00:00:02:46",
+      "model": "USW-Lite-8-PoE",
+      "name": "Bulk 482",
+      "state": "OFFLINE",
+      "supported": true
+    },
+    {
+      "features": [
+        "switching"
+      ],
+      "firmwareUpdatable": false,
+      "firmwareVersion": "9.1.0",
+      "id": "ae0dd542-2bd8-5347-84c0-9cfa1e76fc5b",
+      "interfaces": [
+        "ports"
+      ],
+      "ipAddress": "192.168.10.76",
+      "macAddress": "02:00:00:00:02:47",
+      "model": "USW-Lite-8-PoE",
+      "name": "Bulk 483",
+      "state": "OFFLINE",
+      "supported": true
+    },
+    {
+      "features": [
+        "switching"
+      ],
+      "firmwareUpdatable": false,
+      "firmwareVersion": "9.1.0",
+      "id": "df79e04d-0e44-5b39-964e-dedf4dd74637",
+      "interfaces": [
+        "ports"
+      ],
+      "ipAddress": "192.168.10.77",
+      "macAddress": "02:00:00:00:02:48",
+      "model": "USW-Lite-8-PoE",
+      "name": "Bulk 484",
+      "state": "OFFLINE",
+      "supported": true
+    },
+    {
+      "features": [
+        "switching"
+      ],
+      "firmwareUpdatable": false,
+      "firmwareVersion": "9.1.0",
+      "id": "c03032e9-ad19-59aa-b610-82ddb1300b32",
+      "interfaces": [
+        "ports"
+      ],
+      "ipAddress": "192.168.10.78",
+      "macAddress": "02:00:00:00:02:49",
+      "model": "USW-Lite-8-PoE",
+      "name": "Bulk 485",
+      "state": "OFFLINE",
+      "supported": true
+    },
+    {
+      "features": [
+        "switching"
+      ],
+      "firmwareUpdatable": false,
+      "firmwareVersion": "9.1.0",
+      "id": "bac123a0-3a0e-5d4b-bbbf-80ff4ffac775",
+      "interfaces": [
+        "ports"
+      ],
+      "ipAddress": "192.168.10.79",
+      "macAddress": "02:00:00:00:02:4a",
+      "model": "USW-Lite-8-PoE",
+      "name": "Bulk 486",
+      "state": "OFFLINE",
+      "supported": true
+    },
+    {
+      "features": [
+        "switching"
+      ],
+      "firmwareUpdatable": false,
+      "firmwareVersion": "9.1.0",
+      "id": "43a84184-01c6-590b-8779-17121afe2fc6",
+      "interfaces": [
+        "ports"
+      ],
+      "ipAddress": "192.168.10.80",
+      "macAddress": "02:00:00:00:02:4b",
+      "model": "USW-Lite-8-PoE",
+      "name": "Bulk 487",
+      "state": "OFFLINE",
+      "supported": true
+    },
+    {
+      "features": [
+        "switching"
+      ],
+      "firmwareUpdatable": false,
+      "firmwareVersion": "9.1.0",
+      "id": "891fd210-9ed5-586d-86a0-e139d1a3dedc",
+      "interfaces": [
+        "ports"
+      ],
+      "ipAddress": "192.168.10.81",
+      "macAddress": "02:00:00:00:02:4c",
+      "model": "USW-Lite-8-PoE",
+      "name": "Bulk 488",
+      "state": "OFFLINE",
+      "supported": true
+    },
+    {
+      "features": [
+        "switching"
+      ],
+      "firmwareUpdatable": false,
+      "firmwareVersion": "9.1.0",
+      "id": "c2fe78b3-956d-5f24-ab79-b87a4fc4fba7",
+      "interfaces": [
+        "ports"
+      ],
+      "ipAddress": "192.168.10.82",
+      "macAddress": "02:00:00:00:02:4d",
+      "model": "USW-Lite-8-PoE",
+      "name": "Bulk 489",
+      "state": "OFFLINE",
+      "supported": true
+    },
+    {
+      "features": [
+        "switching"
+      ],
+      "firmwareUpdatable": false,
+      "firmwareVersion": "9.1.0",
+      "id": "b45c916d-c36e-51a4-9083-7cbd282a8378",
+      "interfaces": [
+        "ports"
+      ],
+      "ipAddress": "192.168.10.83",
+      "macAddress": "02:00:00:00:02:4e",
+      "model": "USW-Lite-8-PoE",
+      "name": "Bulk 490",
+      "state": "OFFLINE",
+      "supported": true
+    },
+    {
+      "features": [
+        "switching"
+      ],
+      "firmwareUpdatable": false,
+      "firmwareVersion": "9.1.0",
+      "id": "ac95c370-d3b5-5688-8f61-0e3c8ebb7ec1",
+      "interfaces": [
+        "ports"
+      ],
+      "ipAddress": "192.168.10.84",
+      "macAddress": "02:00:00:00:02:4f",
+      "model": "USW-Lite-8-PoE",
+      "name": "Bulk 491",
+      "state": "OFFLINE",
+      "supported": true
+    },
+    {
+      "features": [
+        "switching"
+      ],
+      "firmwareUpdatable": false,
+      "firmwareVersion": "9.1.0",
+      "id": "beae7ea8-1eef-50bb-87a4-cef263460e31",
+      "interfaces": [
+        "ports"
+      ],
+      "ipAddress": "192.168.10.85",
+      "macAddress": "02:00:00:00:02:50",
+      "model": "USW-Lite-8-PoE",
+      "name": "Bulk 492",
+      "state": "OFFLINE",
+      "supported": true
+    },
+    {
+      "features": [
+        "switching"
+      ],
+      "firmwareUpdatable": false,
+      "firmwareVersion": "9.1.0",
+      "id": "9764514b-31a9-57c9-98d6-2f7848ea0fab",
+      "interfaces": [
+        "ports"
+      ],
+      "ipAddress": "192.168.10.86",
+      "macAddress": "02:00:00:00:02:51",
+      "model": "USW-Lite-8-PoE",
+      "name": "Bulk 493",
+      "state": "OFFLINE",
+      "supported": true
+    },
+    {
+      "features": [
+        "switching"
+      ],
+      "firmwareUpdatable": false,
+      "firmwareVersion": "9.1.0",
+      "id": "14757263-56db-58ab-b28d-a270f90b5854",
+      "interfaces": [
+        "ports"
+      ],
+      "ipAddress": "192.168.10.87",
+      "macAddress": "02:00:00:00:02:52",
+      "model": "USW-Lite-8-PoE",
+      "name": "Bulk 494",
+      "state": "OFFLINE",
+      "supported": true
+    },
+    {
+      "features": [
+        "switching"
+      ],
+      "firmwareUpdatable": false,
+      "firmwareVersion": "9.1.0",
+      "id": "9fd05f14-713a-59ff-907a-23515ef3aa0f",
+      "interfaces": [
+        "ports"
+      ],
+      "ipAddress": "192.168.10.88",
+      "macAddress": "02:00:00:00:02:53",
+      "model": "USW-Lite-8-PoE",
+      "name": "Bulk 495",
+      "state": "OFFLINE",
+      "supported": true
+    },
+    {
+      "features": [
+        "switching"
+      ],
+      "firmwareUpdatable": false,
+      "firmwareVersion": "9.1.0",
+      "id": "5a1a6a80-1154-5678-b28f-a3e6ffbe517e",
+      "interfaces": [
+        "ports"
+      ],
+      "ipAddress": "192.168.10.89",
+      "macAddress": "02:00:00:00:02:54",
+      "model": "USW-Lite-8-PoE",
+      "name": "Bulk 496",
+      "state": "OFFLINE",
+      "supported": true
+    },
+    {
+      "features": [
+        "switching"
+      ],
+      "firmwareUpdatable": false,
+      "firmwareVersion": "9.1.0",
+      "id": "dc780ea2-569a-5487-ac81-c360f9e37c5f",
+      "interfaces": [
+        "ports"
+      ],
+      "ipAddress": "192.168.10.90",
+      "macAddress": "02:00:00:00:02:55",
+      "model": "USW-Lite-8-PoE",
+      "name": "Bulk 497",
+      "state": "OFFLINE",
+      "supported": true
+    },
+    {
+      "features": [
+        "switching"
+      ],
+      "firmwareUpdatable": false,
+      "firmwareVersion": "9.1.0",
+      "id": "9b3435c3-35ab-5493-8e3c-f1e11d13d128",
+      "interfaces": [
+        "ports"
+      ],
+      "ipAddress": "192.168.10.91",
+      "macAddress": "02:00:00:00:02:56",
+      "model": "USW-Lite-8-PoE",
+      "name": "Bulk 498",
+      "state": "OFFLINE",
+      "supported": true
+    },
+    {
+      "features": [
+        "switching"
+      ],
+      "firmwareUpdatable": false,
+      "firmwareVersion": "9.1.0",
+      "id": "6e8d76fd-c5e8-547e-a15e-cc89673704a4",
+      "interfaces": [
+        "ports"
+      ],
+      "ipAddress": "192.168.10.92",
+      "macAddress": "02:00:00:00:02:57",
+      "model": "USW-Lite-8-PoE",
+      "name": "Bulk 499",
+      "state": "OFFLINE",
+      "supported": true
+    }
+  ],
+  "limit": 200,
+  "offset": 400,
+  "totalCount": 500
+}

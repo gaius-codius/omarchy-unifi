@@ -1,0 +1,17 @@
+{
+  "collection": "devices",
+  "expect": "accept",
+  "id": "accept_empty_collection",
+  "limit": 200,
+  "note": "A genuinely empty collection: count == 0 AND totalCount == 0, which DATA-009b makes a COMPLETE result. The empty site is exactly the site whose owner is setting the plugin up for the first time.",
+  "responses": [
+    {
+      "count": 0,
+      "data": [],
+      "limit": 200,
+      "offset": 0,
+      "totalCount": 0
+    }
+  ],
+  "synthesize": null
+}

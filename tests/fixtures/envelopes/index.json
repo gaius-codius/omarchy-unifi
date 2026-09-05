@@ -1,0 +1,649 @@
+{
+  "accept": {
+    "failure_configuration_conflict": {
+      "consumedBy": [
+        "service (Protocol.js must accept)",
+        "helper (normalize.py must be able to produce)"
+      ],
+      "errorKind": "configuration_conflict",
+      "note": "DATA-007 kind `configuration_conflict` (fatal class). Protocol-VALID: the consumer must accept it and publish the kind.",
+      "shape": "failure",
+      "verdict": "accept"
+    },
+    "failure_credential": {
+      "consumedBy": [
+        "service (Protocol.js must accept)",
+        "helper (normalize.py must be able to produce)"
+      ],
+      "errorKind": "credential",
+      "note": "DATA-007 kind `credential` (fatal class). Protocol-VALID: the consumer must accept it and publish the kind.",
+      "shape": "failure",
+      "verdict": "accept"
+    },
+    "failure_forbidden": {
+      "consumedBy": [
+        "service (Protocol.js must accept)",
+        "helper (normalize.py must be able to produce)"
+      ],
+      "errorKind": "forbidden",
+      "note": "DATA-007 kind `forbidden` (fatal class). Protocol-VALID: the consumer must accept it and publish the kind.",
+      "shape": "failure",
+      "verdict": "accept"
+    },
+    "failure_helper_unavailable": {
+      "consumedBy": [
+        "service (Protocol.js must accept)",
+        "helper (normalize.py must be able to produce)"
+      ],
+      "errorKind": "helper_unavailable",
+      "note": "DATA-007 kind `helper_unavailable` (fatal class). Protocol-VALID: the consumer must accept it and publish the kind.",
+      "shape": "failure",
+      "verdict": "accept"
+    },
+    "failure_http_fatal": {
+      "consumedBy": [
+        "service (Protocol.js must accept)",
+        "helper (normalize.py must be able to produce)"
+      ],
+      "errorKind": "http",
+      "note": "DATA-007 kind `http` (see below class), not a transient 5xx, so fatal. Protocol-VALID: the consumer must accept it and publish the kind.",
+      "shape": "failure",
+      "verdict": "accept"
+    },
+    "failure_http_transient": {
+      "consumedBy": [
+        "service (Protocol.js must accept)",
+        "helper (normalize.py must be able to produce)"
+      ],
+      "errorKind": "http",
+      "note": "DATA-007 kind `http` (see below class), a transient 5xx, so retryable. Protocol-VALID: the consumer must accept it and publish the kind.",
+      "shape": "failure",
+      "verdict": "accept"
+    },
+    "failure_internal": {
+      "consumedBy": [
+        "service (Protocol.js must accept)",
+        "helper (normalize.py must be able to produce)"
+      ],
+      "errorKind": "internal",
+      "note": "DATA-007 kind `internal` (integrity class). Protocol-VALID: the consumer must accept it and publish the kind.",
+      "shape": "failure",
+      "verdict": "accept"
+    },
+    "failure_malformed_response": {
+      "consumedBy": [
+        "service (Protocol.js must accept)",
+        "helper (normalize.py must be able to produce)"
+      ],
+      "errorKind": "malformed_response",
+      "note": "DATA-007 kind `malformed_response` (integrity class). Protocol-VALID: the consumer must accept it and publish the kind.",
+      "shape": "failure",
+      "verdict": "accept"
+    },
+    "failure_network": {
+      "consumedBy": [
+        "service (Protocol.js must accept)",
+        "helper (normalize.py must be able to produce)"
+      ],
+      "errorKind": "network",
+      "note": "DATA-007 kind `network` (transient class). Protocol-VALID: the consumer must accept it and publish the kind.",
+      "shape": "failure",
+      "verdict": "accept"
+    },
+    "failure_oversized_response": {
+      "consumedBy": [
+        "service (Protocol.js must accept)",
+        "helper (normalize.py must be able to produce)"
+      ],
+      "errorKind": "oversized_response",
+      "note": "DATA-007 kind `oversized_response` (integrity class). Protocol-VALID: the consumer must accept it and publish the kind.",
+      "shape": "failure",
+      "verdict": "accept"
+    },
+    "failure_partial_response": {
+      "consumedBy": [
+        "service (Protocol.js must accept)",
+        "helper (normalize.py must be able to produce)"
+      ],
+      "errorKind": "partial_response",
+      "note": "DATA-007 kind `partial_response` (integrity class). Protocol-VALID: the consumer must accept it and publish the kind.",
+      "shape": "failure",
+      "verdict": "accept"
+    },
+    "failure_rate_limited": {
+      "consumedBy": [
+        "service (Protocol.js must accept)",
+        "helper (normalize.py must be able to produce)"
+      ],
+      "errorKind": "rate_limited",
+      "note": "DATA-007 kind `rate_limited` (transient class). Protocol-VALID: the consumer must accept it and publish the kind.",
+      "shape": "failure",
+      "verdict": "accept"
+    },
+    "failure_redirect": {
+      "consumedBy": [
+        "service (Protocol.js must accept)",
+        "helper (normalize.py must be able to produce)"
+      ],
+      "errorKind": "redirect",
+      "note": "DATA-007 kind `redirect` (integrity class). Protocol-VALID: the consumer must accept it and publish the kind.",
+      "shape": "failure",
+      "verdict": "accept"
+    },
+    "failure_site_unselected": {
+      "consumedBy": [
+        "service (Protocol.js must accept)",
+        "helper (normalize.py must be able to produce)"
+      ],
+      "errorKind": "site_unselected",
+      "note": "DATA-007 kind `site_unselected` (fatal class). Protocol-VALID: the consumer must accept it and publish the kind.",
+      "shape": "failure",
+      "verdict": "accept"
+    },
+    "failure_timeout": {
+      "consumedBy": [
+        "service (Protocol.js must accept)",
+        "helper (normalize.py must be able to produce)"
+      ],
+      "errorKind": "timeout",
+      "note": "DATA-007 kind `timeout` (transient class). Protocol-VALID: the consumer must accept it and publish the kind.",
+      "shape": "failure",
+      "verdict": "accept"
+    },
+    "failure_tls": {
+      "consumedBy": [
+        "service (Protocol.js must accept)",
+        "helper (normalize.py must be able to produce)"
+      ],
+      "errorKind": "tls",
+      "note": "DATA-007 kind `tls` (fatal class). Protocol-VALID: the consumer must accept it and publish the kind.",
+      "shape": "failure",
+      "verdict": "accept"
+    },
+    "failure_unauthorized": {
+      "consumedBy": [
+        "service (Protocol.js must accept)",
+        "helper (normalize.py must be able to produce)"
+      ],
+      "errorKind": "unauthorized",
+      "note": "DATA-007 kind `unauthorized` (fatal class). Protocol-VALID: the consumer must accept it and publish the kind.",
+      "shape": "failure",
+      "verdict": "accept"
+    },
+    "failure_uncommitted": {
+      "consumedBy": [
+        "service (Protocol.js must accept)",
+        "helper (normalize.py must be able to produce)"
+      ],
+      "errorKind": "uncommitted",
+      "note": "DATA-007 kind `uncommitted` (fatal class). Protocol-VALID: the consumer must accept it and publish the kind. meta is all-null here because the configuration it derives from is by definition unreadable for this kind (DEV-2).",
+      "shape": "failure",
+      "verdict": "accept"
+    },
+    "failure_unconfigured": {
+      "consumedBy": [
+        "service (Protocol.js must accept)",
+        "helper (normalize.py must be able to produce)"
+      ],
+      "errorKind": "unconfigured",
+      "note": "DATA-007 kind `unconfigured` (fatal class). Protocol-VALID: the consumer must accept it and publish the kind. meta is all-null here because the configuration it derives from is by definition unreadable for this kind (DEV-2).",
+      "shape": "failure",
+      "verdict": "accept"
+    },
+    "failure_unsupported": {
+      "consumedBy": [
+        "service (Protocol.js must accept)",
+        "helper (normalize.py must be able to produce)"
+      ],
+      "errorKind": "unsupported",
+      "note": "DATA-007 kind `unsupported` (fatal class). Protocol-VALID: the consumer must accept it and publish the kind.",
+      "shape": "failure",
+      "verdict": "accept"
+    },
+    "success_500_down_bounded_list": {
+      "consumedBy": [
+        "service (Protocol.js must accept)",
+        "helper (normalize.py must be able to produce)"
+      ],
+      "errorKind": null,
+      "note": "500 devices, every one down. offlineDevices is bounded to 10 by REQ-010 while offlineTotal stays 500, which is what AC-063's \"and 490 more\" is computed from. Computing it from the array length instead would understate an outage by 98%.",
+      "shape": "success",
+      "verdict": "accept"
+    },
+    "success_all_gateways_down": {
+      "consumedBy": [
+        "service (Protocol.js must accept)",
+        "helper (normalize.py must be able to produce)"
+      ],
+      "errorKind": null,
+      "note": "REQ-002 rule 3 (red): at least one gateway exists and every gateway is down. Rule 3 strictly precedes rule 4, so the presence of other non-online devices must not downgrade this to amber.",
+      "shape": "success",
+      "verdict": "accept"
+    },
+    "success_degraded": {
+      "consumedBy": [
+        "service (Protocol.js must accept)",
+        "helper (normalize.py must be able to produce)"
+      ],
+      "errorKind": null,
+      "note": "REQ-002 rule 4 (amber): one down, one impaired, one transitional. The UPDATING access point must NOT reach rule 4 — transitional is excluded by design, so an updating AP on a healthy site stays out of the amber condition.",
+      "shape": "success",
+      "verdict": "accept"
+    },
+    "success_empty_site": {
+      "consumedBy": [
+        "service (Protocol.js must accept)",
+        "helper (normalize.py must be able to produce)"
+      ],
+      "errorKind": null,
+      "note": "REQ-002 rule 2 (grey) and UX-005: zero adopted devices. A complete, successful, empty result — not a failure.",
+      "shape": "success",
+      "verdict": "accept"
+    },
+    "success_five_gateways_truncated": {
+      "consumedBy": [
+        "service (Protocol.js must accept)",
+        "helper (normalize.py must be able to produce)"
+      ],
+      "errorKind": null,
+      "note": "Five gateways: REQ-008a fetches statistics for at most four, in primary order. The fifth is listed with null metrics and a warning — a bound on route 4's contribution to the REQ-017 time budget, not a failure.",
+      "shape": "success",
+      "verdict": "accept"
+    },
+    "success_healthy": {
+      "consumedBy": [
+        "service (Protocol.js must accept)",
+        "helper (normalize.py must be able to produce)"
+      ],
+      "errorKind": null,
+      "note": "REQ-002 rule 5 (green): one gateway online, everything up.",
+      "shape": "success",
+      "verdict": "accept"
+    },
+    "success_insecure_tls": {
+      "consumedBy": [
+        "service (Protocol.js must accept)",
+        "helper (normalize.py must be able to produce)"
+      ],
+      "errorKind": null,
+      "note": "allowInsecureTls in force. UX-009 needs this to reach the panel, and meta is the only channel that can carry it — config.json is helper-only and QML cannot read it.",
+      "shape": "success",
+      "verdict": "accept"
+    },
+    "success_meta_all_null": {
+      "consumedBy": [
+        "service (Protocol.js must accept)",
+        "helper (normalize.py must be able to produce)"
+      ],
+      "errorKind": null,
+      "note": "DEV-2: meta present as an object with every field except helperVersion null, on a success envelope. A conditional container would give the validator two rules and the two implementations a shape to disagree about.",
+      "shape": "success",
+      "verdict": "accept"
+    },
+    "success_mixed_gateways": {
+      "consumedBy": [
+        "service (Protocol.js must accept)",
+        "helper (normalize.py must be able to produce)"
+      ],
+      "errorKind": null,
+      "note": "One gateway ONLINE and another ISOLATED. Amber via rule 4, NOT red — rule 3 needs EVERY gateway down — and wan.status degraded.",
+      "shape": "success",
+      "verdict": "accept"
+    },
+    "success_multi_feature_roles": {
+      "consumedBy": [
+        "service (Protocol.js must accept)",
+        "helper (normalize.py must be able to produce)"
+      ],
+      "errorKind": null,
+      "note": "A Dream Machine reporting gateway + switching + accessPoint at once, an AP-only device, and one with an EMPTY features array. byClass counts three unique devices; the role objects sum to five. They are NOT a partition and are not expected to agree — that contrast is what roleCountsAreNotAPartition tells the panel.",
+      "shape": "success",
+      "verdict": "accept"
+    },
+    "success_no_gateway": {
+      "consumedBy": [
+        "service (Protocol.js must accept)",
+        "helper (normalize.py must be able to produce)"
+      ],
+      "errorKind": null,
+      "note": "No gateway-featured device. Rule 3 requires at least one, so this site can NEVER be red however bad it gets; it is judged on rules 4 and 5 alone and reports wan.status == unknown.",
+      "shape": "success",
+      "verdict": "accept"
+    },
+    "success_optional_gaps": {
+      "consumedBy": [
+        "service (Protocol.js must accept)",
+        "helper (normalize.py must be able to produce)"
+      ],
+      "errorKind": null,
+      "note": "BIZ-004: every optional collection failed. clients is null, the WAN and gateway metrics are null, and warnings say so — but the batch still SUCCEEDS and still replaces the snapshot. A device health indicator must not be disabled by an unavailable throughput metric.",
+      "shape": "success",
+      "verdict": "accept"
+    },
+    "success_transitional_only": {
+      "consumedBy": [
+        "service (Protocol.js must accept)",
+        "helper (normalize.py must be able to produce)"
+      ],
+      "errorKind": null,
+      "note": "Every non-online device is transitional. Rule 4 does not match transitional, so this is GREEN. offlineTotal is 0 and the offline list is empty, because REQ-003 keeps a transitional device out of it entirely.",
+      "shape": "success",
+      "verdict": "accept"
+    },
+    "success_unknown_state": {
+      "consumedBy": [
+        "service (Protocol.js must accept)",
+        "helper (normalize.py must be able to produce)"
+      ],
+      "errorKind": null,
+      "note": "A device whose API state is outside the ten-value enum. REQ-000 puts it in `unknown`, which rule 4 DOES match, so this is amber. It is not in offlineTotal, which is down+impaired only — the exact gap that made byClass necessary (DEV-1).",
+      "shape": "success",
+      "verdict": "accept"
+    }
+  },
+  "contract": "docs/protocol-v1.md",
+  "coverage": {
+    "acceptFixtures": 34,
+    "errorKinds": 19,
+    "rejectFixtures": 42,
+    "rejectionClasses": 36
+  },
+  "generatedBy": "tests/tools/gen_envelopes.py",
+  "note": "The accept corpus is consumed in TWO directions: tests/model/*.test.js feeds it to Health.js as input, and tests/test_unifi_status.py asserts it as normalize.py output. That is what stops the Python producer and the JS consumer inventing two shapes from the same prose (risk R-F, and the mechanism by which DEV-1 went unnoticed).",
+  "reject": {
+    "attempted_at_future": {
+      "note": "attemptedAt is after receipt.",
+      "publishedAs": "malformed_response",
+      "rejectedBy": "service",
+      "rejectionClass": "attempted_at_future",
+      "rule": "DATA-008 / attempted_at_future"
+    },
+    "attempted_at_malformed": {
+      "note": "A timezone-less timestamp. Accepting it would silently reinterpret the helper's clock as local time.",
+      "publishedAs": "malformed_response",
+      "rejectedBy": "service",
+      "rejectionClass": "attempted_at_malformed",
+      "rule": "DATA-008 / attempted_at_malformed"
+    },
+    "attempted_at_too_early": {
+      "note": "attemptedAt is 40 minutes before service launch. DATA-008a makes this the ONE rejection that re-baselines and retries once, because it is the signature of a laptop resuming with a slow RTC rather than a bad helper. A second consecutive one is a genuine protocol error.",
+      "publishedAs": "malformed_response",
+      "rejectedBy": "service",
+      "rejectionClass": "attempted_at_too_early",
+      "rule": "DATA-008 / attempted_at_too_early"
+    },
+    "bound_exceeded": {
+      "note": "A 513-character site name, one past the 512-char string bound.",
+      "publishedAs": "malformed_response",
+      "rejectedBy": "service",
+      "rejectionClass": "bound_exceeded",
+      "rule": "DATA-008 / bound_exceeded"
+    },
+    "byclass_offline_mismatch": {
+      "note": "byClass.down + byClass.impaired is 2 while offlineTotal says 0.",
+      "publishedAs": "malformed_response",
+      "rejectedBy": "service",
+      "rejectionClass": "byclass_offline_mismatch",
+      "rule": "DATA-008 / byclass_offline_mismatch"
+    },
+    "byclass_sum_mismatch": {
+      "note": "byClass sums to 4 while devicesTotal says 5. Constructed by mutating a valid envelope, because counts() refuses to build it — which is the point: the generator asserts the invariant, so only an explicit mutation can violate it.",
+      "publishedAs": "malformed_response",
+      "rejectedBy": "service",
+      "rejectionClass": "byclass_sum_mismatch",
+      "rule": "DATA-008 / byclass_sum_mismatch"
+    },
+    "data_schema_violation_missing_class": {
+      "note": "counts.byClass omits `impaired`. Absence must never be read as zero.",
+      "publishedAs": "malformed_response",
+      "rejectedBy": "service",
+      "rejectionClass": "data_schema_violation",
+      "rule": "DATA-008 / data_schema_violation"
+    },
+    "data_schema_violation_negative": {
+      "note": "devicesTotal is negative.",
+      "publishedAs": "malformed_response",
+      "rejectedBy": "service",
+      "rejectionClass": "data_schema_violation",
+      "rule": "DATA-008 / data_schema_violation"
+    },
+    "data_schema_violation_wan_status": {
+      "note": "wan.status is \"flapping\", outside the four-value domain.",
+      "publishedAs": "malformed_response",
+      "rejectedBy": "service",
+      "rejectionClass": "data_schema_violation",
+      "rule": "DATA-008 / data_schema_violation"
+    },
+    "envelope_not_object": {
+      "note": "The top-level JSON value is an array.",
+      "publishedAs": "malformed_response",
+      "rejectedBy": "service",
+      "rejectionClass": "envelope_not_object",
+      "rule": "DATA-008 / envelope_not_object"
+    },
+    "envelope_unknown_key": {
+      "note": "A tenth top-level key. Unknown keys are rejected rather than ignored, so a future protocol cannot be half-read by an old consumer.",
+      "publishedAs": "malformed_response",
+      "rejectedBy": "service",
+      "rejectionClass": "envelope_unknown_key",
+      "rule": "DATA-008 / envelope_unknown_key"
+    },
+    "error_http_status_forbidden": {
+      "note": "kind `credential` carrying httpStatus 429. The spec's own example: it is rejected as malformed_response, NOT acted on as a rate limit. Acting on it would let a bad envelope steer the scheduler.",
+      "publishedAs": "malformed_response",
+      "rejectedBy": "service",
+      "rejectionClass": "error_http_status_forbidden",
+      "rule": "DATA-008 / error_http_status_forbidden"
+    },
+    "error_http_status_typed_as_http": {
+      "note": "kind `http` carrying 401. DATA-007 requires a received status to keep its TYPED kind, so 401 must be `unauthorized` and never `http`.",
+      "publishedAs": "malformed_response",
+      "rejectedBy": "service",
+      "rejectionClass": "error_http_status_wrong",
+      "rule": "DATA-008 / error_http_status_wrong"
+    },
+    "error_http_status_wrong": {
+      "note": "kind `unauthorized` carrying httpStatus 500 instead of 401.",
+      "publishedAs": "malformed_response",
+      "rejectedBy": "service",
+      "rejectionClass": "error_http_status_wrong",
+      "rule": "DATA-008 / error_http_status_wrong"
+    },
+    "error_kind_missing": {
+      "note": "error without a kind.",
+      "publishedAs": "malformed_response",
+      "rejectedBy": "service",
+      "rejectionClass": "error_kind_missing",
+      "rule": "DATA-008 / error_kind_missing"
+    },
+    "error_retry_after_forbidden": {
+      "note": "kind `timeout` carrying retryAfterSec, which only rate_limited may.",
+      "publishedAs": "malformed_response",
+      "rejectedBy": "service",
+      "rejectionClass": "error_retry_after_forbidden",
+      "rule": "DATA-008 / error_retry_after_forbidden"
+    },
+    "error_retryable_mismatch": {
+      "note": "kind `credential` claiming retryable: true. The kind is fatal, so this would turn a permanent misconfiguration into an endless poll.",
+      "publishedAs": "malformed_response",
+      "rejectedBy": "service",
+      "rejectionClass": "error_retryable_mismatch",
+      "rule": "DATA-008 / error_retryable_mismatch"
+    },
+    "failure_data_not_null": {
+      "note": "ok: false carrying data.",
+      "publishedAs": "malformed_response",
+      "rejectedBy": "service",
+      "rejectionClass": "failure_data_not_null",
+      "rule": "DATA-008 / failure_data_not_null"
+    },
+    "failure_error_missing": {
+      "note": "ok: false with error null.",
+      "publishedAs": "malformed_response",
+      "rejectedBy": "service",
+      "rejectionClass": "failure_error_missing",
+      "rule": "DATA-008 / failure_error_missing"
+    },
+    "failure_exit_zero": {
+      "note": "ok: false with exit status 0.",
+      "publishedAs": "malformed_response",
+      "rejectedBy": "service",
+      "rejectionClass": "failure_exit_zero",
+      "rule": "DATA-008 / failure_exit_zero"
+    },
+    "failure_observed_at_not_null": {
+      "note": "ok: false carrying observedAt.",
+      "publishedAs": "malformed_response",
+      "rejectedBy": "service",
+      "rejectionClass": "failure_observed_at_not_null",
+      "rule": "DATA-008 / failure_observed_at_not_null"
+    },
+    "meta_helper_version_missing": {
+      "note": "meta.helperVersion is null. It is the ONE field DEV-2 does not make nullable.",
+      "publishedAs": "malformed_response",
+      "rejectedBy": "service",
+      "rejectionClass": "meta_helper_version_missing",
+      "rule": "DATA-008 / meta_helper_version_missing"
+    },
+    "meta_missing": {
+      "note": "meta is null.",
+      "publishedAs": "malformed_response",
+      "rejectedBy": "service",
+      "rejectionClass": "meta_missing",
+      "rule": "DATA-008 / meta_missing"
+    },
+    "nonce_mismatch": {
+      "note": "A well-formed envelope carrying a nonce the service never issued. This is the shape of output from a PREVIOUS service instance after a plugin hot-reload, which an in-memory generation counter cannot detect because the reload reset it (DATA-005a).",
+      "publishedAs": "malformed_response",
+      "rejectedBy": "service",
+      "rejectionClass": "nonce_mismatch",
+      "rule": "DATA-008 / nonce_mismatch"
+    },
+    "nonce_missing": {
+      "note": "nonce absent.",
+      "publishedAs": "malformed_response",
+      "rejectedBy": "service",
+      "rejectionClass": "nonce_missing",
+      "rule": "DATA-008 / nonce_missing"
+    },
+    "ok_not_boolean_integer": {
+      "note": "ok is the integer 1. Truthiness would accept it; identity must not.",
+      "publishedAs": "malformed_response",
+      "rejectedBy": "service",
+      "rejectionClass": "ok_not_boolean",
+      "rule": "DATA-008 / ok_not_boolean"
+    },
+    "ok_not_boolean_missing": {
+      "note": "ok is absent.",
+      "publishedAs": "malformed_response",
+      "rejectedBy": "service",
+      "rejectionClass": "ok_not_boolean",
+      "rule": "DATA-008 / ok_not_boolean"
+    },
+    "ok_not_boolean_string": {
+      "note": "ok is the string \"true\".",
+      "publishedAs": "malformed_response",
+      "rejectedBy": "service",
+      "rejectionClass": "ok_not_boolean",
+      "rule": "DATA-008 / ok_not_boolean"
+    },
+    "protocol_version_string": {
+      "note": "protocolVersion is the STRING \"1\". It must be the integer.",
+      "publishedAs": "malformed_response",
+      "rejectedBy": "service",
+      "rejectionClass": "protocol_version_wrong",
+      "rule": "DATA-008 / protocol_version_wrong"
+    },
+    "protocol_version_wrong": {
+      "note": "protocolVersion is 2.",
+      "publishedAs": "malformed_response",
+      "rejectedBy": "service",
+      "rejectionClass": "protocol_version_wrong",
+      "rule": "DATA-008 / protocol_version_wrong"
+    },
+    "stdout_multiple_values": {
+      "note": "Two JSON objects on stdout. A reader taking the first would act on a half-written batch.",
+      "publishedAs": "malformed_response",
+      "rejectedBy": "service",
+      "rejectionClass": "stdout_multiple_values",
+      "rule": "DATA-008 / stdout_multiple_values"
+    },
+    "stdout_not_json": {
+      "note": "stdout is not JSON. The likely real cause is a Python traceback, which is exactly the case that must not throw.",
+      "publishedAs": "malformed_response",
+      "rejectedBy": "service",
+      "rejectionClass": "stdout_not_json",
+      "rule": "DATA-008 / stdout_not_json"
+    },
+    "stdout_oversized": {
+      "note": "A valid envelope padded past the 256 KiB stdout bound. Synthesized rather than committed so the corpus does not carry a quarter-megabyte file into every user's plugins directory.",
+      "publishedAs": "malformed_response",
+      "rejectedBy": "service",
+      "rejectionClass": "stdout_oversized",
+      "rule": "DATA-008 / stdout_oversized"
+    },
+    "stdout_trailing_garbage": {
+      "note": "A valid envelope followed by non-whitespace.",
+      "publishedAs": "malformed_response",
+      "rejectedBy": "service",
+      "rejectionClass": "stdout_trailing_garbage",
+      "rule": "DATA-008 / stdout_trailing_garbage"
+    },
+    "success_data_empty": {
+      "note": "ok: true with data: {}. This passed EVERY stated rule in the original spec draft and is why DATA-008 now requires data to satisfy the DATA-006 schema.",
+      "publishedAs": "malformed_response",
+      "rejectedBy": "service",
+      "rejectionClass": "success_data_empty",
+      "rule": "DATA-008 / success_data_empty"
+    },
+    "success_data_missing": {
+      "note": "ok: true with data null.",
+      "publishedAs": "malformed_response",
+      "rejectedBy": "service",
+      "rejectionClass": "success_data_missing",
+      "rule": "DATA-008 / success_data_missing"
+    },
+    "success_error_not_null": {
+      "note": "ok: true with a populated error.",
+      "publishedAs": "malformed_response",
+      "rejectedBy": "service",
+      "rejectionClass": "success_error_not_null",
+      "rule": "DATA-008 / success_error_not_null"
+    },
+    "success_exit_nonzero": {
+      "note": "ok: true paired with a non-zero exit status.",
+      "publishedAs": "malformed_response",
+      "rejectedBy": "service",
+      "rejectionClass": "success_exit_nonzero",
+      "rule": "DATA-008 / success_exit_nonzero"
+    },
+    "success_observed_at_missing": {
+      "note": "ok: true with observedAt null.",
+      "publishedAs": "malformed_response",
+      "rejectedBy": "service",
+      "rejectionClass": "success_observed_at_missing",
+      "rule": "DATA-008 / success_observed_at_missing"
+    },
+    "success_observed_at_unordered": {
+      "note": "observedAt precedes attemptedAt.",
+      "publishedAs": "malformed_response",
+      "rejectedBy": "service",
+      "rejectionClass": "success_observed_at_unordered",
+      "rule": "DATA-008 / success_observed_at_unordered"
+    },
+    "warning_shape_invalid": {
+      "note": "A warning is a bare string. The panel would have to parse prose, and DATA-012's {id, name} site pairs could not be carried at all.",
+      "publishedAs": "malformed_response",
+      "rejectedBy": "service",
+      "rejectionClass": "warning_shape_invalid",
+      "rule": "DATA-008 / warning_shape_invalid"
+    },
+    "warnings_not_array": {
+      "note": "warnings is null rather than an empty array.",
+      "publishedAs": "malformed_response",
+      "rejectedBy": "service",
+      "rejectionClass": "warnings_not_array",
+      "rule": "DATA-008 / warnings_not_array"
+    }
+  }
+}

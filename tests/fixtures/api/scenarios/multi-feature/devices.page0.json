@@ -1,0 +1,59 @@
+{
+  "count": 3,
+  "data": [
+    {
+      "features": [
+        "gateway",
+        "switching",
+        "accessPoint"
+      ],
+      "firmwareUpdatable": false,
+      "firmwareVersion": "9.1.0",
+      "id": "bce4de35-f69b-5c47-90f9-6ab9243d5ef8",
+      "interfaces": [
+        "ports"
+      ],
+      "ipAddress": "192.168.10.2",
+      "macAddress": "02:00:00:00:00:01",
+      "model": "UDM-Pro",
+      "name": "Udm 1",
+      "state": "ONLINE",
+      "supported": true
+    },
+    {
+      "features": [
+        "accessPoint"
+      ],
+      "firmwareUpdatable": false,
+      "firmwareVersion": "9.1.0",
+      "id": "f648a25e-acb1-53b5-8baf-96f92d4dc4fe",
+      "interfaces": [
+        "radios"
+      ],
+      "ipAddress": "192.168.10.3",
+      "macAddress": "02:00:00:00:00:02",
+      "model": "U6-Pro",
+      "name": "Ap Only",
+      "state": "ONLINE",
+      "supported": true
+    },
+    {
+      "features": [],
+      "firmwareUpdatable": false,
+      "firmwareVersion": "9.1.0",
+      "id": "f3efca30-c261-5736-91cc-71cb88d5568c",
+      "interfaces": [
+        "radios"
+      ],
+      "ipAddress": "192.168.10.4",
+      "macAddress": "02:00:00:00:00:03",
+      "model": "UNKNOWN-DEV",
+      "name": "Featureless",
+      "state": "ONLINE",
+      "supported": true
+    }
+  ],
+  "limit": 200,
+  "offset": 0,
+  "totalCount": 3
+}

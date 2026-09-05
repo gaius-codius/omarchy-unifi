@@ -1,0 +1,94 @@
+{
+  "count": 5,
+  "data": [
+    {
+      "features": [
+        "gateway",
+        "switching"
+      ],
+      "firmwareUpdatable": false,
+      "firmwareVersion": "9.1.0",
+      "id": "140d6676-08f6-5cbd-806a-bff7222ccc5d",
+      "interfaces": [
+        "ports"
+      ],
+      "ipAddress": "192.168.10.2",
+      "macAddress": "02:00:00:00:00:01",
+      "model": "UDM-Pro",
+      "name": "Gw 1",
+      "state": "ONLINE",
+      "supported": true
+    },
+    {
+      "features": [
+        "switching"
+      ],
+      "firmwareUpdatable": false,
+      "firmwareVersion": "9.1.0",
+      "id": "ab612103-aea1-5771-8ba7-140d11e4d864",
+      "interfaces": [
+        "ports"
+      ],
+      "ipAddress": "192.168.10.3",
+      "macAddress": "02:00:00:00:00:02",
+      "model": "USW-Lite-8-PoE",
+      "name": "Switch 1",
+      "state": "ONLINE",
+      "supported": true
+    },
+    {
+      "features": [
+        "switching"
+      ],
+      "firmwareUpdatable": false,
+      "firmwareVersion": "9.1.0",
+      "id": "3297f190-6054-5fbc-8269-8aacfed7c102",
+      "interfaces": [
+        "ports"
+      ],
+      "ipAddress": "192.168.10.4",
+      "macAddress": "02:00:00:00:00:03",
+      "model": "USW-Lite-8-PoE",
+      "name": "Switch 2",
+      "state": "OFFLINE",
+      "supported": true
+    },
+    {
+      "features": [
+        "accessPoint"
+      ],
+      "firmwareUpdatable": false,
+      "firmwareVersion": "9.1.0",
+      "id": "25022792-c586-561b-842e-953d6fe0ca58",
+      "interfaces": [
+        "radios"
+      ],
+      "ipAddress": "192.168.10.5",
+      "macAddress": "02:00:00:00:00:04",
+      "model": "U6-Pro",
+      "name": "Ap 1",
+      "state": "ISOLATED",
+      "supported": true
+    },
+    {
+      "features": [
+        "accessPoint"
+      ],
+      "firmwareUpdatable": false,
+      "firmwareVersion": "9.1.0",
+      "id": "2b7aa8b3-0288-5aae-b93a-379967eb2338",
+      "interfaces": [
+        "radios"
+      ],
+      "ipAddress": "192.168.10.6",
+      "macAddress": "02:00:00:00:00:05",
+      "model": "U6-Pro",
+      "name": "Ap 2",
+      "state": "UPDATING",
+      "supported": true
+    }
+  ],
+  "limit": 200,
+  "offset": 0,
+  "totalCount": 5
+}

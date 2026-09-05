@@ -1,0 +1,13 @@
+{
+  "collection": "devices",
+  "expect": "max_decoded_bytes_enforced",
+  "id": "max_decoded_bytes_enforced",
+  "limit": 200,
+  "note": "Pages whose accumulated decoded size crosses the 8 MiB per-collection bound before the page count does. Synthesized, as above.",
+  "responses": null,
+  "synthesize": {
+    "pages": 64,
+    "recordsPerPage": 200,
+    "totalCount": 100000
+  }
+}
