@@ -211,14 +211,23 @@ Therefore **exit status alone cannot distinguish "no shell running" from
 "target missing"** — both are exit 1. `scripts/configure` must call without
 `-q`, capture stderr, and classify on the exact message:
 
-| stderr message | meaning | configure's action |
-|---|---|---|
-| `omarchy-shell is not running` | no shell | report deferred to next shell start, exit 0 |
-| `omarchy-shell is not responding` | timeout | preserve files, exit non-zero |
-| `omarchy-shell is not ready` | still starting | preserve files, exit non-zero |
-| `Target not found.` | service not loaded | preserve files, exit non-zero |
-| `Function not found.` | method missing | preserve files, exit non-zero |
-| (exit 0) | delivered | success |
+| stderr message | what the host means by it |
+|---|---|
+| `omarchy-shell is not running` | `qs ipc` could not connect |
+| `omarchy-shell is not responding` | the 2 s IPC timeout elapsed |
+| `omarchy-shell is not ready` | the shell is up but not accepting queries |
+| `Target not found.` | no `IpcHandler` is registered for that target |
+| `Function not found.` | the target exists but has no such method |
+| (exit 0, message on stdout) | delivered and acknowledged |
+
+**This table records host behaviour only.** `omarchy-shell` exits 1 for every
+row above except the last. How `scripts/configure` *classifies* each row —
+which ones it treats as success — is a design decision, not a host fact, and is
+owned by `SPEC.md` DATA-010b. Notably DATA-010b treats `Target not found.` as a
+**deferred success**, because per HC-3 the service does not exist until the
+widget is placed on the bar, making it the expected outcome when a first-time
+user configures before adding the widget. That is a policy layered on top of
+this table, not a contradiction of it.
 
 ### Registering a target
 A plain Quickshell `IpcHandler` (`import Quickshell.Io`) with typed function
@@ -540,7 +549,40 @@ symlink inside it.
 
 ---
 
-## 11. Summary of constraints that change the design
+## 11. Popout coordination is per-monitor, not global
+
+### HC-13 (blocking constraint): there is no host mechanism for cross-monitor panel exclusivity
+`KeyboardPanel` coordinates popouts through `bar.requestPopout(owner)` and
+`bar.releasePopout(owner)` (`Ui/KeyboardPanel.qml:240`, `:246`), which operate on
+`property var activePopout` declared on **`Bar`** (`plugins/bar/Bar.qml:83`,
+implemented at `:316-327`). One `Bar` instance exists per monitor, so
+`activePopout` is per-monitor state.
+
+The source says so explicitly (`Ui/KeyboardPanel.qml:222`):
+
+```
+// --- popout coordination (same-bar single-popout model) -----------------
+```
+
+Consequence: opening this plugin's panel on monitor 1 will close a *sibling
+widget's* popup on monitor 1, but will **not** close this plugin's own panel on
+monitor 2. Two `KeyboardPanel` instances can therefore be open simultaneously on
+different monitors, both having primed keyboard focus.
+
+`SPEC.md` REQ-007a requires at most one panel open across all monitors. Since
+the host does not provide it, the only citable cross-monitor channel available
+is this plugin's own singleton service (HC-3): the service holds a panel
+ownership token, widgets request and release it, and a widget that loses the
+token closes its panel. The arbitration itself is pure logic and belongs in
+`Model.js` so it is testable under `node --test` rather than only in a live
+session.
+
+Do **not** call `bar.requestPopout` directly — `KeyboardPanel` already owns that
+interaction for same-bar coordination, and duplicating it would fight the host.
+
+---
+
+## 12. Summary of constraints that change the design
 
 | ID | Constraint | Design impact |
 |---|---|---|
@@ -556,3 +598,4 @@ symlink inside it.
 | HC-10 | **RESOLVED** — `qs.*` resolves from outside the config root; the import path is engine-global | UI phase is not gated; confirm once at staging |
 | HC-11 | `qmltestrunner` cannot load `Quickshell.Io` at all | QML integration tests run under `quickshell -p` in a live Wayland session |
 | HC-12 | `qmllint` sees `qs.*` only via an import root holding a `qs` symlink | Fixed lint invocation, with the root outside the plugin folder |
+| HC-13 | Popout exclusivity is per-`Bar`, so it is per-monitor; no host mechanism spans monitors | REQ-007a is implemented as a service-held ownership token, arbitrated in `Model.js` |
