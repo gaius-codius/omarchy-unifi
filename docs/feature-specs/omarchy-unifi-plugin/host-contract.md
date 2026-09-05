@@ -549,38 +549,109 @@ symlink inside it.
 
 ---
 
-## 11. Popout coordination is per-monitor, not global
+## 11. Popout coordination, Python launch, and the JS module seam
 
-### HC-13 (blocking constraint): there is no host mechanism for cross-monitor panel exclusivity
-`KeyboardPanel` coordinates popouts through `bar.requestPopout(owner)` and
-`bar.releasePopout(owner)` (`Ui/KeyboardPanel.qml:240`, `:246`), which operate on
-`property var activePopout` declared on **`Bar`** (`plugins/bar/Bar.qml:83`,
-implemented at `:316-327`). One `Bar` instance exists per monitor, so
-`activePopout` is per-monitor state.
+### HC-13 (CORRECTED — popout exclusivity is already global; do not reimplement it)
+An earlier draft of this document claimed `Bar.activePopout` was per-monitor and
+that REQ-007a therefore needed a service-held ownership token. **That was wrong**
+and is corrected here.
 
-The source says so explicitly (`Ui/KeyboardPanel.qml:222`):
+There is exactly **one** `Bar` object. `Bar.qml`'s root is a plain `Item`
+(`plugins/bar/Bar.qml:11`), instantiated by a single `Loader` in
+`shell.qml:237-243` from `defaultBarComponent` (`shell.qml:225-235`). The Bar
+fans out to monitors *internally*, via
+`Variants { model: Quickshell.screens }` producing one `BarPanel` delegate per
+screen (`Bar.qml:966-976`).
+
+Therefore `property var activePopout` (`Bar.qml:83`) and
+`requestPopout`/`releasePopout` (`Bar.qml:316-327`) are **global state across
+every monitor**, not per-monitor state. The comment
+`// --- popout coordination (same-bar single-popout model)`
+(`Ui/KeyboardPanel.qml:222`) means "within the single Bar", which is the whole
+session — it does not mean "per monitor".
+
+`KeyboardPanel` already calls `bar.requestPopout(coordinatorKey)` on open and
+`bar.releasePopout(coordinatorKey)` on close (`Ui/KeyboardPanel.qml:240`,
+`:246`). So extending `Ui/Panel` with a `KeyboardPanel` and setting `owner`
+gives **REQ-007a for free**: at most one panel open across all monitors.
+
+**Do not implement cross-monitor panel arbitration.** Do not call
+`bar.requestPopout` directly. The service must hold no panel-open state
+whatsoever — if it ever gains a notion of "which monitor's panel is open", a
+second competing coordinator has been introduced and the leak has happened.
+AC-068 is a confirmation of host behaviour, not a feature to build.
+
+### HC-14 (blocking constraint): a `__pycache__` write hot-reloads the plugin
+`PluginRegistry.qml:636-655` runs
+`inotifywait -m -r -q -e close_write,create,delete,move` **recursively** over
+`~/.config/omarchy/plugins`. `localPluginIdForPath`
+(`PluginRegistry.qml:701-713`) maps any nested path back to its plugin id,
+excluding only *top-level* dotted entries and `.git`:
+
+```qml
+if (relative.indexOf(".") === 0) return ""
+if (relative.indexOf("/.git/") !== -1 || relative.endsWith("/.git")) return ""
+```
+
+A path like `gaius-codius.unifi/helper/unifi/__pycache__/paths.cpython-314.pyc` passes
+both tests, so it resolves to `gaius-codius.unifi` and triggers
+`localPluginChanged` → 150 ms debounce (`shell.qml:60-64`) →
+`unloadPluginServices()` → `Qt.clearComponentCache()` → rescan
+(`shell.qml:739-759`).
+
+A multi-module Python helper writes `__pycache__` on its **first import**.
+Verified on this machine:
 
 ```
-// --- popout coordination (same-bar single-popout model) -----------------
+$ python3 -E -s /tmp/pkgtest/main.py   → import ok, pycache: True
+$ python3 -B -E -s /tmp/pkgtest/main.py → import ok, pycache: False
 ```
 
-Consequence: opening this plugin's panel on monitor 1 will close a *sibling
-widget's* popup on monitor 1, but will **not** close this plugin's own panel on
-monitor 2. Two `KeyboardPanel` instances can therefore be open simultaneously on
-different monitors, both having primed keyboard focus.
+So without `-B`, the very first poll of a freshly installed plugin destroys and
+recreates its own service mid-batch. **The helper must be launched with `-B`,
+and nothing in the repository may write inside the repository at runtime or at
+test time.**
 
-`SPEC.md` REQ-007a requires at most one panel open across all monitors. Since
-the host does not provide it, the only citable cross-monitor channel available
-is this plugin's own singleton service (HC-3): the service holds a panel
-ownership token, widgets request and release it, and a widget that loses the
-token closes its panel. The arbitration itself is pure logic and belongs in
-`Model.js` so it is testable under `node --test` rather than only in a live
-session.
+### HC-15 (blocking constraint): `python3 -I` breaks a package-based helper
+`-I` (isolated) implies `-P` from Python 3.11, which removes the script's own
+directory from `sys.path`. Verified:
 
-Do **not** call `bar.requestPopout` directly — `KeyboardPanel` already owns that
-interaction for same-bar coordination, and duplicating it would fight the host.
+```
+$ python3 -I -c 'import sys; print(sys.path[:3])'
+['/usr/lib/python314.zip', '/usr/lib/python3.14', '/usr/lib/python3.14/lib-dynload']
+$ python3 -I /tmp/pkgtest/main2.py
+ModuleNotFoundError: No module named 'pkg'
+```
 
----
+This is the worst possible failure shape for a plugin declaring a 3.9 floor: it
+**works on 3.9 and fails on 3.11+**. Launch with `python3 -B -E -s <abs path>`
+and have the entry point insert its own directory onto `sys.path` explicitly.
+Note that `-E` ignores `PYTHON*` environment variables but does **not** affect
+`SSL_CERT_FILE` / `SSL_CERT_DIR`, which OpenSSL reads directly — so it is no
+substitute for SEC-007a's explicit scrub.
+
+### HC-16 (blocking constraint): QML/Node dual-use JS files cannot import each other
+A `.js` file that must run under both the QML engine and `node --test` may not
+use `.pragma library` or `.import`, because both are syntax errors under Node.
+Verified:
+
+```
+$ node -e '.pragma library'
+.pragma library
+^
+```
+
+Two consequences for any `Model.js`-style layer:
+1. **The JS modules must form an antichain** — no dual-use `.js` file may import
+   another. Composition has to happen in QML.
+2. **No dual-use `.js` file may hold mutable top-level state.** Without
+   `.pragma library`, each importing QML document (`Service.qml`, `Panel.qml`)
+   receives its own copy of the module scope, so any module-level variable would
+   silently fork between them. All exports must be pure functions over frozen
+   constants.
+
+The host itself demonstrates the required dual-export idiom at
+`plugins/bar/BarModel.js:211-212`.
 
 ## 12. Summary of constraints that change the design
 
@@ -598,4 +669,7 @@ interaction for same-bar coordination, and duplicating it would fight the host.
 | HC-10 | **RESOLVED** — `qs.*` resolves from outside the config root; the import path is engine-global | UI phase is not gated; confirm once at staging |
 | HC-11 | `qmltestrunner` cannot load `Quickshell.Io` at all | QML integration tests run under `quickshell -p` in a live Wayland session |
 | HC-12 | `qmllint` sees `qs.*` only via an import root holding a `qs` symlink | Fixed lint invocation, with the root outside the plugin folder |
-| HC-13 | Popout exclusivity is per-`Bar`, so it is per-monitor; no host mechanism spans monitors | REQ-007a is implemented as a service-held ownership token, arbitrated in `Model.js` |
+| HC-13 | Popout exclusivity is already **global** — one `Bar` fans out via `Variants` | REQ-007a comes free from `Ui/Panel` + `KeyboardPanel`; build nothing, hold no panel state in the service |
+| HC-14 | A `__pycache__` write inside the plugin dir hot-reloads the plugin | Launch the helper with `-B`; nothing may write inside the repo at runtime or test time |
+| HC-15 | `python3 -I` strips the script dir from `sys.path` on 3.11+ but not 3.9 | Launch with `-B -E -s` and bootstrap `sys.path` in the entry point |
+| HC-16 | Dual-use QML/Node `.js` files cannot `.import` each other or hold top-level state | JS modules form an antichain of pure functions; compose in QML |
