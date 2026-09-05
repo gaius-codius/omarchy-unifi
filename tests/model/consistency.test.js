@@ -9,7 +9,7 @@
 // `counts` could not answer the question `healthLevel` asked of it.
 //
 // A TEST file has no such restriction: node can require all of them at once. So
-// this is where the copies are held to each other. If a fifth dual-use module
+// this is where the copies are held to each other. If a sixth dual-use module
 // appears, add it here first.
 
 const { test } = require("node:test")
@@ -21,6 +21,7 @@ const Health = require("../../Health.js")
 const Settings = require("../../Settings.js")
 const ViewModel = require("../../ViewModel.js")
 const Schedule = require("../../Schedule.js")
+const Protocol = require("../../Protocol.js")
 
 const REPO = path.resolve(__dirname, "../..")
 const SPEC = fs.readFileSync(
@@ -124,8 +125,8 @@ test("the dual-export tail is present in every root module", () => {
   // EVERY assertion in this directory passes while testing nothing. It is the
   // largest silent failure available in this plan, so it gets two checks.
   const modules = fs.readdirSync(REPO).filter((f) => f.endsWith(".js"))
-  assert.ok(modules.length >= 4,
-    "expected at least Health, Settings, ViewModel and Schedule")
+  assert.ok(modules.length >= 5,
+    "expected at least Health, Settings, ViewModel, Schedule and Protocol")
   for (const name of modules) {
     const module = require(path.join(REPO, name))
     assert.ok(module && typeof module === "object", name + ": exported nothing")
@@ -235,5 +236,126 @@ test("the warning codes Schedule.js emits are in protocol-v1.md's closed enumera
   for (const code of ["retry_after_clamped", "retry_after_ignored"]) {
     assert.ok(PROTOCOL.indexOf("| `" + code + "` |") !== -1,
       code + ": not in the protocol-v1.md warning table")
+  }
+})
+
+// --- Protocol.js (Phase 4) ------------------------------------------------
+
+test("Protocol.js's copies of the REQ-000 domains match Health.js's", () => {
+  // Protocol.js validates `wan.status` and the class buckets; Health.js decides
+  // colour from them. A domain that drifted would either reject a snapshot
+  // Health can read, or admit one it cannot.
+  assert.deepStrictEqual(Protocol.WAN_STATUSES, Health.WAN_STATUSES)
+  assert.deepStrictEqual(Protocol.CLASSES, Health.CLASSES)
+})
+
+test("Protocol.js and Schedule.js agree on the retry class of every kind", () => {
+  // DATA-007a makes the envelope's `retryable` a claim the consumer CHECKS, and
+  // Schedule.js is what acts on the kind afterwards. If the two tables drifted,
+  // Protocol would accept an envelope whose `retryable` Schedule then
+  // contradicts — the validator would be certifying the opposite of what the
+  // scheduler does.
+  assert.deepStrictEqual(Protocol.KIND_RETRY_CLASS, Schedule.KIND_RETRY_CLASS)
+  assert.deepStrictEqual(Protocol.TRANSIENT_HTTP_STATUSES, Schedule.TRANSIENT_HTTP_STATUSES)
+
+  for (const kind of Schedule.ERROR_KINDS) {
+    for (const status of [null, 401, 403, 429, 404, 500, 502, 503, 504, 418]) {
+      assert.strictEqual(Protocol.retryClassFor(kind, status),
+        Schedule.retryClassFor(kind, status), kind + " / " + status)
+    }
+  }
+})
+
+test("the nine envelope keys match protocol-v1.md's key table", () => {
+  const table = /\| Key \| Type \| Notes \|\n\|[-| ]+\|\n((?:\|.*\n)+)/.exec(PROTOCOL)
+  assert.ok(table, "protocol-v1.md: could not locate the envelope key table")
+  const keys = table[1].split("\n")
+    .filter((line) => line.startsWith("|"))
+    .map((line) => line.split("|")[1].trim().replace(/`/g, ""))
+
+  assert.strictEqual(keys.length, 9, "DATA-005 says nine top-level keys")
+  assert.deepStrictEqual(Protocol.ENVELOPE_KEYS.slice().sort(), keys.slice().sort())
+})
+
+test("every bound in Protocol.js is the number protocol-v1.md states", () => {
+  // The bounds are enforced on BOTH sides (the helper in Python, the service
+  // here), so the document is the shared source and neither implementation is
+  // free to drift from it quietly.
+  const BOUNDS = {
+    "stdout total": Protocol.STDOUT_MAX_BYTES / 1024,
+    "helper's own stderr": Protocol.STDERR_HELPER_BOUND_BYTES / 1024,
+    "stderr retained by the service": Protocol.STDERR_RETAIN_BYTES / 1024
+  }
+  for (const label of Object.keys(BOUNDS)) {
+    const row = new RegExp("\\| " + label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+      + " \\| (\\d+) KiB \\|").exec(PROTOCOL)
+    assert.ok(row, "protocol-v1.md: no bound row for " + label)
+    assert.strictEqual(BOUNDS[label], Number(row[1]), label)
+  }
+
+  const named = {
+    "`attemptedAt` string length": [Protocol.ATTEMPTED_AT_MAX_CHARS, "chars"],
+    "`attemptedAt` earliest, before service launch": [Protocol.ATTEMPTED_AT_MAX_EARLY_SEC, "s"],
+    "`offlineDevices` entries": [Protocol.OFFLINE_DEVICES_MAX, ""],
+    "`gateways` array entries": [Protocol.GATEWAYS_MAX, ""],
+    "`warnings` entries": [Protocol.WARNINGS_MAX, ""],
+    "any string value": [Protocol.STRING_MAX_CHARS, "chars"],
+    "`message` fields specifically": [Protocol.MESSAGE_MAX_CHARS, "chars"],
+    "JSON nesting depth": [Protocol.DEPTH_MAX, ""]
+  }
+  for (const label of Object.keys(named)) {
+    const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+    const row = new RegExp("\\| " + escaped + " \\| ([\\d ]+)").exec(PROTOCOL)
+    assert.ok(row, "protocol-v1.md: no bound row for " + label)
+    assert.strictEqual(named[label][0], Number(row[1].replace(/\s/g, "")), label)
+  }
+})
+
+test("every rejection class Protocol.js can produce is one protocol-v1.md defines", () => {
+  const table = /\| id \| Rejected when \|\n\|[-| ]+\|\n((?:\|.*\n)+)/.exec(PROTOCOL)
+  assert.ok(table, "protocol-v1.md: could not locate the DATA-008 rejection table")
+  const documented = table[1].split("\n")
+    .filter((line) => line.startsWith("|"))
+    .map((line) => line.split("|")[1].trim().replace(/`/g, ""))
+
+  assert.strictEqual(documented.length, 36, "DATA-008 defines 36 rejection classes")
+
+  // Every class the SOURCE can emit, scraped from the calls themselves rather
+  // than from a list this file also maintains — a second list would just be
+  // one more copy to drift.
+  const source = fs.readFileSync(path.join(REPO, "Protocol.js"), "utf8")
+  const emitted = new Set()
+  const call = /reject\(reasons, "([a-z_]+)"/g
+  let m
+  while ((m = call.exec(source)) !== null) emitted.add(m[1])
+
+  for (const cls of emitted) {
+    assert.ok(documented.indexOf(cls) !== -1,
+      cls + ": emitted by Protocol.js but not defined in DATA-008")
+  }
+  assert.ok(emitted.size >= 30,
+    "only " + emitted.size + " classes are reachable in the source; the scrape is broken")
+})
+
+test("the DATA-007a httpStatus column matches Protocol.js's rule table", () => {
+  const rows = /\| kind \| httpStatus \| retryAfterSec \| retryable \| retry class \|\n\|[-| ]+\|\n((?:\|.*\n)+)/
+    .exec(PROTOCOL)
+  assert.ok(rows, "protocol-v1.md: could not locate the DATA-007a matrix")
+
+  for (const line of rows[1].split("\n")) {
+    if (!line.startsWith("|")) continue
+    const cells = line.split("|").map((c) => c.trim())
+    const kind = cells[1].replace(/`/g, "")
+    const statusCell = cells[2]
+    const rule = Protocol.KIND_HTTP_STATUS[kind]
+
+    if (statusCell === "forbidden") {
+      assert.strictEqual(rule, undefined, kind + ": document forbids httpStatus, code does not")
+    } else if (kind === "http") {
+      assert.strictEqual(rule, "range", "http is the one open-status kind")
+    } else {
+      const want = Number(/`(\d{3})`/.exec(statusCell)[1])
+      assert.strictEqual(rule, want, kind + ": required httpStatus")
+    }
   }
 })
