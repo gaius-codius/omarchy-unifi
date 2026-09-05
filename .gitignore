@@ -1,0 +1,4 @@
+tests/fixtures/private/
+__pycache__/
+*.pyc
+.venv/
