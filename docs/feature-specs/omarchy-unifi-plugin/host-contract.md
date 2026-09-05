@@ -581,6 +581,46 @@ whatsoever — if it ever gains a notion of "which monitor's panel is open", a
 second competing coordinator has been introduced and the leak has happened.
 AC-068 is a confirmation of host behaviour, not a feature to build.
 
+### HC-17: the full UI layer is testable under `quickshell -p` **without staging**
+`qs.*` resolves against the Quickshell **config root**, and the module path
+mapping is `qs.X` → `<root>/X/qmldir` — *not* `<root>/qs/X/`. This differs from
+the `qmllint` import root in HC-12, which does use a nested `qs/` directory
+because `qmllint` resolves a module URI against `-I` paths in the conventional
+way. Getting this wrong fails with `module "qs.Ui" is not installed`.
+
+The working construction places the harness root **outside the repository**, so
+`omarchy-plugin-validate:115`'s symlink prohibition is not engaged:
+
+```bash
+mkdir -p /tmp/uiharness/root
+ln -s /usr/share/omarchy/shell/Ui       /tmp/uiharness/root/Ui
+ln -s /usr/share/omarchy/shell/Commons  /tmp/uiharness/root/Commons
+# root/shell.qml then Qt.createComponent()s the plugin file by absolute path
+quickshell -p /tmp/uiharness/root/shell.qml
+```
+
+Verified on 2026-09-05 against the real `qs.Ui.Panel`:
+
+```
+UIHARNESS RESULT: PASS -> UI_OK Style.space=12 Color.fg=#cacccc opened=false
+```
+
+The real `Ui/Panel` base type instantiated, `Style.space(12)` returned `12`, and
+`Color.foreground` resolved to the live theme value. Combined with HC-10, this
+means **both** `Service.qml` and `Panel.qml` are exercisable in a live Wayland
+session with nothing installed into `~/.config/omarchy/`.
+
+Two consequences for planning:
+- The `LIVE` tier in `SPEC.md` §12 is really **two** tiers: *live-harness*
+  (needs a Wayland session, no staging) and *live-staged* (needs the plugin
+  installed under the real shell). Only genuine host-integration criteria —
+  AC-002, AC-003, AC-012b, AC-019, AC-026, AC-028, AC-032, AC-056, AC-068 — are
+  live-staged. AC-004, AC-005, AC-011, AC-067 and AC-071 are live-harness.
+- `Service.qml` must still avoid `qs.*` imports if it is to load in a harness
+  root that has no `Ui`/`Commons` links, but with this construction that
+  restriction is a simplification rather than a requirement. It should be
+  enforced by a lint gate regardless, so the harness cannot silently break.
+
 ### HC-14 (blocking constraint): a `__pycache__` write hot-reloads the plugin
 `PluginRegistry.qml:636-655` runs
 `inotifywait -m -r -q -e close_write,create,delete,move` **recursively** over
@@ -673,3 +713,4 @@ The host itself demonstrates the required dual-export idiom at
 | HC-14 | A `__pycache__` write inside the plugin dir hot-reloads the plugin | Launch the helper with `-B`; nothing may write inside the repo at runtime or test time |
 | HC-15 | `python3 -I` strips the script dir from `sys.path` on 3.11+ but not 3.9 | Launch with `-B -E -s` and bootstrap `sys.path` in the entry point |
 | HC-16 | Dual-use QML/Node `.js` files cannot `.import` each other or hold top-level state | JS modules form an antichain of pure functions; compose in QML |
+| HC-17 | `qs.X` maps to `<root>/X`, so a harness root outside the repo with `Ui`/`Commons` symlinks loads the real UI layer | `Panel.qml` is testable without staging; the `LIVE` tier splits into live-harness and live-staged |
