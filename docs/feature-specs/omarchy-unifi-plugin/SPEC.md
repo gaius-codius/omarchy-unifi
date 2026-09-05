@@ -3,7 +3,7 @@
 ## 1. Status
 Owner: gaius-codius
 Date: 2026-09-05
-State: Draft
+State: **Approved (spec-v1)** — frozen 2026-09-05
 Related issues / PRs: none — greenfield repository
 Supersedes: `PLAN.md` at the repository root (the pre-skill design document, retained as the origin record)
 Supporting documents: `api-contract.md`, `unifi-network-v1-readonly-subset.json` (this directory)
@@ -1373,11 +1373,10 @@ mid-poll, and the next poll corrects it. Documented rather than mitigated
 further, because full consistency would require an API transaction the
 controller does not offer.
 
-R8 (**product decision taken, flagged for confirmation**): the Omarchy palette
-has no green/amber/red tokens (REQ-001a), so health is rendered as four
-theme-native visual levels rather than four hues. This is the only theme-safe
-option, but it changes the widget's appearance from the original green/amber/red
-concept and the user may wish to override it.
+R8 (**RESOLVED**): the Omarchy palette has no green/amber/red tokens, so health
+is rendered as four theme-native visual levels (REQ-001a) rather than four hues.
+Confirmed by the user on 2026-09-05: theme-native levels, matching the existing
+Network and Tailscale idiom. No configurable colour override ships in v1.
 
 Resolved during spec creation: WAN latency and packet loss removed (no API
 support); red defined as all-gateways-down with an explicit non-empty
@@ -1463,6 +1462,8 @@ Must stop and ask (Tier 3):
 | 2026-09-05 | Spec review | Codex | Error field combinations were unconstrained | DATA-007a defines consistency rules; AC-045 |
 | 2026-09-05 | Spec review | Claude | A backwards clock step would reject every batch permanently | DATA-008a re-baselines the launch time once; AC-047 |
 | 2026-09-05 | Spec review | Claude | Rollback left the API key on disk with no revocation guidance | SEC-012 and §11 rollback updated |
+| 2026-09-05 | Spec approval | User | R8 colour rendering decision | Theme-native visual levels confirmed; REQ-001a is final; no colour-override setting in v1 |
+| 2026-09-05 | Spec approval | User | Spec approved and frozen as **spec-v1** | §1 State set to Approved; planning begins |
 
 Rejected findings:
 - *"AC-018 should test a self-hosted API root"* — the published contract defines
