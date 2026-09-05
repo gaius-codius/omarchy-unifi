@@ -60,8 +60,9 @@ in this directory, derived by reading `/usr/share/omarchy/shell/` and
 `/usr/bin/omarchy-*` directly. Every host API this plugin calls is cited there
 with a `path:line` reference; an uncited host API may not be used.
 
-Ten host constraints (HC-1 … HC-10) materially shape this design. The ones that
-change requirements rather than implementation detail:
+Host constraints HC-1 … HC-17 are recorded there; HC-11 … HC-17 were added
+during review and planning (§16). Of the ten known at spec creation, the ones
+that change requirements rather than implementation detail:
 
 - **HC-1** — `barWidget.defaults`, `schema`, and `settingsForm` are registered
   as metadata and read by nothing in 4.0.2. There is no settings-form renderer,
@@ -83,7 +84,8 @@ change requirements rather than implementation detail:
 - **HC-10** — whether `qs.Commons` / `qs.Ui` resolve for a plugin loaded from
   `~/.config/omarchy/plugins/` is **unproven**. Every first-party importer lives
   inside `/usr/share/omarchy/shell/`. This is the single largest open technical
-  risk (§14 R1).
+  risk (§14 R1). *Editorial note: resolved empirically on 2026-09-05 — see §14
+  R1 and `host-contract.md` HC-10; the text above is retained as frozen.*
 
 ### 5.3 Upstream API behaviour that constrains the design
 Established against the published `UniFi Network API 10.4.57` specification and
@@ -1366,7 +1368,7 @@ degraded / down / empty sites, multi-page collections at the >25 and >200
 boundaries, every malformed-page case, multi-feature and multi-gateway devices,
 and every device `state` value including an unrecognized one.
 
-### Manual QA (Phase 5)
+### Manual QA (`PLAN.md` Phase 13)
 The manual set is exactly AC-069, AC-070, and the human-observation halves of
 AC-011 and AC-068 — everything else has an automated or scripted assertion.
 Each is run across at least three themes including one light theme, on a
@@ -1402,7 +1404,9 @@ rule 3's "at least one gateway exists" precondition and asserted by AC-021.
 R5 (open, **blocking by user decision**): the real controller's `apiRoot`,
 Network version, site UUID, and controller type are not known. The user has
 elected to stop implementation until these are supplied, so Phase 1 is a hard
-gate.
+gate. *Editorial note, 2026-09-06: the user confirmed that only `PLAN.md`
+Phase 12 waits for these; every earlier phase proceeds. See `DEVIATION_LOG.md`
+AMD-4 and its decisions table.*
 
 R6: `Process` termination is advisory (HC-8) and the helper's own deadline
 cannot interrupt a blocking `getaddrinfo` (REQ-017c). The QML watchdog is
