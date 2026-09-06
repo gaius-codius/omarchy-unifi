@@ -1198,3 +1198,68 @@ test("the reducers never mutate the state they are given", () => {
 
   assert.strictEqual(JSON.stringify(st), snapshot)
 })
+
+// --- the monotonic axis, built from a wall clock --------------------------
+//
+// `Service.qml` has one clock and this file's reducers need two. The axis is
+// here rather than in QML for the reason the whole pure layer exists: a
+// backwards clock is not a thing a live harness can arrange on demand, and a
+// scheduler that stalls for an hour after an NTP correction is exactly the
+// failure REQ-024's monotonic axis is for.
+
+test("REQ-024: a backwards wall step never moves the monotonic axis back", () => {
+  let clock = Schedule.createClock(1000)
+  clock = Schedule.advanceClock(clock, 1010)
+  assert.strictEqual(clock.mono, 10)
+
+  // An NTP correction of one hour backwards.
+  clock = Schedule.advanceClock(clock, 1010 - 3600)
+  assert.strictEqual(clock.mono, 10, "the axis went backwards")
+
+  // And it resumes from where it was, rather than replaying the hour.
+  clock = Schedule.advanceClock(clock, 1010 - 3600 + 5)
+  assert.strictEqual(clock.mono, 15)
+})
+
+test("a backwards step cannot postpone a deadline that was already due", () => {
+  // The consequence, stated as the scheduler sees it. Without the clamp the
+  // monotonic clock would drop an hour, `now < nextAttemptAt` would become
+  // true again, and polling would stop until the hour had passed a second time.
+  let clock = Schedule.createClock(1000)
+  const state = Schedule.create({ configured: true, intervalSec: 30 })
+  const armed = Schedule.changeInterval(
+    Schedule.onSuccess(Schedule.tick(state, { now: 0, nowWall: 1000 }).state,
+      { now: 0, nowWall: 1000, generation: 1 }).state,
+    { now: 0, intervalSec: 30 })
+
+  clock = Schedule.advanceClock(clock, 1040)        // 40 s of real time
+  assert.ok(clock.mono >= armed.state.nextAttemptAt,
+    "the deadline should be due after 40 s")
+  clock = Schedule.advanceClock(clock, 1040 - 3600) // the clock steps back
+  assert.ok(clock.mono >= armed.state.nextAttemptAt,
+    "a backwards clock step un-due'd a deadline that had passed")
+})
+
+test("the axis advances at wall rate while the wall clock behaves", () => {
+  let clock = Schedule.createClock(500)
+  for (let i = 1; i <= 10; i++) clock = Schedule.advanceClock(clock, 500 + i)
+  assert.strictEqual(clock.mono, 10)
+  assert.strictEqual(clock.lastWall, 510)
+})
+
+test("a forward jump is accepted, because a suspend is indistinguishable", () => {
+  // Documented rather than defended against: a suspend and a forward NTP step
+  // look identical from here. For a suspend, being due early is correct and is
+  // what REQ-024a wants; for an NTP step it costs one early poll.
+  let clock = Schedule.createClock(1000)
+  clock = Schedule.advanceClock(clock, 1000 + 3600)
+  assert.strictEqual(clock.mono, 3600)
+})
+
+test("a non-numeric reading leaves the axis exactly where it was", () => {
+  const clock = Schedule.createClock(1000)
+  for (const bad of [undefined, null, NaN, Infinity, "1010", {}]) {
+    assert.deepStrictEqual(Schedule.advanceClock(clock, bad), clock,
+      String(bad))
+  }
+})

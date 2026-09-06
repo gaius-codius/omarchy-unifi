@@ -399,3 +399,161 @@ test("compactText honours REQ-005 and shows nothing for `none`", () => {
   assert.strictEqual(ViewModel.compactText("clients", { clients: null }), "unknown")
   assert.strictEqual(ViewModel.compactText("clients", null), "unknown")
 })
+
+// --- build: the composition Service.qml publishes -------------------------
+//
+// HC-16 forces the five modules to be called in order by QML, but the LAST of
+// them decides what the panel shows — so it lives here, where node can execute
+// it, rather than as a hand-assembled object literal inside a .qml file that
+// only a live Wayland session can run.
+
+const HEALTHY = {
+  site: { id: "s-1", name: "Home" },
+  wan: { status: "up", uptimeSec: 864000, downloadBps: 12000000, uploadBps: 3000000 },
+  gateways: [{ id: "g-1", name: "UDM Pro", model: "UDM-Pro", state: "ONLINE",
+               class: "online", uptimeSec: 864000, downloadBps: 12000000,
+               uploadBps: 3000000 }],
+  counts: {
+    clients: 42, devicesTotal: 5, offlineTotal: 0,
+    byClass: { online: 5, transitional: 0, down: 0, impaired: 0, unknown: 0 },
+    gateways: { online: 1, transitional: 0, down: 0, impaired: 0, unknown: 0 },
+    switches: { online: 2, transitional: 0, down: 0, impaired: 0, unknown: 0 },
+    accessPoints: { online: 2, transitional: 0, down: 0, impaired: 0, unknown: 0 }
+  },
+  offlineDevices: [],
+  applicationVersion: "9.1.0"
+}
+
+function build(overrides) {
+  return ViewModel.build(Object.assign({
+    snapshot: HEALTHY,
+    meta: { apiRootHost: "192.0.2.9", helperVersion: "0.1.0" },
+    level: { level: "green", rule: 5 },
+    errorKind: null,
+    error: null,
+    warnings: [],
+    isStale: false,
+    settings: { refreshIntervalSec: 30, compactMetric: "clients", dashboardUrl: "" },
+    pollingSuspended: false,
+    nextAttemptAt: 1030,
+    now: 1000,
+    lastSuccessAt: 1767225500,
+    nowWall: 1767225600
+  }, overrides || {}))
+}
+
+test("build returns every key a widget binds to, on both paths", () => {
+  // The first frame of a bar widget has `bar` null, so the panel binds to
+  // forNullService()'s object; the frame after that it binds to build()'s. A
+  // key present in one and not the other is a binding that becomes undefined
+  // exactly once, which is the hardest kind of glitch to reproduce.
+  const built = build()
+  const empty = ViewModel.forNullService()
+  assert.deepStrictEqual(Object.keys(built).sort(), Object.keys(empty).sort())
+  for (const key of Object.keys(ViewModel.EMPTY_MODEL)) {
+    assert.ok(key in built, "build is missing " + key)
+    assert.ok(key in empty, "forNullService is missing " + key)
+  }
+})
+
+test("build passes the health level through rather than deriving one", () => {
+  // REQ-002 lives in Health.js. A second implementation here is how two
+  // answers to one question start to exist.
+  for (const level of ["green", "amber", "red", "grey"]) {
+    const model = build({ level: { level: level, rule: 5 } })
+    assert.strictEqual(model.healthLevel, level)
+    assert.deepStrictEqual(model.rendering, ViewModel.LEVEL_RENDERING[level])
+  }
+})
+
+test("build's panel state follows the documented ordering", () => {
+  assert.strictEqual(build().state, "ok")
+  assert.strictEqual(build({ isStale: true }).state, "stale")
+  assert.strictEqual(build({ errorKind: "network" }).state, "network")
+  // A configuration fault outranks a stale snapshot.
+  assert.strictEqual(build({ isStale: true, errorKind: "unconfigured" }).state,
+    "unconfigured")
+  assert.strictEqual(build({ snapshot: null }).state, "loading")
+  assert.strictEqual(build({ snapshot: null, errorKind: "tls" }).state, "tls")
+  const emptySite = JSON.parse(JSON.stringify(HEALTHY))
+  emptySite.counts.devicesTotal = 0
+  assert.strictEqual(build({ snapshot: emptySite }).state, "empty")
+})
+
+test("AC-063: the offline line is computed from the total, not the array", () => {
+  const large = JSON.parse(JSON.stringify(HEALTHY))
+  large.counts.offlineTotal = 500
+  large.counts.devicesTotal = 500
+  large.offlineDevices = Array.from({ length: 10 }, (_, i) => ({
+    id: "d-" + i, name: "Switch " + i, model: "USW", state: "OFFLINE", class: "down"
+  }))
+  const model = build({ snapshot: large })
+  assert.strictEqual(model.offline.devices.length, 10)
+  assert.strictEqual(model.offline.total, 500)
+  assert.strictEqual(model.offline.moreLabel, "and 490 more")
+})
+
+test("AC-025: the role-count flag is set exactly when the rows over-count", () => {
+  assert.strictEqual(build().roleCountsAreNotAPartition, false)
+  const multi = JSON.parse(JSON.stringify(HEALTHY))
+  multi.counts.devicesTotal = 3
+  multi.counts.byClass.online = 3
+  multi.counts.gateways.online = 1
+  multi.counts.switches.online = 1
+  multi.counts.accessPoints.online = 3
+  assert.strictEqual(build({ snapshot: multi }).roleCountsAreNotAPartition, true)
+})
+
+test("REQ-011: Refresh is disabled with a reason while polling is suspended", () => {
+  const running = build()
+  assert.strictEqual(running.refreshEnabled, true)
+  assert.strictEqual(running.refreshDisabledReason, "")
+
+  const suspended = build({ pollingSuspended: true, errorKind: "uncommitted",
+                            snapshot: null })
+  assert.strictEqual(suspended.refreshEnabled, false)
+  assert.strictEqual(suspended.refreshDisabledReason,
+    ViewModel.sentenceFor("uncommitted"))
+  assert.ok(suspended.refreshDisabledReason.length > 0,
+    "a disabled control with no explanation is worse than no control")
+})
+
+test("UX-007: the next attempt is relative, and absent when suspended", () => {
+  assert.strictEqual(build({ nextAttemptAt: 1120, now: 1000 }).nextAttemptText,
+    "in 2m")
+  // Suspended means there is no next attempt; a countdown to nothing is worse
+  // than no countdown.
+  assert.strictEqual(build({ pollingSuspended: true }).nextAttemptText, "")
+  assert.strictEqual(build({ nextAttemptAt: null }).nextAttemptText, "")
+})
+
+test("BIZ-003: an unknown client count is unknown in the compact text", () => {
+  const gaps = JSON.parse(JSON.stringify(HEALTHY))
+  gaps.counts.clients = null
+  assert.strictEqual(build({ snapshot: gaps }).compactText, "unknown")
+  assert.strictEqual(build().compactText, "42")
+  assert.strictEqual(build({ settings: { compactMetric: "none" } }).compactText, "")
+})
+
+test("the dashboard falls back to the apiRootHost meta carries", () => {
+  // REQ-012: config.json is helper-only and QML cannot read it, so `meta` is
+  // the only channel this can arrive by.
+  const model = build({ settings: { compactMetric: "none", dashboardUrl: "" } })
+  assert.strictEqual(model.dashboard.url, "https://192.0.2.9")
+  const configured = build({
+    settings: { compactMetric: "none", dashboardUrl: "https://unifi.example/" }
+  })
+  assert.strictEqual(configured.dashboard.url, "https://unifi.example/")
+})
+
+test("build never throws on a snapshot it has never seen before", () => {
+  // It runs inside a QML property assignment; an exception there leaves the
+  // service with no model and no way back (AC-046's spirit).
+  for (const snapshot of [null, {}, { counts: null }, { counts: {} },
+                          { site: null, counts: { devicesTotal: 1 } }]) {
+    assert.doesNotThrow(() => ViewModel.build({ snapshot: snapshot, level: {} }),
+      JSON.stringify(snapshot))
+  }
+  assert.doesNotThrow(() => ViewModel.build(null))
+  assert.doesNotThrow(() => ViewModel.build({}))
+})

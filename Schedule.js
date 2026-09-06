@@ -672,6 +672,36 @@ function wallOverdue(st, nowWall) {
   return (nowWall - st.lastCompletionAtWall) > st.intervalSec
 }
 
+// --- the monotonic axis (REQ-024) ------------------------------------------
+
+// QML has one clock and this file needs two. No monotonic source is citable in
+// `host-contract.md`, and R1a forbids using an uncited host API, so the
+// monotonic axis is BUILT from the wall clock by accumulating only
+// NON-NEGATIVE deltas.
+//
+// That gets the property REQ-024 actually needs: a backwards NTP correction can
+// never push `nextAttemptAt` an hour into the future and stall polling. What it
+// deliberately cannot do is tell a forward NTP step from a system suspend —
+// both inflate it, and both then make the schedule due early. For a suspend
+// that is the right answer, and REQ-024a's `wallOverdue` covers it explicitly
+// on the other axis; for an NTP step the cost is one early poll.
+//
+// It lives here, as a reducer, rather than inside `Service.qml`, because it is
+// the one piece of genuine logic the service would otherwise own — and a
+// backwards clock is not a thing a live harness can arrange on demand.
+function createClock(nowWall) {
+  return { mono: 0, lastWall: typeof nowWall === "number" ? nowWall : 0 }
+}
+
+function advanceClock(state, nowWall) {
+  if (typeof nowWall !== "number" || !isFinite(nowWall)) return state
+  const delta = nowWall - state.lastWall
+  return {
+    mono: delta > 0 ? state.mono + delta : state.mono,
+    lastWall: nowWall
+  }
+}
+
 // --- wake selection (REQ-024) ----------------------------------------------
 
 // One shot, earliest FUTURE deadline, rearmed after every firing.
@@ -758,6 +788,8 @@ if (typeof module !== "undefined") module.exports = {
   takePendingManual: takePendingManual,
   onSuccess: onSuccess,
   onFailure: onFailure,
+  createClock: createClock,
+  advanceClock: advanceClock,
   staleAt: staleAt,
   isStale: isStale,
   wallOverdue: wallOverdue,

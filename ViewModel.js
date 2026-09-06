@@ -360,7 +360,11 @@ function wordCase(word) {
 // here — rather than letting QML bind against null — is what turns a blank
 // widget or a binding error into a stated condition.
 function forNullService() {
-  return {
+  // REQ-013b. The SAME SHAPE `build` returns, filled in for "there is no
+  // service", because a widget binds to one object and cannot have half its
+  // bindings become undefined on the first frame — which is exactly the frame
+  // where `bar?.shell?.serviceFor()` is null.
+  return complete({
     state: "service_unavailable",
     sentence: sentenceFor("service_unavailable"),
     healthLevel: "grey",
@@ -370,7 +374,148 @@ function forNullService() {
     hasSnapshot: false,
     tooltip: "UniFi\nLast update: never\nLatest attempt: unavailable\n"
       + sentenceFor("service_unavailable")
+  })
+}
+
+// Every key a widget may bind to, and the value that means "nothing to show".
+// Written out rather than built from `build`'s output, so a key added to one
+// and not the other is a visible difference between two lists rather than an
+// undefined binding on the first frame.
+const EMPTY_MODEL = {
+  state: "service_unavailable",
+  sentence: "",
+  healthLevel: "grey",
+  rendering: null,
+  word: "",
+  compactText: "",
+  hasSnapshot: false,
+  tooltip: "",
+  siteName: "",
+  wan: null,
+  gateways: [],
+  counts: null,
+  offline: { devices: [], total: 0, truncated: false, moreLabel: "" },
+  roleCountsAreNotAPartition: false,
+  warnings: [],
+  errorKind: null,
+  isStale: false,
+  pollingSuspended: false,
+  refreshEnabled: false,
+  refreshDisabledReason: "",
+  nextAttemptText: "",
+  lastUpdateText: "never",
+  dashboard: null,
+  meta: null
+}
+
+function complete(partial) {
+  const model = {}
+  for (const key in EMPTY_MODEL) {
+    model[key] = Object.prototype.hasOwnProperty.call(partial, key)
+      ? partial[key] : EMPTY_MODEL[key]
   }
+  return model
+}
+
+// --- the composition (HC-16) ---------------------------------------------
+//
+// `Service.qml` calls five pure modules in order and publishes one property.
+// This is the last of the five, and it lives here rather than in QML for the
+// reason the whole pure layer exists: the panel's contents are decided by
+// something `node --test` can execute.
+//
+// It takes what the service knows — a snapshot, a level from `Health.js`, an
+// error kind, the scheduler's deadlines — and returns the object a widget
+// binds to. It computes no health and no schedule of its own; passing `level`
+// in rather than deriving it is what keeps REQ-002 in one place.
+function build(input) {
+  const state = input || {}
+  const snapshot = state.snapshot || null
+  const counts = snapshot ? (snapshot.counts || null) : null
+  const level = state.level || {}
+  const healthLevel = typeof level.level === "string" ? level.level : "grey"
+  const settings = state.settings || {}
+  const meta = state.meta || null
+  const errorKind = state.errorKind === undefined ? null : state.errorKind
+  const hasSnapshot = snapshot !== null
+
+  const panel = panelState({
+    reconfiguring: state.reconfiguring === true,
+    serviceAvailable: true,
+    errorKind: errorKind,
+    hasSnapshot: hasSnapshot,
+    isStale: state.isStale === true,
+    devicesTotal: counts ? counts.devicesTotal : undefined
+  })
+
+  const nowWall = typeof state.nowWall === "number" ? state.nowWall : null
+  const secondsSinceSuccess = nowWall !== null && typeof state.lastSuccessAt === "number"
+    ? nowWall - state.lastSuccessAt : null
+
+  const tooltipModel = {
+    siteName: snapshot && snapshot.site ? snapshot.site.name : null,
+    hasSnapshot: hasSnapshot,
+    errorKind: errorKind,
+    isStale: state.isStale === true,
+    healthLevel: healthLevel,
+    secondsSinceSuccess: secondsSinceSuccess
+  }
+
+  // REQ-011: the Refresh button is disabled, with an explanatory label,
+  // whenever polling is suspended (REQ-018a). "Suspended is not idle."
+  const suspended = state.pollingSuspended === true
+  return complete({
+    state: panel,
+    sentence: sentenceFor(panel),
+    healthLevel: healthLevel,
+    rendering: renderingFor(healthLevel),
+    word: wordFor(healthLevel),
+    compactText: compactText(settings.compactMetric, counts),
+    hasSnapshot: hasSnapshot,
+    tooltip: tooltip(tooltipModel),
+    siteName: snapshot && snapshot.site ? snapshot.site.name : "",
+    wan: snapshot ? snapshot.wan : null,
+    gateways: snapshot ? (snapshot.gateways || []) : [],
+    counts: counts,
+    offline: offlineList(snapshot),
+    roleCountsAreNotAPartition: roleCountsAreNotAPartition(counts),
+    warnings: state.warnings || [],
+    errorKind: errorKind,
+    isStale: state.isStale === true,
+    pollingSuspended: suspended,
+    refreshEnabled: !suspended,
+    refreshDisabledReason: suspended ? sentenceFor(errorKind || "internal") : "",
+    nextAttemptText: nextAttemptText(state),
+    lastUpdateText: hasSnapshot ? relativePast(secondsSinceSuccess) : "never",
+    dashboard: dashboardUrlFor(settings.dashboardUrl,
+      meta ? meta.apiRootHost : null),
+    meta: meta
+  })
+}
+
+// UX-007: rate limiting and backoff show `nextAttemptAt` as a RELATIVE time, so
+// the panel never displays a static instant that quietly becomes wrong.
+function nextAttemptText(state) {
+  if (state.pollingSuspended === true) return ""
+  if (typeof state.nextAttemptAt !== "number") return ""
+  if (typeof state.now !== "number") return ""
+  return relativeFuture(state.nextAttemptAt - state.now)
+}
+
+// AC-025's flag. The role rows deliberately sum to more than the unique device
+// total, and rows summing to 5 above a total of 3 otherwise read as a bug.
+function roleCountsAreNotAPartition(counts) {
+  if (!counts) return false
+  const roles = ["gateways", "switches", "accessPoints"]
+  let sum = 0
+  for (let i = 0; i < roles.length; i++) {
+    const bucket = counts[roles[i]]
+    if (!bucket) continue
+    for (const key in bucket) {
+      if (typeof bucket[key] === "number") sum += bucket[key]
+    }
+  }
+  return sum !== counts.devicesTotal
 }
 
 // The bar item's optional text beside the glyph (REQ-005).
@@ -437,6 +582,9 @@ if (typeof module !== "undefined") module.exports = {
   dashboardUrlFor: dashboardUrlFor,
   tooltip: tooltip,
   forNullService: forNullService,
+  EMPTY_MODEL: EMPTY_MODEL,
+  build: build,
+  nextAttemptText: nextAttemptText,
   compactText: compactText,
   panelState: panelState,
   isConfigFaultKind: isConfigFaultKind
