@@ -699,12 +699,24 @@ test("AC-052: every meta row is present, and a null field reads unknown", () => 
     siteId: null, allowInsecureTls: null, customCaInUse: null,
     helperVersion: "0.1.0" })
   assert.deepStrictEqual(rows.map((r) => r.key),
-    ["apiRootHost", "siteId", "helperVersion", "commitGeneration"])
+    ["site", "apiRootHost", "siteId", "helperVersion", "commitGeneration"])
   assert.strictEqual(rows[0].value, "unknown")
-  assert.strictEqual(rows[2].value, "0.1.0")
-  assert.strictEqual(ViewModel.metaRows(null).length, 4)
+  assert.strictEqual(rows[1].value, "unknown")
+  assert.strictEqual(rows[3].value, "0.1.0")
+  assert.strictEqual(ViewModel.metaRows(null).length, 5)
   // A commit generation of 0 is a real generation, not an absent one.
-  assert.strictEqual(ViewModel.metaRows({ commitGeneration: 0 })[3].value, "0")
+  assert.strictEqual(ViewModel.metaRows({ commitGeneration: 0 })[4].value, "0")
+
+  // DATA-012's auto-selection is disclosed HERE rather than as a permanent
+  // entry in a list headed "Warnings", for a decision that needs no action.
+  const auto = ViewModel.metaRows({}, { site: { id: "s", name: "Home" } },
+    [{ code: "site_auto_selected", message: "x" }])
+  assert.strictEqual(auto[0].value, "Home (auto-selected)")
+  const chosen = ViewModel.metaRows({}, { site: { id: "s", name: "Home" } }, [])
+  assert.strictEqual(chosen[0].value, "Home")
+  // Never "unknown (auto-selected)": with no site there is nothing to disclose.
+  assert.strictEqual(
+    ViewModel.metaRows({}, null, [{ code: "site_auto_selected" }])[0].value, "unknown")
 })
 
 test("UX-009: the insecure-TLS flag is a boolean on every path", () => {
@@ -734,15 +746,16 @@ test("REQ-013a: a warning row keeps its code beside its sentence", () => {
     { code: "statistics_unavailable", message: "Gateway B has no statistics." },
     null
   ])
-  assert.strictEqual(rows.length, 5)
-  assert.strictEqual(rows[0].code, "insecure_tls")
-  assert.strictEqual(rows[0].text, "TLS verification is disabled.")
+  // `insecure_tls` is dropped: UX-009 gives it a permanent row of its own, and
+  // repeating it here was the same sentence twice on screen.
+  assert.strictEqual(rows.length, 4)
+  assert.ok(rows.every((r) => r.code !== "insecure_tls"))
   // A code with no message still prints something actionable rather than a
   // blank row.
-  assert.strictEqual(rows[1].text, "clients_unavailable")
-  assert.strictEqual(rows[4].code, "unknown")
-  assert.strictEqual(rows[2].code, rows[3].code)
-  assert.notStrictEqual(rows[2].text, rows[3].text)
+  assert.strictEqual(rows[0].text, "clients_unavailable")
+  assert.strictEqual(rows[3].code, "unknown")
+  assert.strictEqual(rows[1].code, rows[2].code)
+  assert.notStrictEqual(rows[1].text, rows[2].text)
   const keys = rows.map((r) => r.key)
   assert.strictEqual(new Set(keys).size, keys.length,
     "two warnings sharing a code must not share a Repeater key")
@@ -819,4 +832,52 @@ test("every key the view binds to survives a snapshot-less model", () => {
     assert.ok(Array.isArray(empty[key]), key + " must be an array when empty")
     assert.ok(Array.isArray(full[key]), key + " must be an array when populated")
   }
+})
+
+test("the Site id row shows the site actually in use, not a null committed one", () => {
+  // DATA-012 auto-selects a single site, and `meta.siteId` stays null because
+  // it reflects the COMMITTED configuration. The panel was then reporting
+  // "Site id: unknown" for a site whose name it was displaying two rows above.
+  const snapshot = Object.assign({}, HEALTHY,
+    { site: { id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", name: "Default" } })
+  const auto = ViewModel.metaRows({ siteId: null }, snapshot)
+  assert.strictEqual(auto[2].value, "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa")
+  // A committed id stays the authority: it is what the user configured, and if
+  // it disagreed with the snapshot that is worth seeing rather than hiding.
+  const committed = ViewModel.metaRows({ siteId: "committed-id" }, snapshot)
+  assert.strictEqual(committed[2].value, "committed-id")
+  // And with neither, "unknown" is the honest answer.
+  assert.strictEqual(ViewModel.metaRows({ siteId: null }, null)[2].value, "unknown")
+  assert.strictEqual(ViewModel.metaRows(null)[2].value, "unknown")
+  // Reachable through build, which is how the panel gets it.
+  const model = ViewModel.build({ snapshot: snapshot, meta: { siteId: null },
+    level: { level: "green" } })
+  assert.strictEqual(model.metaRows[2].value, "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa")
+})
+
+test("a warning with its own panel row is not repeated in the warning list", () => {
+  // Three codes the panel renders through a dedicated affordance. Leaving them
+  // in the list put the same sentence on screen twice — and made DATA-012's
+  // correct, actionless auto-selection a permanent entry under "Warnings".
+  assert.deepStrictEqual(ViewModel.WARNINGS_WITH_THEIR_OWN_ROW.slice().sort(),
+    ["custom_ca_in_use", "insecure_tls", "site_auto_selected"])
+  const warnings = [
+    { code: "site_auto_selected", message: "chose the only site" },
+    { code: "custom_ca_in_use", message: "a custom CA is in use" },
+    { code: "insecure_tls", message: "verification is off" },
+    { code: "clients_unavailable", message: "client count unavailable" }
+  ]
+  const rows = ViewModel.warningRows(warnings)
+  assert.deepStrictEqual(rows.map((r) => r.code), ["clients_unavailable"])
+  // Dropped from the list, NOT from the model: each still drives its own row.
+  const model = ViewModel.build({ warnings: warnings,
+    meta: { allowInsecureTls: true, customCaInUse: true },
+    snapshot: { site: { id: "s", name: "Home" }, counts: { devicesTotal: 1 } },
+    level: { level: "green" } })
+  assert.strictEqual(model.insecureTls, true)
+  assert.strictEqual(model.customCaInUse, true)
+  assert.strictEqual(model.metaRows[0].value, "Home (auto-selected)")
+  assert.strictEqual(model.warningRows.length, 1)
+  // And the raw list is untouched, because the service and `status` use it.
+  assert.strictEqual(model.warnings.length, 4)
 })

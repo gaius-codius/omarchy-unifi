@@ -601,6 +601,30 @@ Consequences:
 - The convenient reading of the paragraph above — "saving a file hot-reloads
   it" — is true of the *cycle* and false of the *code*.
 
+### HC-20: an open `KeyboardPanel` is a full-screen click sink
+
+`Ui/KeyboardPanel.qml` is a `PanelWindow` on the overlay layer covering the
+whole output, with a `dismissArea` MouseArea (`:281`) whose `onPressed` closes
+the panel unless the press lands in the bar region (`:331`). That is how
+outside-click dismissal works, and it is correct — REQ-007 says losing focus
+closes the panel.
+
+Two consequences for anything that opens one programmatically:
+
+* While the panel is open it covers every output, so **the user's next click
+  anywhere closes it** — and is swallowed. A harness that leaves one open for
+  twelve seconds is both interfering with whoever is using the machine and
+  asserting, in effect, that nobody touched the mouse.
+* "The panel is still open N seconds later" is therefore not a property a test
+  can rely on. `tests/harness/runner.qml` opens the panel immediately before
+  each assertion that reads its content instead. `panelController.show()` sets
+  `open` synchronously and the delegates already exist, so a walk in the same
+  tick sees them.
+
+Found when three text assertions began failing intermittently and the recorded
+open/close transitions showed the panel closing 2.7 s after it was opened, with
+nothing in the harness having closed it.
+
 ### The shell's log is the user journal
 
 `quickshell` runs under uwsm with stdout and stderr on a socket, so there is no

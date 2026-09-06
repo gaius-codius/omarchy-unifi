@@ -209,13 +209,13 @@ class Validator(object):
 # Record builders
 # --------------------------------------------------------------------------
 
-def device(label, state, features, index, name=None, model=None):
+def device(label, state, features, index, name=None, model=None, ip=None):
     return {
         "id": uid("device/" + label),
         "name": name or label.replace("-", " ").title(),
         "model": model or "USW-Lite-8-PoE",
         "macAddress": mac(index),
-        "ipAddress": device_ip(index),
+        "ipAddress": ip or device_ip(index),
         "state": state,
         "features": list(features),
         "interfaces": ["ports"] if "gateway" in features or "switching" in features else ["radios"],
@@ -283,6 +283,16 @@ def gateway(label, state, index, model="UDM-Pro"):
     return device(label, state, ["gateway", "switching"], index, model=model)
 
 
+# DEV-6. A console that does NOT advertise the `gateway` feature, which is what
+# a real UniFi Network 10.6.101 controller was observed to do: the UDM Pro
+# routing the site reports `features: ["switching"]` and is identifiable only by
+# reporting its WAN address where every other device reports an RFC 1918 one.
+# TEST-NET-1 (RFC 5737) stands in for the public address, so the corpus contains
+# no routable third-party IP.
+def console_without_the_feature(label, state, index, model="UDM-Pro"):
+    return device(label, state, ["switching"], index, model=model, ip="192.0.2.1")
+
+
 def scenarios():
     """Each entry is (name, note, devices, sites, wans, clients) with an
     optional seventh element: a stated schema deviation, recorded in the
@@ -325,6 +335,18 @@ def scenarios():
     ]
     out.append(("no-gateway", "No gateway-featured device: can never be red (rule 3 needs one) and "
                               "reports wan.status == unknown.", no_gateway, 1, 1, 7))
+
+    inferred = [
+        console_without_the_feature("console-1", "ONLINE", 1),
+        device("switch-1", "ONLINE", ["switching"], 2),
+        device("ap-1", "ONLINE", ["accessPoint"], 3, model="U6-Pro"),
+        device("ap-2", "OFFLINE", ["accessPoint"], 4, model="U6-Pro"),
+    ]
+    out.append(("console-without-gateway-feature",
+                "DEV-6: no device advertises `gateway`, and the console is identified by "
+                "reporting a global address. wan.status == up with the console's metrics, "
+                "counts.gateways == 1, and the role rows over-count (REQ-009).",
+                inferred, 1, 2, 19))
 
     two_gw = [
         gateway("gw-1", "ONLINE", 1),

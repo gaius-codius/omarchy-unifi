@@ -335,6 +335,29 @@ def accept_success():
                     [offline_device(22, "Attic AP", "U6-Pro", "OFFLINE", "down")],
                 ))))
 
+    # DEV-6. The console does not advertise the `gateway` feature and is
+    # identified by reporting a global address instead, so it holds BOTH the
+    # inferred gateway role and the `switching` one it does advertise: the role
+    # rows total 5 over 4 unique devices, which is REQ-009's over-count and
+    # AC-025's flag. `wan` carries its metrics, and rule 3 is reachable again.
+    out.append(("success_console_without_gateway_feature",
+                "DEV-6: no device advertises `gateway`; the console is inferred "
+                "from its global address. wan.status == up with its metrics, "
+                "counts.gateways == 1, and the role rows over-count.",
+                success(data(
+                    "Home",
+                    wan("up", uptime=1103341, down=29584, up=25464),
+                    [gateway(31, "Console", "UDM-Pro", "ONLINE", "online",
+                             uptime=1103341, down=29584, up=25464)],
+                    counts(44, 4, 1,
+                           cls(online=3, down=1),
+                           # The console holds BOTH roles: the inferred gateway
+                           # and the `switching` it actually advertises. So the
+                           # rows total 5 over 4 unique devices.
+                           cls(online=1), cls(online=2), cls(online=1, down=1)),
+                    [offline_device(34, "Attic AP", "U6-Pro", "OFFLINE", "down")],
+                ))))
+
     out.append(("success_mixed_gateways",
                 "One gateway ONLINE and another ISOLATED. Amber via rule 4, NOT "
                 "red — rule 3 needs EVERY gateway down — and wan.status degraded.",

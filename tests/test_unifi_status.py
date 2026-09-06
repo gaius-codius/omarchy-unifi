@@ -806,6 +806,11 @@ class InterpreterFloor(unittest.TestCase):
                    "socket", "errno", "time", "re", "base64", "urllib", "typing",
                    "collections", "datetime", "unicodedata", "subprocess",
                    "email", "http", "argparse", "fcntl", "tempfile",
+                   # DEV-6: `ipaddress.is_global` decides whether a device is
+                   # reporting a WAN address. Hand-rolling the RFC 1918 test
+                   # would also have to hand-roll loopback, link-local, CGNAT
+                   # and the IPv6 equivalents.
+                   "ipaddress",
                    # The helper's own package. `unifi_status.py` is a SCRIPT,
                    # not a module inside the package, so it cannot use a
                    # relative import; the explicit sys.path bootstrap above it
@@ -2067,7 +2072,7 @@ class NormalizedModel(unittest.TestCase):
 
     def test_every_accept_envelope_is_reproduced_byte_for_byte(self):
         cases = normalize_inputs.cases()
-        self.assertEqual(len(cases), 15)
+        self.assertEqual(len(cases), 16)
         for case in sorted(cases):
             with self.subTest(case=case):
                 data, _warnings = self.normalized(case)
@@ -2082,6 +2087,80 @@ class NormalizedModel(unittest.TestCase):
         envelopes = sorted(name[:-5] for name in os.listdir(directory)
                            if name.startswith("success_"))
         self.assertEqual(sorted(normalize_inputs.cases()), envelopes)
+
+    # --- DEV-6: the widened gateway rule ----------------------------------
+
+    def test_an_off_lan_address_is_the_gateway_signal(self):
+        # The console reports its WAN address; every other device reports an
+        # RFC 1918 one. That difference is the whole signal.
+        offlan = ("203.0.113.9", "192.0.2.1", "2001:db8::1",
+                  # RFC 6598 carrier-grade NAT. A console behind CGNAT reports a
+                  # real WAN address, and `ipaddress.is_global` calls it private
+                  # — which is why that function is not what this uses.
+                  "100.64.0.1")
+        for address in offlan:
+            self.assertTrue(
+                normalize.reports_an_offlan_address({"ipAddress": address}), address)
+
+        on_lan = ("10.0.0.1", "172.16.0.1", "172.31.255.254", "192.168.1.1",
+                  "fc00::1", "fd12:3456::1")
+        for address in on_lan:
+            self.assertFalse(
+                normalize.reports_an_offlan_address({"ipAddress": address}), address)
+
+    def test_nothing_that_is_not_an_address_is_evidence_of_a_gateway(self):
+        # The heuristic must fail CLOSED. Every one of these would otherwise
+        # promote an arbitrary device to gateway, which would put its metrics in
+        # `wan` and could make a healthy site red.
+        for value in ("", "   ", "nonsense", "999.1.1.1", "192.168.1", None,
+                      123, [], {}, "127.0.0.1", "169.254.1.1", "0.0.0.0",
+                      "224.0.0.1", "::1", "fe80::1"):
+            self.assertFalse(
+                normalize.reports_an_offlan_address({"ipAddress": value}), repr(value))
+        self.assertFalse(normalize.reports_an_offlan_address({}))
+
+    def test_the_inferred_gateway_holds_both_roles(self):
+        # REQ-009: a device is counted in every role it reports. The console
+        # advertises `switching` and is INFERRED to be a gateway, so it must
+        # appear in both rows — and `is_gateway` and the counter must agree,
+        # which is why they share `roles_of`.
+        console = {"id": "c", "features": ["switching"], "ipAddress": "203.0.113.9"}
+        self.assertEqual(normalize.roles_of(console), {"switching", "gateway"})
+        self.assertTrue(normalize.is_gateway(console))
+
+        lan_switch = {"id": "s", "features": ["switching"], "ipAddress": "192.168.1.5"}
+        self.assertEqual(normalize.roles_of(lan_switch), {"switching"})
+        self.assertFalse(normalize.is_gateway(lan_switch))
+
+        # A device with no features at all is still a gateway if it is off-LAN,
+        # and still nothing if it is not. DATA-006b counts it in byClass either
+        # way, which is what makes the sum invariant hold.
+        self.assertEqual(normalize.roles_of({"ipAddress": "203.0.113.9"}), {"gateway"})
+        self.assertEqual(normalize.roles_of({"ipAddress": "192.168.1.9"}), set())
+
+    def test_the_declared_feature_still_wins_on_its_own(self):
+        # Widening must not have replaced the documented rule. A device that
+        # advertises `gateway` is one whatever its address is — which is every
+        # fixture in the corpus authored before DEV-6.
+        declared = {"id": "g", "features": ["gateway", "switching"],
+                    "ipAddress": "192.168.1.1"}
+        self.assertTrue(normalize.is_gateway(declared))
+        self.assertEqual(normalize.roles_of(declared), {"gateway", "switching"})
+
+    def test_dev_6_end_to_end_through_normalize(self):
+        data, _warnings = self.normalized("success_console_without_gateway_feature")
+        # Before DEV-6 this site had no gateway: unknown status, no metrics.
+        self.assertEqual(data["wan"]["status"], "up")
+        self.assertEqual(data["wan"]["uptimeSec"], 1103341)
+        self.assertEqual(data["wan"]["downloadBps"], 29584)
+        self.assertEqual(len(data["gateways"]), 1)
+        self.assertEqual(data["counts"]["gateways"]["online"], 1)
+        # And the console is still a switch, so the rows over-count: 1 + 2 + 2
+        # against four unique devices.
+        roles = sum(sum(data["counts"][role].values())
+                    for role in ("gateways", "switches", "accessPoints"))
+        self.assertEqual(roles, 5)
+        self.assertEqual(data["counts"]["devicesTotal"], 4)
 
     def test_ac_025_role_counts_are_not_a_partition(self):
         # AC-025 against normalize.py: multi-role counting derived from a

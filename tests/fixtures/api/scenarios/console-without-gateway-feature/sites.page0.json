@@ -1,0 +1,13 @@
+{
+  "count": 1,
+  "data": [
+    {
+      "id": "23bb90fe-4c37-5f67-b524-bf4626daeea9",
+      "internalReference": "console-without-gateway-feature-0",
+      "name": "Site 1"
+    }
+  ],
+  "limit": 200,
+  "offset": 0,
+  "totalCount": 1
+}

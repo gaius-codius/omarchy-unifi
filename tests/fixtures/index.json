@@ -158,6 +158,13 @@
       "schemaDeviation": "device.state enum relaxed: REBOOTING is deliberately outside the published enum, because REQ-000's `unknown` class has no other way to be exercised.",
       "verdict": "accept"
     },
+    "api/scenarios/console-without-gateway-feature": {
+      "enforcedBy": "helper",
+      "note": "DEV-6: no device advertises `gateway`, and the console is identified by reporting a global address. wan.status == up with the console's metrics, counts.gateways == 1, and the role rows over-count (REQ-009).",
+      "rule": "BIZ-004 / REQ-000 / REQ-008a",
+      "schemaDeviation": null,
+      "verdict": "accept"
+    },
     "api/scenarios/degraded": {
       "enforcedBy": "helper",
       "note": "One down, one impaired, one transitional. REQ-002 rule 4 (amber); the UPDATING AP must NOT contribute.",
@@ -379,6 +386,13 @@
       "enforcedBy": "service and helper",
       "errorKind": null,
       "note": "REQ-002 rule 3 (red): at least one gateway exists and every gateway is down. Rule 3 strictly precedes rule 4, so the presence of other non-online devices must not downgrade this to amber.",
+      "rule": "DATA-005 / DATA-006 / DATA-008",
+      "verdict": "accept"
+    },
+    "envelopes/accept/success_console_without_gateway_feature": {
+      "enforcedBy": "service and helper",
+      "errorKind": null,
+      "note": "DEV-6: no device advertises `gateway`; the console is inferred from its global address. wan.status == up with its metrics, counts.gateways == 1, and the role rows over-count.",
       "rule": "DATA-005 / DATA-006 / DATA-008",
       "verdict": "accept"
     },
@@ -815,13 +829,13 @@
     "protocol": "docs/protocol-v1.md"
   },
   "coverage": {
-    "accept": 52,
+    "accept": 54,
     "errorKinds": 19,
     "reject": 55,
     "rejectEnforcedByHelper": 13,
     "rejectEnforcedByService": 42,
     "rejectionClasses": 36,
-    "total": 107
+    "total": 109
   },
   "generatedBy": "tests/tools/gen_index.py",
   "privacy": {

@@ -545,6 +545,7 @@
       "device/bulk-497",
       "device/bulk-498",
       "device/bulk-499",
+      "device/console-1",
       "device/featureless",
       "device/gw-1",
       "device/gw-2",
@@ -981,6 +982,7 @@
       "device/udm-1",
       "site/all-down-0",
       "site/all-states-0",
+      "site/console-without-gateway-feature-0",
       "site/degraded-0",
       "site/empty-site-0",
       "site/five-gateways-0",
@@ -994,6 +996,8 @@
       "site/two-gateways-0",
       "wan/all-down-0",
       "wan/all-states-0",
+      "wan/console-without-gateway-feature-0",
+      "wan/console-without-gateway-feature-1",
       "wan/degraded-0",
       "wan/empty-site-0",
       "wan/five-gateways-0",
@@ -1147,6 +1151,17 @@
       "schemaDeviation": "device.state enum relaxed: REBOOTING is deliberately outside the published enum, because REQ-000's `unknown` class has no other way to be exercised.",
       "sites": 1,
       "wans": 1
+    },
+    "console-without-gateway-feature": {
+      "clientPages": 1,
+      "clients": 19,
+      "devicePages": 1,
+      "devices": 4,
+      "gatewayStatistics": [],
+      "note": "DEV-6: no device advertises `gateway`, and the console is identified by reporting a global address. wan.status == up with the console's metrics, counts.gateways == 1, and the role rows over-count (REQ-009).",
+      "schemaDeviation": null,
+      "sites": 1,
+      "wans": 2
     },
     "degraded": {
       "clientPages": 1,

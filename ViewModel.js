@@ -370,11 +370,52 @@ function roleCountsNote(counts) {
 // Rendered as "unknown" rather than omitted, so an `unconfigured` failure — the
 // case with the least information and the most need for it — still shows the
 // same four rows in the same places.
-function metaRows(meta) {
+// Codes the panel already renders through a dedicated affordance. Repeating
+// them in the warning list is not extra information, it is the same sentence
+// twice — `insecure_tls` appeared both as UX-009's permanent row and as a
+// warning, and `custom_ca_in_use` both as its own line and as a warning.
+//
+// `site_auto_selected` is here for a different reason. DATA-012 raises it every
+// batch for the ordinary single-site controller, so it was a permanent entry in
+// a list headed "Warnings" for a decision that was made correctly and needs no
+// action. It is still disclosed — as part of the Site row below — because the
+// user should know the plugin chose for them; it is just not a warning.
+// Approved by the user 2026-09-06; DATA-012's behaviour is unchanged.
+const WARNINGS_WITH_THEIR_OWN_ROW = [
+  "site_auto_selected",
+  "custom_ca_in_use",
+  "insecure_tls"
+]
+
+function hasWarning(warnings, code) {
+  const list = Array.isArray(warnings) ? warnings : []
+  for (let i = 0; i < list.length; i++) {
+    if (list[i] && list[i].code === code) return true
+  }
+  return false
+}
+
+function metaRows(meta, snapshot, warnings) {
   const data = meta || {}
+  // DATA-006a says `meta.siteId` is the COMMITTED value, and it is null when
+  // DATA-012 auto-selected the controller's only site. The panel then reported
+  // "Site id: unknown" for a site whose NAME it was displaying in the hero two
+  // rows above — which is not a nullable field being rendered honestly, it is
+  // the panel claiming not to know something it just told you. The snapshot
+  // carries the id actually in use; `meta` remains the authority when it has
+  // one, because a committed id is the thing the user configured.
+  const site = snapshot && snapshot.site ? snapshot.site : null
+  const siteId = data.siteId !== null && data.siteId !== undefined
+    ? data.siteId : (site ? site.id : null)
+  const siteName = site && typeof site.name === "string" && site.name !== ""
+    ? site.name : null
+  const autoSelected = hasWarning(warnings, "site_auto_selected")
   return [
+    { key: "site", label: "Site",
+      value: formatOptional(siteName)
+        + (autoSelected && siteName !== null ? " (auto-selected)" : "") },
     { key: "apiRootHost", label: "Controller", value: formatOptional(data.apiRootHost) },
-    { key: "siteId", label: "Site id", value: formatOptional(data.siteId) },
+    { key: "siteId", label: "Site id", value: formatOptional(siteId) },
     { key: "helperVersion", label: "Helper", value: formatOptional(data.helperVersion) },
     { key: "commitGeneration", label: "Config generation",
       value: formatOptional(data.commitGeneration) }
@@ -388,6 +429,7 @@ function warningRows(warnings) {
   for (let i = 0; i < list.length; i++) {
     const entry = list[i] || {}
     const code = typeof entry.code === "string" ? entry.code : "unknown"
+    if (WARNINGS_WITH_THEIR_OWN_ROW.indexOf(code) !== -1) continue
     const message = typeof entry.message === "string" && entry.message !== ""
       ? entry.message : code
     // The code is kept beside the message because a bug report that quotes the
@@ -724,7 +766,7 @@ function build(input) {
     dashboard: dashboardUrlFor(settings.dashboardUrl,
       meta ? meta.apiRootHost : null),
     meta: meta,
-    metaRows: metaRows(meta),
+    metaRows: metaRows(meta, snapshot, warnings),
     // UX-009 / AC-070: a boolean, not a chain. The panel row is bound to one
     // property with no `&&` in it, so there is no arrangement of a null `meta`
     // in which the row quietly becomes undefined instead of false.
@@ -828,6 +870,8 @@ if (typeof module !== "undefined") module.exports = {
   roleCountsNote: roleCountsNote,
   metaRows: metaRows,
   warningRows: warningRows,
+  hasWarning: hasWarning,
+  WARNINGS_WITH_THEIR_OWN_ROW: WARNINGS_WITH_THEIR_OWN_ROW,
   sitesFromWarnings: sitesFromWarnings,
   CLASS_WORD: CLASS_WORD,
   CLASS_ORDER: CLASS_ORDER,

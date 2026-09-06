@@ -25,14 +25,20 @@ def uid(suffix):
     return "00000000-0000-5000-9000-%012x" % suffix
 
 
-def device(index, state, features, name=None, model=None):
-    return {
+def device(index, state, features, name=None, model=None, ip=None):
+    body = {
         "id": uid(index),
         "name": name if name is not None else "Device %d" % index,
         "model": model if model is not None else "GENERIC",
         "state": state,
         "features": list(features),
     }
+    # Only the DEV-6 case supplies one. Every other input omits `ipAddress`
+    # entirely, which is the shape that must keep behaving exactly as it did
+    # before the gateway rule was widened.
+    if ip is not None:
+        body["ipAddress"] = ip
+    return body
 
 
 def stats(uptime=None, rx=None, tx=None):
@@ -137,6 +143,23 @@ def cases():
         ],
         "clients": 7,
         "statistics": {},
+        "applicationVersion": "9.1.0",
+    }
+
+    # DEV-6: the console advertises only `switching` and is identified as the
+    # gateway by reporting a global address (TEST-NET-1 stands in for a real
+    # WAN address). It then holds two roles, so the role rows total 5 over 4
+    # unique devices.
+    out["success_console_without_gateway_feature"] = {
+        "site": {"id": uid(1), "name": "Home"},
+        "devices": [
+            device(31, "ONLINE", SWITCH, "Console", "UDM-Pro", ip="192.0.2.1"),
+            device(32, "ONLINE", SWITCH),
+            device(33, "ONLINE", ACCESS_POINT),
+            device(34, "OFFLINE", ACCESS_POINT, "Attic AP", "U6-Pro"),
+        ],
+        "clients": 44,
+        "statistics": {uid(31): stats(1103341, 29584, 25464)},
         "applicationVersion": "9.1.0",
     }
 

@@ -119,7 +119,8 @@ test("the DATA-006b invariants hold on the wire, not just in a unit test", () =>
   // could produce one, every batch against that controller would be discarded
   // as malformed and the real reason would never be visible.
   for (const scenario of ["healthy", "degraded", "all-down", "all-states",
-                          "multi-feature", "two-gateways", "five-gateways"]) {
+                          "multi-feature", "two-gateways", "five-gateways",
+                          "console-without-gateway-feature"]) {
     const { envelope } = acceptedEnvelope(scenario)
     const counts = envelope.data.counts
     const byClass = counts.byClass

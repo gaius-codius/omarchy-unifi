@@ -58,15 +58,29 @@ def read(path):
         return handle.read()
 
 
-def rfc1918(address):
+def unroutable(address):
+    """RFC 1918 private space, or RFC 5737 documentation space.
+
+    The guard exists so a real address can never reach the corpus, and RFC 1918
+    was enough until DEV-6: the `console-without-gateway-feature` scenario needs
+    a device whose address is deliberately NOT private, because that is the
+    signal the widened gateway rule reads. TEST-NET-1 serves that purpose while
+    remaining an address that can never belong to anyone — which is what the
+    guard is actually protecting, and a stricter test of it than RFC 1918 is.
+    """
     try:
         octets = [int(part) for part in address.split(".")]
     except ValueError:
         return False
     if len(octets) != 4 or any(o < 0 or o > 255 for o in octets):
         return False          # not a dotted quad at all; e.g. a version string
-    a, b = octets[0], octets[1]
-    return (a == 10) or (a == 192 and b == 168) or (a == 172 and 16 <= b <= 31)
+    a, b, c = octets[0], octets[1], octets[2]
+    if (a == 10) or (a == 192 and b == 168) or (a == 172 and 16 <= b <= 31):
+        return True
+    # RFC 5737: TEST-NET-1/2/3, reserved for documentation and examples.
+    return ((a, b, c) == (192, 0, 2)
+            or (a, b, c) == (198, 51, 100)
+            or (a, b, c) == (203, 0, 113))
 
 
 def is_dotted_quad(candidate):
@@ -115,16 +129,29 @@ class Privacy(unittest.TestCase):
         self.assertEqual(strays, {},
                          "MAC(s) outside the documented 02:00:00: synthetic range")
 
-    def test_every_ipv4_address_is_rfc1918(self):
+    def test_every_ipv4_address_is_unroutable(self):
         strays = {}
         for path in corpus_files():
             text = read(path)
             for found in set(IPV4_ANY.findall(text)):
                 if not is_dotted_quad(found):
                     continue
-                if not rfc1918(found):
+                if not unroutable(found):
                     strays.setdefault(os.path.relpath(path, REPO), set()).add(found)
-        self.assertEqual(strays, {}, "non-RFC1918 address(es) in the corpus")
+        self.assertEqual(strays, {},
+                         "address(es) in the corpus that could belong to someone")
+
+    def test_the_address_guard_still_rejects_a_real_one(self):
+        # Widening it to cover RFC 5737 is only safe if it still bites. These
+        # are the shapes a copy-paste from a real controller would have.
+        # Deliberately not the address of the controller this was developed
+        # against: a repository meant to be published has no business carrying
+        # someone's WAN address, not even as a string a test rejects.
+        for real in ("8.8.8.8", "1.1.1.1", "93.184.216.34", "100.64.0.1"):
+            self.assertFalse(unroutable(real), real)
+        for fine in ("10.0.0.1", "192.168.1.1", "172.20.5.5",
+                     "192.0.2.1", "198.51.100.7", "203.0.113.9"):
+            self.assertTrue(unroutable(fine), fine)
 
     def test_no_credential_shaped_string(self):
         # SEC-001's belt to secrets.sh's braces. tests/fixtures/ is exempt from

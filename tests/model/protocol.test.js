@@ -73,7 +73,7 @@ function runReject(fixture) {
 
 test("every accept fixture is accepted, and yields what the service needs", async (t) => {
   const keys = casesUnder("envelopes/accept/")
-  assert.strictEqual(keys.length, 35, "the accept corpus changed size")
+  assert.strictEqual(keys.length, 36, "the accept corpus changed size")
 
   for (const key of keys) {
     await t.test(key.split("/").pop(), () => {

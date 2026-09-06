@@ -383,6 +383,10 @@ test("every success fixture in the accept corpus yields its documented level", (
     success_empty_site: { level: "grey", rule: 2 },
     success_no_gateway: { level: "amber", rule: 4 },
     success_mixed_gateways: { level: "amber", rule: 4 },
+    // DEV-6. One AP down, so rule 4. What matters here is what it is NOT:
+    // before the gateway rule was widened this site had no gateway at all, so
+    // rule 3 was unreachable and `wan.status` was `unknown`.
+    success_console_without_gateway_feature: { level: "amber", rule: 4 },
     success_transitional_only: { level: "green", rule: 5 },
     success_unknown_state: { level: "amber", rule: 4 },
     success_multi_feature_roles: { level: "green", rule: 5 },

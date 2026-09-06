@@ -345,7 +345,7 @@ ShellRoot {
           }
         }
 
-        check("the whole envelope corpus was driven", 77, checked)
+        check("the whole envelope corpus was driven", 78, checked)
         if (wrong.length === 0) {
           ok("V4 agrees with V8 on all " + checked + " envelopes")
         } else {
@@ -668,12 +668,55 @@ ShellRoot {
     return null
   }
 
+  // A KeyboardPanel is a FULL-SCREEN layer-shell overlay whose `dismissArea`
+  // MouseArea closes it on any press outside the bar region
+  // (Ui/KeyboardPanel.qml:281, :331). So while one is open in this harness it
+  // covers every output and swallows the user's clicks — and the first click
+  // they make closes it. That is correct product behaviour (REQ-007: losing
+  // focus closes the panel) and it makes "the panel is still open twelve
+  // seconds later" an assertion about whether anyone touched the mouse.
+  //
+  // Every text assertion therefore OPENS the panel itself, immediately before
+  // walking. `panelController.show()` sets `open` synchronously and the
+  // delegates already exist, so the walk in the same tick sees them.
+  function ensurePanelOpen() {
+    if (panelWidget !== null && !panelWidget.opened) panelWidget.open()
+  }
+
   function panelTextContains(needle) {
+    ensurePanelOpen()
     var found = collectText(panelWidget, [], 0)
     for (var i = 0; i < found.length; i++) {
       if (String(found[i]).indexOf(needle) !== -1) return true
     }
     return false
+  }
+
+  // A containment check that says WHY it failed. "expected true got false" over
+  // a tree walk is the least informative failure in this file: it cannot
+  // distinguish a closed panel from a delegate that was never created from a
+  // string that changed between being read and being looked for.
+  // Every open/close transition, so a case that finds the panel shut can say
+  // WHEN it shut rather than only that it did. A popup closing on its own would
+  // be a product defect and this is what tells the two apart.
+  property var openLog: []
+  Connections {
+    target: harness.panelWidget
+    ignoreUnknownSignals: true
+    function onOpenedChanged() {
+      harness.openLog = harness.openLog.concat(
+        [(harness.panelWidget.opened ? "open@" : "close@") + Date.now()])
+    }
+  }
+
+  function checkPanelText(name, needle) {
+    if (panelTextContains(needle)) { ok(name); return }
+    var found = collectText(panelWidget, [], 0)
+    bad(name, "\"" + needle + "\" is not among the " + found.length
+        + " visible strings; panel open=" + panelWidget.opened
+        + "; transitions=" + JSON.stringify(openLog)
+        + "; now=" + Date.now()
+        + "; sample=" + JSON.stringify(found.slice(0, 12)))
   }
 
   function uiCases() {
@@ -810,8 +853,6 @@ ShellRoot {
       assert: function () {
         if (panelWidget === null || service === null) return
         var model = panelWidget.vm
-        check("the panel is open", true, panelWidget.opened)
-
         // REQ-008a: the aggregate status word, from ViewModel.wanRows.
         check("the WAN status word is on screen", true,
               model.wanRows.length === 4
@@ -839,9 +880,16 @@ ShellRoot {
           check("a warning is on screen", true,
                 panelTextContains(model.warningRows[0].text))
         }
-        // AC-052: the meta rows are present whatever else is.
-        check("the helper version row is on screen", true,
-              panelTextContains(model.metaRows[2].value))
+        // AC-052: the meta rows are present whatever else is. Found by KEY
+        // rather than by index — the row order changed once already, and an
+        // index quietly starts asserting about a different row.
+        var helperRow = null
+        for (var m = 0; m < model.metaRows.length; m++) {
+          if (model.metaRows[m].key === "helperVersion") helperRow = model.metaRows[m]
+        }
+        if (helperRow === null) bad("the meta rows carry the helper version")
+        else check("the helper version row is on screen", true,
+                   panelTextContains(helperRow.value))
       }
     })
 
@@ -862,7 +910,6 @@ ShellRoot {
         if (panelWidget === null || service === null) return
         var model = panelWidget.vm
         check("a snapshot arrived", true, model.hasSnapshot)
-        check("the panel is open", true, panelWidget.opened)
 
         // REQ-002 rule 4, and REQ-001a's one level with no colour of its own.
         check("the level is degraded", "amber", model.healthLevel)
@@ -905,11 +952,16 @@ ShellRoot {
         check("its class is on screen", true, panelTextContains("impaired"))
         check("the remainder line is on screen", true, panelTextContains("and 5 more"))
 
-        // REQ-013a: both warnings, each with its code beside its sentence.
-        check("both warnings are modelled", 2, model.warningRows.length)
+        // REQ-013a. The fixture raises two warnings and one of them,
+        // `insecure_tls`, has its own permanent row (UX-009) — so it is
+        // deliberately NOT repeated in the list, and the list has one entry.
+        check("the list carries the warning without a row of its own", 1,
+              model.warningRows.length)
         check("a warning sentence is on screen", true,
               panelTextContains("offline device list is truncated"))
         check("its code is on screen", true, panelTextContains("offline_list_truncated"))
+        check("the self-rendering warning is not repeated", true,
+              model.warningRows[0].code !== "insecure_tls")
 
         // AC-025: the role rows sum to 13 over 12 unique devices.
         check("the role rows are not a partition", true, model.roleCountsAreNotAPartition)
@@ -938,7 +990,6 @@ ShellRoot {
       },
       assert: function () {
         if (panelWidget === null) return
-        check("the panel reopened", true, panelWidget.opened)
         check("the flag is still set after a successful refresh", true,
               panelWidget.vm.insecureTls)
         check("the row is still on screen", true,
@@ -1046,7 +1097,6 @@ ShellRoot {
       setup: function () { resetService(15) },
       assert: function () {
         if (panelWidget === null || service === null) return
-        check("the panel is still open", true, panelWidget.opened)
         check("the batch failed", "network", panelWidget.vm.errorKind)
         check("polling is not suspended", false, panelWidget.vm.pollingSuspended)
         // UX-007: "never a static instant". The retry deadline reaches the
@@ -1145,7 +1195,7 @@ ShellRoot {
         // a measured 13 against a nominal 12 is the driver, not a fault.
         between("the countdown fell by roughly the elapsed time",
                 7, 15, wasSec - nowSec)
-        check("the new countdown reached the panel", true, panelTextContains(after))
+        checkPanelText("the new countdown reached the panel", after)
         // The panel holds no timer of its own: one clock, in the object that
         // owns it, so every monitor's widget updates from the same instant
         // (REQ-014 / UX-011).
@@ -1174,8 +1224,7 @@ ShellRoot {
         var before = service._status().generation
         check("pressing Refresh is refused", "disabled", panelWidget.doRefresh())
         check("no batch was launched", before, service._status().generation)
-        check("the reason reached the panel", true,
-              panelTextContains("Refresh is unavailable"))
+        checkPanelText("the reason reached the panel", "Refresh is unavailable")
       }
     })
 

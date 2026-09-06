@@ -220,6 +220,16 @@
       "shape": "success",
       "verdict": "accept"
     },
+    "success_console_without_gateway_feature": {
+      "consumedBy": [
+        "service (Protocol.js must accept)",
+        "helper (normalize.py must be able to produce)"
+      ],
+      "errorKind": null,
+      "note": "DEV-6: no device advertises `gateway`; the console is inferred from its global address. wan.status == up with its metrics, counts.gateways == 1, and the role rows over-count.",
+      "shape": "success",
+      "verdict": "accept"
+    },
     "success_degraded": {
       "consumedBy": [
         "service (Protocol.js must accept)",
@@ -353,7 +363,7 @@
   },
   "contract": "docs/protocol-v1.md",
   "coverage": {
-    "acceptFixtures": 35,
+    "acceptFixtures": 36,
     "errorKinds": 19,
     "rejectFixtures": 42,
     "rejectionClasses": 36

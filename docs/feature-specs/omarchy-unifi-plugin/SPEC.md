@@ -120,7 +120,27 @@ REQ-000: Every adopted device is classified into exactly one class from its
 | `impaired` | `ISOLATED`, `U5G_INCORRECT_TOPOLOGY` |
 | `unknown` | any other string; raises a warning |
 
-A device is a **gateway** if its `features` array contains `gateway`.
+A device is a **gateway** if its `features` array contains `gateway`, **or** if
+it reports an `ipAddress` that is not on the site's LAN — that is, an address
+outside RFC 1918 and IPv6 unique-local space, and not a loopback, link-local,
+multicast or unspecified address.
+
+*Amended 2026-09-06 (DEV-6), approved by the user, after Phase 12a observed a
+real controller on which the second clause is the only one that fires.* UniFi
+Network 10.6.101 reported `features: ["switching"]` for the UDM Pro routing the
+site, so under the original rule the site had no gateway at all: `wan.status`
+was permanently `unknown`, gateway uptime and throughput were permanently
+absent, and REQ-002 rule 3 — the only route to **red** — was unreachable. The
+gateway is nonetheless identifiable, because it is the one device that reports
+its WAN address while every other device reports an RFC 1918 one.
+
+The second clause is a heuristic and its failure mode is stated so it stays
+that way: a console whose WAN address is itself RFC 1918 (double NAT) matches
+nothing, and the result is exactly the behaviour of the first clause alone
+rather than a wrong answer. Carrier-grade NAT space (RFC 6598, `100.64.0.0/10`)
+is deliberately treated as off-LAN, because a console behind CGNAT is reporting
+a real WAN address. A device that declares `gateway` is one whatever its
+address is, so nothing that worked before the amendment behaves differently.
 
 ### Bar widget
 REQ-001: A single bar item renders a UniFi glyph styled by overall site health
@@ -1008,8 +1028,9 @@ REQ-000 classes} × {fresh, stale} × {snapshot, no snapshot} and asserts exactl
 one colour is returned for every cell, with no cell falling through.
 
 AC-021 (AUTO): Red requires ≥1 gateway **and** every gateway in
-`{OFFLINE, CONNECTION_INTERRUPTED}`. A fixture with zero gateway-featured
-devices never returns red and reports `wan.status == "unknown"`. A snapshot-less
+`{OFFLINE, CONNECTION_INTERRUPTED}`. A fixture with zero gateways — no device
+declaring the feature **and** none reporting an off-LAN address (DEV-6) — never
+returns red and reports `wan.status == "unknown"`. A snapshot-less
 transport failure returns the previous snapshot's colour, or grey, never red.
 
 AC-022 (AUTO): A fixture with one `ONLINE` gateway and one `UPDATING` access

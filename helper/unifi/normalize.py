@@ -24,6 +24,8 @@ total, and computing it from the array length would understate a 500-device
 outage by 98%.
 """
 
+import ipaddress
+
 from . import errors
 from . import sanitize
 
@@ -92,8 +94,72 @@ def features_of(device):
     return tuple(item for item in value if isinstance(item, str))
 
 
+# --- DEV-6 -----------------------------------------------------------------
+# REQ-000 defines a gateway as a device whose `features` contains `gateway`,
+# which is what the published specification declares. Observed against a real
+# controller (UniFi Network 10.6.101, api-contract.md §12a), NO device reports
+# it: the UDM Pro that routes the site comes back as `features: ["switching"]`.
+#
+# Taken literally, that leaves a site with a working gateway and two WANs
+# reporting `wan.status = "unknown"`, no uptime, no throughput, an empty gateway
+# list, and REQ-002 rule 3 — the only route to `red` — permanently unreachable.
+#
+# The gateway is still identifiable. It is the one device reporting an address
+# that is not on the site's LAN, because it reports its WAN address while
+# everything else reports an RFC 1918 one. Approved by the user 2026-09-06.
+#
+# The predicate is written out rather than delegated to `ipaddress.is_global`,
+# which was the first attempt and is WRONG here in a way worth recording: it
+# treats carrier-grade NAT space (100.64.0.0/10, RFC 6598) as private, so a
+# console behind CGNAT — an increasingly ordinary situation — would report a
+# perfectly real WAN address and not be recognised. What matters is "not on this
+# LAN", not "globally routable".
+#
+# The heuristic's failure mode is deliberately the safe one: a console whose WAN
+# address IS RFC 1918 (double NAT) matches nothing, and the result is exactly
+# the pre-DEV-6 behaviour rather than a wrong answer.
+_LAN_NETWORKS = (
+    ipaddress.ip_network("10.0.0.0/8"),
+    ipaddress.ip_network("172.16.0.0/12"),
+    ipaddress.ip_network("192.168.0.0/16"),
+    ipaddress.ip_network("fc00::/7"),        # IPv6 unique local
+)
+
+
+def reports_an_offlan_address(device):
+    value = device.get("ipAddress")
+    if not isinstance(value, str) or not value.strip():
+        return False
+    try:
+        address = ipaddress.ip_address(value.strip())
+    except ValueError:
+        # A controller is free to put anything here. An unparseable address is
+        # not evidence of anything, least of all of being a gateway.
+        return False
+    # None of these is a device's real address, and none is evidence of a WAN.
+    if (address.is_loopback or address.is_link_local
+            or address.is_multicast or address.is_unspecified):
+        return False
+    return not any(address in network for network in _LAN_NETWORKS
+                   if network.version == address.version)
+
+
+def roles_of(device):
+    """The roles a device holds: its `features`, plus DEV-6's inferred gateway.
+
+    ONE function, because `is_gateway` and the per-role counts must agree. An
+    earlier shape had `is_gateway` widened and the counter still reading
+    `features`, so the device appeared in `wan` and in the gateway list while
+    `counts.gateways` stayed at zero — a panel disagreeing with itself.
+    """
+    roles = set(features_of(device))
+    if reports_an_offlan_address(device):
+        roles.add(FEATURE_GATEWAY)
+    return roles
+
+
 def is_gateway(device):
-    return FEATURE_GATEWAY in features_of(device)
+    return FEATURE_GATEWAY in roles_of(device)
 
 
 def gateway_order(devices):
@@ -149,7 +215,7 @@ def build(site, devices, clients, statistics, application_version,
                          message="Device reported an unrecognised state: %s."
                                  % sanitize.clean(state))
         by_class[klass] += 1
-        for feature in features_of(device):
+        for feature in roles_of(device):
             if feature in roles:
                 roles[feature][klass] += 1
         if klass in OFFLINE_CLASSES:
