@@ -561,14 +561,72 @@ when valid.
 Manual install path (`shell/README.md:129-136`):
 1. `~/.config/omarchy/plugins/gaius-codius.unifi/` with `manifest.json` plus the QML
    named in `entryPoints`.
-2. `omarchy shell rescanPlugins`.
+2. `omarchy shell shell rescanPlugins` — **target `shell`, method
+   `rescanPlugins`**. An earlier draft of this document wrote
+   `omarchy shell rescanPlugins`, which is one argument short and prints the
+   usage message; `omarchy-plugin-add:149` and `omarchy-plugin-remove:117` both
+   use the three-word form.
 3. `omarchy plugin enable gaius-codius.unifi --section right --after omarchy.network`.
+
+The registry scan is **asynchronous**: `omarchy plugin enable` immediately after
+a rescan can fail with "plugin is not known". Poll `omarchy plugin list --json`
+until the id appears.
 
 Live reload: `PluginRegistry` runs `inotifywait -m -r -q -e
 close_write,create,delete,move` over `~/.config/omarchy/plugins`
 (`PluginRegistry.qml:636-655`), debounced 150 ms (`shell.qml:60-64`), triggering
-unload → `Qt.clearComponentCache()` → rescan (`shell.qml:739-759`). Saving any
-file under the plugin directory hot-reloads it.
+unload → `Qt.clearComponentCache()` → rescan (`shell.qml:739-759`).
+
+### HC-19 (blocking constraint): a source change does not survive a hot reload
+
+The reload cycle above runs, and it is observable — `Local plugin changed,
+reloading: gaius-codius.unifi` is logged, the service's `Component.onDestruction`
+fires, and a new instance is constructed. **But the new instance is built from
+the previously compiled source.**
+
+Verified 2026-09-06 by adding a field to the staged `Service.qml`'s IPC `status`
+reply. The service was demonstrably recreated — its per-instance id changed —
+and the new field was absent. Deleting and re-creating the plugin directory, an
+explicit `rescanPlugins`, and a full `omarchy plugin disable` / `enable` cycle
+all behaved the same way. `~/.cache/qmlcache/` was empty throughout, so this is
+not Qt's disk cache.
+
+`omarchy restart shell` picks the change up; the field appeared immediately
+afterwards.
+
+Consequences:
+- Any staged check must restart the shell after staging, or it tests whichever
+  version of the source happened to load first. `tests/harness/staged.sh` does.
+- Users updating the plugin must restart the shell. The README says so.
+- The convenient reading of the paragraph above — "saving a file hot-reloads
+  it" — is true of the *cycle* and false of the *code*.
+
+### The shell's log is the user journal
+
+`quickshell` runs under uwsm with stdout and stderr on a socket, so there is no
+log file:
+
+```bash
+journalctl --user "_PID=$(pgrep -f 'quickshell -n -p /usr/share/omarchy/shell')" -o cat
+```
+
+Every line carries a colourised level tag, so strip ANSI escapes before
+matching. This is the channel AC-012b, AC-026 and AC-028 read.
+
+### `omarchy plugin list --json` has no `sourceDir`
+
+Its keys in 4.0.2-1 are exactly `id`, `name`, `kinds`, `enabled`, `active`,
+`canDisable`, `firstParty`, `clonedFrom`. AC-002 expects a `sourceDir`; there is
+none. `PluginRegistry.qml:564` stamps `manifest.__sourceDir` onto the manifest
+it injects, so the running service can report it — a stronger answer, because it
+is where *this instance* was loaded from rather than where the registry believes
+the plugin lives.
+
+### `plugins` in `shell.json` is a list, not a map
+
+`shell.qml:52` defaults it to `[]`, and `omarchy-plugin-enable` maintains it
+through `omarchy-shell shell enablePlugin <id> <placement>`. Hand-editing it as
+an object silently enables nothing.
 
 Load errors surface as `console.warn` (`shell.qml:297` services,
 `shell.qml:647` panels).

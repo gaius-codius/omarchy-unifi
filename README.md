@@ -5,11 +5,13 @@ the bar and a popup panel with WAN state, device counts, and which devices are
 offline. It is **read-only** — it issues six GET requests and never changes
 anything on your controller.
 
-> **Status: pre-release.** Through Phase 10 of
+> **Status: pre-release.** Through Phase 11 of
 > `docs/feature-specs/omarchy-unifi-plugin/PLAN.md`. The helper, the service and
-> the view layer are written and tested; the plugin has not yet been installed
-> into a real Omarchy shell or pointed at a real controller, which are Phases 11
-> and 12. Installing it today is untested territory.
+> the panel are written, tested, and have been run installed in a real Omarchy
+> shell against a loopback fixture controller. What has **not** happened is
+> Phase 12: nothing has yet talked to a real UniFi controller, so the API key
+> header, the six routes and the supported-version matrix are still asserted
+> against a stub rather than against hardware.
 
 ## What it shows
 
@@ -129,6 +131,28 @@ Omarchy 4.0.2 ships no settings-form renderer, so these are set by editing your
 
 An out-of-range or wrongly typed value falls back to the default and raises a
 warning in the panel rather than being used.
+
+## Troubleshooting
+
+**After updating the plugin, restart the shell.**
+
+```bash
+omarchy restart shell
+```
+
+Omarchy watches `~/.config/omarchy/plugins/` and reloads a plugin when its files
+change, and the reload genuinely happens — the old service is torn down and a
+new one built. But the new one is built from the *previously compiled* source,
+so a code change does not take effect until the shell restarts. Everything else
+— your configuration, the bar layout, your credential — is picked up live.
+
+**The panel says the configuration has changed but not been committed.** Run
+`scripts/configure --commit`. That happens when `config.json` or `api-key` is
+edited by hand rather than through the script.
+
+**Two UniFi widgets disagree.** If you have the widget on the bar twice with
+different `refreshIntervalSec` values, polling stops and the panel says so.
+Make them match or remove one, in `~/.config/omarchy/shell.json`.
 
 ## Removing it
 

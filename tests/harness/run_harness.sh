@@ -124,7 +124,9 @@ fi
 # rather than inside the runner, because the runner cannot observe its own
 # console output.
 if [[ -z $ONLY ]]; then
-  if grep -q 'gaius-codius.unifi: released wakeTimer, watchdog, freshnessTimer, helper Process' <<< "$clean"; then
+  # The line names the instance it belongs to (AC-003), so match on the shape
+  # rather than on a literal prefix.
+  if grep -qE 'gaius-codius\.unifi\[[0-9a-f]+\]: released wakeTimer, watchdog, freshnessTimer, helper Process' <<< "$clean"; then
     echo "HARNESS: ok   teardown named every released resource"
   else
     echo "HARNESS: FAIL teardown named every released resource" >&2

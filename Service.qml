@@ -45,6 +45,31 @@ Item {
 
   readonly property string pluginId: "gaius-codius.unifi"
 
+  // AC-003's observable. The criterion asks for `serviceInstanceCount == 1`,
+  // which no object in this process can honestly compute: `shell._services`
+  // holds at most one entry per plugin id BY CONSTRUCTION (`ensureService`
+  // returns early when the key exists, shell.qml:284), and it exposes no way to
+  // read that back. A counter here would count this instance, which is one
+  // whatever the truth is.
+  //
+  // What is honestly observable is IDENTITY: a token minted once per
+  // construction. If a second service were ever constructed for this plugin,
+  // successive `status` calls would not agree on it, and the teardown line
+  // would name a different one than the batches did.
+  // `Qt.md5` is not available in this engine — it evaluated to nothing and left
+  // the property empty, which the CP8 run caught by asserting the id was
+  // non-blank rather than merely stable. Twelve hex digits from Math.random
+  // needs no host function at all.
+  readonly property string instanceId: _mintInstanceId()
+
+  function _mintInstanceId() {
+    var out = ""
+    for (var i = 0; i < 12; i++) {
+      out += "0123456789abcdef".charAt(Math.floor(Math.random() * 16))
+    }
+    return out
+  }
+
   // REQ-017: the service's watchdog is the OUTER bound. The helper's own 25 s
   // budget is the inner, best-effort one, and REQ-017c says it cannot interrupt
   // a blocking getaddrinfo — so this number is what actually bounds a batch.
@@ -74,6 +99,23 @@ Item {
   onReadyChanged: if (ready && !_started) Qt.callLater(root._start)
   onShellChanged: root._onConfigurationChanged()
   onManifestChanged: root._onConfigurationChanged()
+
+  // DATA-002b again, for the case the two handlers above do not cover: `shell`
+  // is assigned once, but the settings live in `shell.shellConfig.bar.layout`,
+  // which the user edits at any time — `shell.json` is the ONLY settings
+  // surface Omarchy 4.0.2 has (HC-1), so an edit while the service is running
+  // is the normal way to change anything.
+  //
+  // Without this the service reads the layout once and never again: AC-019's
+  // conflict would be seen only by a service that happened to start after the
+  // edit, and a corrected `refreshIntervalSec` would not take effect until the
+  // widget was removed and re-added. Found by CP8, which edited `shell.json`
+  // under a running service and watched nothing happen.
+  Connections {
+    target: root.shell
+    ignoreUnknownSignals: true
+    function onShellConfigChanged() { root._onConfigurationChanged() }
+  }
 
   // --- state ---------------------------------------------------------------
   property var _schedule: Schedule.create({ configured: false })
@@ -762,6 +804,17 @@ Item {
   function _status() {
     return {
       pluginId: pluginId,
+      instanceId: instanceId,
+      // AC-002's observable. `omarchy plugin list --json` was expected to carry
+      // a `sourceDir`; in 4.0.2-1 it does not (its keys are id, name, kinds,
+      // enabled, active, canDisable, firstParty, clonedFrom). Reporting it from
+      // the RUNNING service is a stronger answer anyway: it is where this
+      // instance was actually loaded from, not where the registry believes the
+      // plugin lives. `PluginRegistry.qml:564` stamps it onto the manifest.
+      //
+      // qmllint disable missing-property
+      sourceDir: manifest && manifest.__sourceDir ? String(manifest.__sourceDir) : null,
+      // qmllint enable missing-property
       ready: ready,
       refreshIntervalSec: _settings.refreshIntervalSec,
       compactMetric: _settings.compactMetric,
@@ -816,7 +869,7 @@ Item {
       if (_helpers[i].running) live++
       _helpers[i].batchTag = -1
     }
-    console.log("gaius-codius.unifi: released wakeTimer, watchdog, freshnessTimer, "
+    console.log("gaius-codius.unifi[" + instanceId + "]: released wakeTimer, watchdog, freshnessTimer, "
                 + "helper Process pool (" + _helpers.length + " members, "
                 + live + " still running), IpcHandler " + ipc.target)
   }
