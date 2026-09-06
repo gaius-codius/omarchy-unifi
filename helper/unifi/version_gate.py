@@ -7,16 +7,8 @@ been run against, and anything else is reported as `unsupported` with a message
 that says so — rather than being attempted and misreported as an authentication
 or connectivity failure when a shape turns out to have changed.
 
-**The matrix below is SYNTHETIC.** It holds the version the fixture corpus was
-generated against and nothing else, because no real controller has been observed
-yet: that is gate G-CONTROLLER, and Phase 12a is where the observed version is
-added. The mechanism, its `unsupported` path and its tests are complete now and
-are what CP4b checks; only the entry's *value* is deferred.
-
-That means a build shipped today reports `unsupported` against a real
-controller. That is the honest state — an untested version IS unsupported — and
-it is stated here, in PLAN.md's Phase 12a, and in the DEVIATION_LOG rather than
-being discovered by a user.
+The matrix now holds two entries: the synthetic one the fixture corpus was
+generated against, and one observed against a real controller in Phase 12a.
 """
 
 import re
@@ -30,11 +22,19 @@ _VERSION_RE = re.compile(r"\A(\d{1,4})\.(\d{1,4})(?:[.\-+].*)?\Z")
 
 # (major, minor) pairs this plugin has been run against.
 #
-#   SYNTHETIC — the version of the published specification the fixture corpus
-#   was generated from (unifi-network-v1-readonly-subset.json, UniFi Network
-#   10.4.57 → the fixtures report applicationVersion 9.1.0). No controller has
-#   confirmed it. Phase 12a, behind G-CONTROLLER, adds the observed entry.
-TESTED_VERSIONS = ((9, 1),)
+#   (9, 1)   SYNTHETIC — the version of the published specification the fixture
+#            corpus was generated from (unifi-network-v1-readonly-subset.json,
+#            UniFi Network 10.4.57 → the fixtures report applicationVersion
+#            9.1.0). No controller has confirmed it.
+#
+#   (10, 6)  OBSERVED — `applicationVersion: "10.6.101"`, Phase 12a,
+#            2026-09-06. A full batch succeeded against it: all six routes
+#            answered, every page envelope carried the five documented fields,
+#            and DATA-012's single-site auto-selection worked. One divergence
+#            was found and it is NOT a version problem — the console device
+#            reports `features: ["switching"]` rather than including `gateway`
+#            — so it does not belong in this gate. See api-contract.md.
+TESTED_VERSIONS = ((9, 1), (10, 6))
 
 MAX_VERSION_CHARS = 64
 

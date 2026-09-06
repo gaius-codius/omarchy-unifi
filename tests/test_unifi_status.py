@@ -16,6 +16,7 @@ import atexit
 import errno
 import http.client
 import io
+import inspect
 import json
 import os
 import shutil
@@ -1949,11 +1950,33 @@ class Pagination(unittest.TestCase):
 class VersionGate(unittest.TestCase):
     """R2. The mechanism is complete; the matrix's contents are not, on purpose."""
 
-    def test_the_shipped_matrix_is_the_synthetic_entry_only(self):
-        # G-CONTROLLER blocks the VALUE, not the mechanism. Phase 12a adds the
-        # observed entry. Asserting the current contents means the day that
-        # happens, this test is what says so.
-        self.assertEqual(version_gate.TESTED_VERSIONS, ((9, 1),))
+    def test_every_matrix_entry_is_documented_where_it_came_from(self):
+        # G-CONTROLLER blocked the VALUE, not the mechanism, and Phase 12a
+        # supplied the observed entry: applicationVersion "10.6.101" from a real
+        # controller, against which a full batch succeeded on 2026-09-06.
+        #
+        # The guard that used to freeze this tuple is replaced rather than
+        # deleted, because what it was really protecting against is a version
+        # being added because someone hoped it worked. Each entry must be
+        # accounted for in the module's own comment, so adding one without
+        # saying where it came from fails the build.
+        self.assertEqual(version_gate.TESTED_VERSIONS, ((9, 1), (10, 6)))
+        source = inspect.getsource(version_gate)
+        for major, minor in version_gate.TESTED_VERSIONS:
+            marker = "#   (%d, %d)" % (major, minor)
+            self.assertIn(marker, source,
+                          "version_gate.py must record where (%d, %d) came from"
+                          % (major, minor))
+        self.assertIn("SYNTHETIC", source)
+        self.assertIn("OBSERVED", source)
+
+    def test_the_observed_entry_is_the_version_phase_12a_recorded(self):
+        # The exact string the controller reported, not a rounded one.
+        self.assertTrue(version_gate.is_supported("10.6.101"))
+        self.assertEqual(version_gate.parse("10.6.101"), (10, 6))
+        # And the gate is still a gate: a neighbouring minor is not implied.
+        self.assertFalse(version_gate.is_supported("10.5.0"))
+        self.assertFalse(version_gate.is_supported("10.7.0"))
 
     def test_the_synthetic_entry_matches_the_fixture_corpus(self):
         with open(os.path.join(_REPO, "tests", "fixtures", "api", "scenarios",

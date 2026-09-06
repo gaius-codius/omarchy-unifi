@@ -114,7 +114,50 @@ picked up. It exits non-zero if the shell was reachable but could not accept
 the change, and in that case the previous configuration is left exactly as it
 was, so a failed run never leaves you half-configured.
 
-### Widget settings
+#### Pointing it at your controller
+
+A UniFi console's certificate is self-signed and issued for the name
+**`unifi.local`** — not for its IP address. So configuring it by IP cannot use
+TLS verification, however you pin the certificate: the chain is trusted and the
+hostname check still fails with `IP address mismatch`.
+
+Use the name, and pin the certificate:
+
+```bash
+# 1. make the name resolve, if it does not already
+echo '192.168.1.1  unifi.local' | sudo tee -a /etc/hosts
+
+# 1b. on Arch, /etc/hosts is NOT consulted for .local names by default:
+#     nss-mdns claims them first and [NOTFOUND=return] ends the search.
+#     Put `files` ahead of it. Check with: getent hosts unifi.local
+sudo cp /etc/nsswitch.conf /etc/nsswitch.conf.bak
+sudo sed -i 's|^hosts:.*|hosts: mymachines files mdns_minimal [NOTFOUND=return] resolve myhostname dns|' \
+  /etc/nsswitch.conf
+
+# 2. save the console's certificate
+openssl s_client -connect 192.168.1.1:443 </dev/null 2>/dev/null \
+  | openssl x509 -outform PEM > ~/.config/omarchy-unifi/console.pem
+
+# 3. configure
+scripts/configure \
+  --api-root https://unifi.local/proxy/network/integration \
+  --custom-ca ~/.config/omarchy-unifi/console.pem \
+  --api-key-stdin
+```
+
+That gives verified TLS with the console's own certificate pinned, which is
+stronger than the system trust store would be — nothing but that certificate is
+accepted.
+
+Your console may advertise `unifi.local` over mDNS already, in which case steps
+1 and 1b are unnecessary — check with `getent hosts unifi.local` first.
+
+If the name cannot be made to resolve on your network, `--allow-insecure-tls`
+turns verification off. It works, and the panel then shows a permanent warning
+row for the whole session, because anything on the network path can read and
+alter what you are looking at.
+
+## Widget settings
 
 Omarchy 4.0.2 ships no settings-form renderer, so these are set by editing your
 `shell.json` layout entry or with `omarchy shell setBarWidget`:
@@ -131,6 +174,23 @@ Omarchy 4.0.2 ships no settings-form renderer, so these are set by editing your
 
 An out-of-range or wrongly typed value falls back to the default and raises a
 warning in the panel rather than being used.
+
+### What you will and will not see
+
+**Your controller may not report a gateway.** The plugin identifies a gateway by
+the `gateway` entry in a device's `features` array, which is what the UniFi
+Network API documents. On the one real console this has been tested against —
+a UDM Pro on Network 10.6.101 — no device reports it: the console itself comes
+back as `["switching"]`. Where that happens, the WAN section reads "unknown",
+gateway uptime and throughput are blank, and the bar item can never reach the
+"down" level, because that level is defined as *every gateway down* and there
+are no gateways to be down.
+
+Everything else works normally: device counts, per-role counts, the offline
+list, the client count, and the degraded level when something is down or
+impaired. This is tracked as DEV-6 in
+`docs/feature-specs/omarchy-unifi-plugin/DEVIATION_LOG.md`, and more data from
+more controllers is exactly what it needs.
 
 ## Troubleshooting
 

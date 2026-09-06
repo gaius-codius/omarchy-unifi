@@ -24,6 +24,52 @@ All operation paths are then `/v1/...`, so a full local URL is
 The helper appends `/v1/<route>` from its route allowlist. Both families are
 fixture-tested for request construction.
 
+### The IP form cannot be verified (observed 2026-09-06, Phase 12a)
+
+`https://{consoleIP}/...` is the form the specification advertises and the form
+the worked example above uses. **On a stock UniFi console it cannot be used with
+TLS verification enabled**, and this is not a local quirk — it follows from the
+certificate the console ships with.
+
+Observed against a real console: the certificate is self-signed with
+`CN=unifi.local` and
+
+```
+X509v3 Subject Alternative Name:
+    DNS:unifi.local, DNS:localhost, DNS:[::1],
+    IP Address:127.0.0.1, IP Address:FE80::1
+```
+
+There is **no IP SAN for the console's LAN address**. Pinning that certificate
+as a CA establishes trust — the chain verifies — but connecting by IP then fails
+hostname verification:
+
+```
+[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: IP address mismatch,
+certificate is not valid for '192.168.1.1'
+```
+
+Connecting to the same host as `unifi.local`, with the same pinned certificate,
+verifies cleanly over TLSv1.3.
+
+So the correct local configuration is the **name the certificate carries**, with
+that certificate pinned:
+
+```
+apiRoot      https://unifi.local/proxy/network/integration
+customCaPath the console's certificate, in PEM
+```
+
+and `unifi.local` must resolve to the console. It is not advertised over mDNS —
+avahi running and `nss-mdns` installed was not enough — so it needs a `/etc/hosts`
+entry or a local DNS record. A console's reverse-DNS name (`unifi.home` on the
+observed network) does **not** work: it is not in the certificate either.
+
+`allowInsecureTls` remains the documented fallback for a console whose name
+cannot be made to resolve, and SEC-005/UX-009 keep it an explicit opt-in with a
+permanent panel warning. It should not be the first thing a user reaches for,
+which is what the IP-form example was quietly encouraging.
+
 Authentication is the `X-API-Key` request header. The specification file
 declares no `securitySchemes` and no `security` block, so the header name is
 taken from the controller's Integrations documentation, not from this file.
@@ -166,8 +212,82 @@ implementation shortcuts.
    and optional.
 6. **Uptime is gateway device uptime** (`uptimeSec`), not WAN link uptime, and
    optional.
-7. **A device can hold several `features` at once.** A UniFi Dream Machine
-   reports `gateway`, `switching` and `accessPoint` together, so per-role
-   counts cannot be a partition of the device list.
+7. **A device can hold several `features` at once.** The specification's enum
+   is `switching | accessPoint | gateway` with `uniqueItems`, so per-role counts
+   cannot be a partition of the device list. **The claim that a UniFi Dream
+   Machine reports all three together was inferred from the specification and is
+   contradicted by observation — see §12a below.**
 
 Consequences for the design are tracked as open decisions in `SPEC.md §14`.
+
+
+## 12a. Observed against a real controller (2026-09-06)
+
+`applicationVersion: "10.6.101"`, nine adopted devices, 44 clients, two WANs,
+TLS verified against the console's own pinned certificate. A full batch
+succeeded: exit 0, `ok: true`, empty stderr.
+
+### Confirmed
+
+| Claim | Observation |
+|---|---|
+| `X-API-Key` is the header name | every request authorised; the name is not in the specification file and was taken from the Integrations docs |
+| The page envelope is `{offset, limit, count, totalCount, data}` | all five fields present on all four paginated routes |
+| `/v1/info` returns exactly one field | `{"applicationVersion": "10.6.101"}` |
+| `/v1/sites/{id}/wans` returns identity only | `{id, name}` and nothing else, for both WANs |
+| Route 4 returns uptime and uplink throughput | `uptimeSec`, `uplink.{txRateBps, rxRateBps}`, plus `cpuUtilizationPct`, `memoryUtilizationPct`, `loadAverage{1,5,15}Min`, `lastHeartbeatAt`, `nextHeartbeatAt`, `interfaces` |
+| The device record's fields | `features, firmwareUpdatable, firmwareVersion, id, interfaces, ipAddress, macAddress, model, name, state, supported` |
+| DATA-009a re-reads the collection | nine requests for one `info` plus four collections, each fetched twice |
+| DATA-012 auto-selects a single site | `site_auto_selected` warning raised, batch proceeded |
+
+The `state` values seen were `ONLINE` and `OFFLINE` only — a subset of the
+documented enum, which is expected on a healthy site and confirms nothing about
+the rest.
+
+### Divergence: the console does not report the `gateway` feature
+
+Every device on the observed controller reported exactly one feature:
+
+```
+['accessPoint']  x4        AC HD, U6 Lite x3
+['switching']    x5        UDM Pro, US 24 PoE 250W, US 8 PoE 150W, USW Flex Mini x2
+```
+
+**The UDM Pro — which is the gateway — reports `features: ["switching"]`.** No
+device on the site reports `gateway`, although the site has two WANs configured
+and the specification declares `gateway` in the enum.
+
+Whether this is a 10.6 change, or whether the Network application has never
+described the console's routing role as a device *feature*, cannot be
+established from one controller.
+
+REQ-000 defines a gateway as a device whose `features` contains `gateway`, so on
+this controller the consequences are:
+
+- `wan.status` is permanently `unknown`, and `wan.uptimeSec`, `downloadBps` and
+  `uploadBps` are permanently `null` (REQ-008a's "no gateway present" branch).
+- REQ-002 rule 3 — the only route to **red** — is unreachable. The site is judged
+  on rules 4 and 5 alone.
+- `counts.gateways` is all zeros, and the panel's gateway list is empty.
+- Route 4 is never requested, because it is fetched per gateway. It was verified
+  here by calling it directly.
+
+The plugin behaves exactly as specified; the specification's assumption about
+the data is what is wrong. This is a Tier 3 divergence and is raised as DEV-6.
+
+**One observation that bears on any fix:** the console device is the only one
+whose `ipAddress` is not an RFC 1918 address — it reports its WAN address, a
+public one, while every other device reports a `192.168.1.x` address. The
+address itself is deliberately not recorded here: this repository is intended to
+be published, and someone's public IP is not a fact a design document needs. Route 4 for that device returns the WAN uplink rates. So the
+gateway is identifiable and its metrics are available; only the documented
+signal for finding it is absent.
+
+### DEV-5 is settled by observation
+
+`/v1/sites/{id}/wans` returned `{id, name}` for two WANs and nothing else: no
+status, no throughput, no link to a device. It cost two of the batch's nine
+requests — DATA-009a fetches it twice — and its body was discarded, exactly as
+DEV-5 predicted from the specification. Nothing in the response can be joined to
+`gateways`, so option C (render WAN identity in the panel) has no data to render
+beyond a name.
