@@ -154,14 +154,17 @@ class TlsStub(object):
                 b"\r\n"
                 b'{"ok":true}')
 
-    def __init__(self, certfile, keyfile):
+    def __init__(self, certfile, keyfile, handler=None):
         self.certfile = certfile
         self.keyfile = keyfile
         self.host = "127.0.0.1"
         self.port = None
+        self.requests = []
+        self._handler = handler
         self._socket = None
         self._thread = None
         self._stop = threading.Event()
+        self._lock = threading.Lock()
 
     def __enter__(self):
         context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
@@ -191,8 +194,16 @@ class TlsStub(object):
                 raw.settimeout(2.0)
                 with context.wrap_socket(raw, server_side=True) as tls:
                     try:
-                        tls.recv(4096)
-                        tls.sendall(self.RESPONSE)
+                        head = self._read_head(tls)
+                        payload, hold = self._answer(head)
+                        tls.sendall(payload)
+                        if hold:
+                            # Deliberately do NOT close. A test that asserts a
+                            # body is never read needs the connection to stay
+                            # open: if the server hangs up, an unbounded read
+                            # returns immediately and the test passes for the
+                            # wrong reason.
+                            self._stop.wait(hold)
                     except OSError:
                         pass
             except (ssl.SSLError, OSError):
@@ -203,6 +214,43 @@ class TlsStub(object):
                     raw.close()
                 except OSError:
                     pass
+
+    @staticmethod
+    def _read_head(tls):
+        """Read up to the blank line that ends the request head.
+
+        Bounded: a client that never sends one must not hold the thread, and the
+        stub only ever answers GETs, which have no body.
+        """
+        buffer = b""
+        while b"\r\n\r\n" not in buffer and len(buffer) < 16384:
+            chunk = tls.recv(4096)
+            if not chunk:
+                break
+            buffer += chunk
+        return buffer
+
+    def _answer(self, head):
+        """Record the request and produce the bytes to send.
+
+        The recorded headers are what AC-014 asserts against: the check that
+        X-API-Key never reaches a second URL is only meaningful if the test can
+        see which requests actually carried it.
+        """
+        request = _parse_request(head)
+        with self._lock:
+            self.requests.append(request)
+            index = len(self.requests) - 1
+        if self._handler is None:
+            return self.RESPONSE, 0
+        answer = self._handler(request, index)
+        if isinstance(answer, tuple):
+            return answer
+        return answer, 0
+
+    def received(self):
+        with self._lock:
+            return list(self.requests)
 
     def __exit__(self, exc_type, exc, tb):
         self._stop.set()
@@ -233,3 +281,34 @@ class TlsStub(object):
                 raw.close()
             except OSError:
                 pass
+
+
+def _parse_request(head):
+    """A minimal request record: method, target, and a lowercased header map."""
+    text = head.decode("latin-1")
+    lines = text.split("\r\n")
+    parts = lines[0].split(" ") if lines else []
+    headers = {}
+    for line in lines[1:]:
+        if not line:
+            break
+        name, _, value = line.partition(":")
+        headers[name.strip().lower()] = value.strip()
+    return {
+        "method": parts[0] if parts else "",
+        "target": parts[1] if len(parts) > 1 else "",
+        "headers": headers,
+    }
+
+
+def response(status, reason="OK", body=b"", content_type="application/json",
+             extra_headers=None):
+    """Build a raw HTTP/1.1 response. Used by the transport tests."""
+    lines = ["HTTP/1.1 %d %s" % (status, reason)]
+    if content_type is not None:
+        lines.append("Content-Type: %s" % content_type)
+    lines.append("Content-Length: %d" % len(body))
+    lines.append("Connection: close")
+    for name, value in (extra_headers or {}).items():
+        lines.append("%s: %s" % (name, value))
+    return ("\r\n".join(lines) + "\r\n\r\n").encode("latin-1") + body

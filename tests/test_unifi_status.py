@@ -12,13 +12,19 @@ needs. The same flags are used to LAUNCH the helper, so the tests run it the way
 the service will.
 """
 
+import atexit
+import errno
+import http.client
 import io
+import json
 import os
 import shutil
+import socket
 import ssl
 import stat
 import sys
 import tempfile
+import time
 import unittest
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
@@ -30,8 +36,32 @@ _REPO = os.path.dirname(_HERE)
 sys.path.insert(0, os.path.join(_REPO, "helper"))
 sys.path.insert(0, os.path.join(_HERE, "tools"))
 
+import fixture_pages  # noqa: E402
 import tls_stub  # noqa: E402
-from unifi import commitset, credential, errors, paths, tlsctx  # noqa: E402
+import unifi  # noqa: E402
+from unifi import commitset, credential, deadline, errors, pagination  # noqa: E402
+from unifi import paths, routes, sanitize, tlsctx, transport  # noqa: E402
+from unifi import version_gate, warn  # noqa: E402
+
+
+_AUTHORITY = []
+
+
+def _shared_authority():
+    """Mint one CA and one server certificate for the whole module.
+
+    Minting is two `openssl` invocations, and the transport suite starts dozens
+    of stubs. The certificate is not what any of those tests vary — the SEC-006
+    negative matrix mints its own — so one is enough, and the difference is
+    seconds per run rather than minutes.
+    """
+    if not _AUTHORITY:
+        workdir = tempfile.mkdtemp(prefix="omarchy-unifi-ca-")
+        atexit.register(shutil.rmtree, workdir, True)
+        authority = tls_stub.mint_ca(workdir, "shared")
+        certfile, keyfile = tls_stub.mint_server_cert(workdir, authority)
+        _AUTHORITY.append((authority, certfile, keyfile))
+    return _AUTHORITY[0]
 
 
 class TempTree(unittest.TestCase):
@@ -763,7 +793,8 @@ class InterpreterFloor(unittest.TestCase):
         import ast
         allowed = {"os", "ssl", "stat", "json", "hashlib", "hmac", "io", "sys",
                    "socket", "errno", "time", "re", "base64", "urllib", "typing",
-                   "collections", "datetime", "unicodedata", "subprocess"}
+                   "collections", "datetime", "unicodedata", "subprocess",
+                   "email", "http"}
         for path in _shipped_python_sources():
             tree = ast.parse(_read_source(path), filename=path)
             for node in ast.walk(tree):
@@ -776,6 +807,1195 @@ class InterpreterFloor(unittest.TestCase):
                         continue
                     root = (node.module or "").split(".")[0]
                     self.assertIn(root, allowed, "%s imports %s" % (path, node.module))
+
+
+# --- section 8/9/10: routes, transport, pagination, taxonomy (Phase 6) ------
+
+class ErrorTaxonomy(unittest.TestCase):
+    """DATA-007 / DATA-007a, producer side.
+
+    Protocol.js rejects an inconsistent error object; this is the other half —
+    the helper must be unable to BUILD one. A test that only checked the
+    consumer would leave the producer free to emit `credential` with a 429 and
+    call the resulting rejection somebody else's problem.
+    """
+
+    def test_all_nineteen_data_007_kinds_are_present_exactly_once(self):
+        self.assertEqual(len(errors.KINDS), 19)
+        self.assertEqual(len(set(errors.KINDS)), 19)
+
+    def test_every_kind_names_its_retry_class(self):
+        # The DATA-007a matrix, longhand. Written out rather than looped over
+        # errors.RETRY_CLASS, because a loop derives its expectation from the
+        # table it is checking and would pass on any self-consistent table.
+        expected = {
+            "unconfigured": "fatal",
+            "site_unselected": "fatal",
+            "uncommitted": "fatal",
+            "credential": "fatal",
+            "unauthorized": "fatal",
+            "forbidden": "fatal",
+            "tls": "fatal",
+            "network": "transient",
+            "timeout": "transient",
+            "rate_limited": "transient",
+            "unsupported": "fatal",
+            "redirect": "integrity",
+            "configuration_conflict": "fatal",
+            "partial_response": "integrity",
+            "oversized_response": "integrity",
+            "malformed_response": "integrity",
+            "helper_unavailable": "fatal",
+            "internal": "integrity",
+        }
+        for kind, retry_class in expected.items():
+            with self.subTest(kind=kind):
+                self.assertEqual(errors.retry_class_for(kind), retry_class)
+                self.assertEqual(errors.retryable_for(kind), retry_class != "fatal")
+        # `http` is deliberately absent above: its class depends on its status.
+        self.assertNotIn("http", expected)
+        self.assertNotIn("http", errors.RETRY_CLASS)
+
+    def test_http_is_classified_by_its_status(self):
+        for status in (500, 502, 503, 504):
+            with self.subTest(status=status):
+                self.assertEqual(errors.retry_class_for("http", status), "transient")
+                self.assertTrue(errors.retryable_for("http", status))
+        for status in (400, 404, 418, 501, 505):
+            with self.subTest(status=status):
+                self.assertEqual(errors.retry_class_for("http", status), "fatal")
+                self.assertFalse(errors.retryable_for("http", status))
+
+    def test_an_unknown_kind_takes_internals_class(self):
+        # DATA-007's forward-compatibility mapping. A newer helper's kind must
+        # not brick an older consumer, and must not be treated as fatal either.
+        self.assertEqual(errors.retry_class_for("something_new_in_v2"), "integrity")
+
+    def test_http_status_is_forbidden_where_the_matrix_forbids_it(self):
+        for kind in errors.KINDS:
+            if kind in ("unauthorized", "forbidden", "rate_limited", "http"):
+                continue
+            with self.subTest(kind=kind):
+                with self.assertRaises(errors.InconsistentError):
+                    errors.error_object(kind, "m", http_status=429)
+                built = errors.error_object(kind, "m")
+                self.assertNotIn("httpStatus", built)
+
+    def test_typed_statuses_are_pinned_to_their_kinds(self):
+        self.assertEqual(errors.error_object("unauthorized", "m")["httpStatus"], 401)
+        self.assertEqual(errors.error_object("forbidden", "m")["httpStatus"], 403)
+        self.assertEqual(errors.error_object("rate_limited", "m")["httpStatus"], 429)
+        with self.assertRaises(errors.InconsistentError):
+            errors.error_object("unauthorized", "m", http_status=403)
+
+    def test_http_may_not_carry_a_status_that_has_its_own_kind(self):
+        # An `http` error carrying 401 means the producer skipped the typed
+        # mapping DATA-007 requires, so the service would reject the envelope.
+        for status in (401, 403, 429):
+            with self.subTest(status=status):
+                with self.assertRaises(errors.InconsistentError):
+                    errors.error_object("http", "m", http_status=status)
+        self.assertEqual(errors.error_object("http", "m", http_status=502)["httpStatus"], 502)
+
+    def test_http_requires_an_integer_status_in_range(self):
+        for bad in (None, "502", True, 99, 600):
+            with self.subTest(status=bad):
+                with self.assertRaises(errors.InconsistentError):
+                    errors.error_object("http", "m", http_status=bad)
+
+    def test_retry_after_belongs_only_to_rate_limited(self):
+        for kind in errors.KINDS:
+            if kind == "rate_limited":
+                continue
+            with self.subTest(kind=kind):
+                with self.assertRaises(errors.InconsistentError):
+                    if kind == "http":
+                        errors.error_object(kind, "m", http_status=502,
+                                            retry_after_sec=30)
+                    else:
+                        errors.error_object(kind, "m", retry_after_sec=30)
+        self.assertEqual(
+            errors.error_object("rate_limited", "m", retry_after_sec=30)["retryAfterSec"], 30)
+
+    def test_retryable_is_derived_and_cannot_be_supplied(self):
+        # DATA-007a requires `retryable` to equal the kind's class. There is no
+        # argument for it, so no call site can contradict the matrix.
+        import inspect
+        signature = inspect.signature(errors.error_object)
+        self.assertNotIn("retryable", signature.parameters)
+
+    def test_every_exception_class_reports_a_kind_in_the_taxonomy(self):
+        for name in dir(errors):
+            value = getattr(errors, name)
+            if isinstance(value, type) and issubclass(value, errors.HelperError):
+                with self.subTest(exception=name):
+                    self.assertIn(value.kind, errors.KINDS)
+
+    def test_to_error_object_round_trips_a_raised_exception(self):
+        built = errors.to_error_object(
+            errors.RateLimitedError("slow down", retry_after_sec=45))
+        self.assertEqual(built, {"kind": "rate_limited", "message": "slow down",
+                                 "retryable": True, "httpStatus": 429,
+                                 "retryAfterSec": 45})
+        built = errors.to_error_object(errors.HttpError("bad gateway", 502))
+        self.assertEqual(built["kind"], "http")
+        self.assertEqual(built["httpStatus"], 502)
+        self.assertTrue(built["retryable"])
+
+
+class Sanitization(unittest.TestCase):
+    """SEC-010. Nothing the helper says carries a credential, a header or a URL."""
+
+    # Assembled at runtime from halves, so the key-shaped literal exists only
+    # while this test runs and never in a tracked file. tests/lint/secrets.sh
+    # does the same with its canary, and for the same reason: a test about
+    # credential material must not be the thing that puts credential material
+    # into the repository.
+    FAKE_TOKEN = "sk-" + "live-" + "abcdefghijklmnop"
+
+    def test_a_message_never_carries_a_credential_shaped_fragment(self):
+        for hostile in ("X-API-" + "Key: " + self.FAKE_TOKEN,
+                        "api_" + "key=" + self.FAKE_TOKEN,
+                        "Authorization: " + "Bearer " + self.FAKE_TOKEN):
+            with self.subTest(text=hostile):
+                cleaned = sanitize.message(hostile)
+                self.assertNotIn(self.FAKE_TOKEN, cleaned)
+                self.assertIn(sanitize.REDACTED, cleaned)
+
+    def test_a_message_never_carries_a_url(self):
+        cleaned = sanitize.message("failed at https://192.168.1.1/proxy/network/x")
+        self.assertNotIn("192.168.1.1", cleaned)
+        self.assertIn(sanitize.ELIDED_URL, cleaned)
+
+    def test_control_characters_cannot_forge_a_second_log_line(self):
+        cleaned = sanitize.message("device\r\nWARNING: everything is fine")
+        self.assertNotIn("\n", cleaned)
+        self.assertNotIn("\r", cleaned)
+
+    def test_non_whitespace_control_bytes_are_stripped_too(self):
+        # CR and LF are also whitespace, so the whitespace collapse alone
+        # satisfies the test above and the control-character strip could be
+        # deleted without failing it. These are the bytes only the strip
+        # catches: a terminal escape in a device name, and NUL.
+        cleaned = sanitize.clean("device\x1b[31mRED\x1b[0m\x00\x07 name")
+        self.assertNotIn("\x1b", cleaned)
+        self.assertNotIn("\x00", cleaned)
+        self.assertNotIn("\x07", cleaned)
+        self.assertIn("name", cleaned)
+
+    def test_strings_are_bounded_on_both_limits(self):
+        self.assertEqual(len(sanitize.clean("a" * 5000)), sanitize.STRING_MAX_CHARS)
+        self.assertEqual(len(sanitize.message("a" * 5000)), sanitize.MESSAGE_MAX_CHARS)
+        self.assertTrue(sanitize.message("a" * 5000).endswith(sanitize.TRUNCATION_MARKER))
+
+    def test_an_exception_is_described_by_type_never_by_its_text(self):
+        # The rule that makes SEC-010 hold without a scrubber: str(exc) is never
+        # interpolated, so a host, a path or a certificate subject inside an
+        # exception cannot reach an envelope at all.
+        marker = "10.9.8.7 " + self.FAKE_TOKEN
+        # Every branch, including the fallback. PEP 3151 makes OSError(111) a
+        # ConnectionRefusedError, so a first version of this test only ever
+        # reached the phrase book and the fallback could return str(exc)
+        # unnoticed. The last two entries are types the book does not name.
+        bearers = [
+            OSError(errno.ECONNREFUSED, "connect refused for " + marker),
+            ssl.SSLCertVerificationError("hostname " + marker + " does not match"),
+            socket.gaierror(socket.EAI_NONAME, "no address for " + marker),
+            OSError(errno.EACCES, "denied for " + marker),
+            ValueError("unexpected " + marker),
+        ]
+        for exc in bearers:
+            with self.subTest(exception=type(exc).__name__):
+                described = sanitize.describe_exception(exc)
+                self.assertNotIn("10.9.8.7", described)
+                self.assertNotIn(self.FAKE_TOKEN, described)
+
+    def test_the_host_is_extracted_without_userinfo_and_with_its_port(self):
+        self.assertEqual(
+            sanitize.host_of("https://user:pass@192.168.1.1:8443/proxy"),
+            "192.168.1.1:8443")
+        self.assertEqual(sanitize.host_of("https://192.168.1.1/proxy"), "192.168.1.1")
+        self.assertIsNone(sanitize.host_of("not a url"))
+
+
+class WarningCodes(unittest.TestCase):
+    """The closed set from docs/protocol-v1.md."""
+
+    def test_the_code_set_is_exactly_the_documented_one(self):
+        # Longhand, for the same reason as the retry-class table: a loop over
+        # warn.CODES would agree with any set warn.CODES happened to hold.
+        self.assertEqual(sorted(warn.CODES), sorted([
+            "unknown_device_state", "site_auto_selected", "sites_discovered",
+            "clients_unavailable", "statistics_unavailable", "wans_unavailable",
+            "gateway_statistics_truncated", "offline_list_truncated",
+            "page_reread_mismatch", "insecure_tls", "custom_ca_in_use",
+            "retry_after_clamped", "retry_after_ignored", "stderr_bound_exceeded",
+        ]))
+
+    def test_every_code_has_a_message(self):
+        for code in warn.CODES:
+            with self.subTest(code=code):
+                self.assertTrue(warn.MESSAGES.get(code))
+
+    def test_an_unknown_code_is_refused(self):
+        collector = warn.Warnings()
+        with self.assertRaises(warn.UnknownWarningCode):
+            collector.add("looks_plausible")
+
+    def test_the_list_is_bounded_and_says_how_much_it_dropped(self):
+        collector = warn.Warnings()
+        for _ in range(warn.MAX_ENTRIES + 7):
+            collector.add("unknown_device_state", {"state": "X", "deviceId": "d"})
+        self.assertEqual(len(collector), warn.MAX_ENTRIES)
+        self.assertEqual(collector.dropped(), 7)
+
+
+class TimeBudget(unittest.TestCase):
+    """REQ-017 / REQ-017c."""
+
+    def setUp(self):
+        self.now = [0.0]
+
+    def budget(self, seconds=deadline.BUDGET_SEC):
+        return deadline.Deadline(seconds, clock=lambda: self.now[0])
+
+    def test_the_budget_is_the_spec_value(self):
+        self.assertEqual(deadline.BUDGET_SEC, 25.0)
+
+    def test_a_per_operation_timeout_never_exceeds_what_is_left(self):
+        budget = self.budget()
+        self.now[0] = 21.0
+        self.assertEqual(budget.timeout_for("devices"), 4.0)
+
+    def test_a_per_operation_timeout_is_capped_below_the_whole_budget(self):
+        # Without the cap, one wedged request consumes all 25 s and the batch
+        # fails having attempted exactly one route.
+        self.assertEqual(self.budget().timeout_for("info"),
+                         deadline.PER_OPERATION_MAX_SEC)
+        self.assertLess(deadline.PER_OPERATION_MAX_SEC, deadline.BUDGET_SEC)
+
+    def test_an_expired_budget_raises_timeout_not_network(self):
+        budget = self.budget()
+        self.now[0] = 25.5
+        with self.assertRaises(errors.DeadlineError) as caught:
+            budget.check("clients")
+        self.assertEqual(caught.exception.kind, "timeout")
+
+    def test_a_sliver_of_budget_fails_instead_of_starting_a_doomed_request(self):
+        budget = self.budget()
+        self.now[0] = deadline.BUDGET_SEC - deadline.MIN_OPERATION_SEC / 2
+        with self.assertRaises(errors.DeadlineError):
+            budget.timeout_for("wans")
+
+    def test_the_clock_is_monotonic_not_wall(self):
+        # An NTP correction mid-batch must neither grant nor revoke time.
+        source = deadline.Deadline()
+        self.assertIs(source._clock, time.monotonic)
+
+
+class RouteAllowlist(unittest.TestCase):
+    """AC-017, AC-018, AC-061. BIZ-001, SEC-009, SEC-013."""
+
+    ROOT = "https://192.168.1.1/proxy/network/integration"
+    SITE = "140d6676-08f6-5cbd-806a-bff7222ccc5d"
+    DEVICE = "2f4dcb4c-0d20-5e6b-9a0e-0a03a6f8b111"
+
+    def build(self, name, **kwargs):
+        params = {}
+        if "siteId" in routes.ROUTES[name]["params"]:
+            params["siteId"] = self.SITE
+        if "deviceId" in routes.ROUTES[name]["params"]:
+            params["deviceId"] = self.DEVICE
+        params.update(kwargs)
+        return routes.build(self.ROOT, name, **params)
+
+    def test_the_allowlist_holds_exactly_the_six_contract_routes(self):
+        self.assertEqual(routes.ROUTE_NAMES,
+                         ("clients", "device_statistics", "devices", "info",
+                          "sites", "wans"))
+
+    def test_every_route_produces_the_local_console_url(self):
+        # AC-018, longhand. The expected strings are written out rather than
+        # rebuilt from the templates: a test that formats the same template the
+        # code formats would pass on a wrong template.
+        expected = {
+            "info": self.ROOT + "/v1/info",
+            "sites": self.ROOT + "/v1/sites",
+            "devices": self.ROOT + "/v1/sites/" + self.SITE + "/devices",
+            "clients": self.ROOT + "/v1/sites/" + self.SITE + "/clients",
+            "wans": self.ROOT + "/v1/sites/" + self.SITE + "/wans",
+            "device_statistics": (self.ROOT + "/v1/sites/" + self.SITE
+                                  + "/devices/" + self.DEVICE + "/statistics/latest"),
+        }
+        self.assertEqual(sorted(expected), sorted(routes.ROUTE_NAMES))
+        for name, url in expected.items():
+            with self.subTest(route=name):
+                self.assertEqual(self.build(name).url, url)
+
+    def test_a_trailing_slash_on_the_api_root_changes_nothing(self):
+        for name in routes.ROUTE_NAMES:
+            with self.subTest(route=name):
+                params = {}
+                if "siteId" in routes.ROUTES[name]["params"]:
+                    params["siteId"] = self.SITE
+                if "deviceId" in routes.ROUTES[name]["params"]:
+                    params["deviceId"] = self.DEVICE
+                with_slash = routes.build(self.ROOT + "/", name, **params)
+                self.assertEqual(with_slash.url, self.build(name).url)
+
+    def test_no_route_outside_the_allowlist_can_be_built(self):
+        for name in ("hotspots", "vouchers", "v1/info", "", "INFO"):
+            with self.subTest(route=name):
+                with self.assertRaises(errors.InternalError):
+                    routes.build(self.ROOT, name, siteId=self.SITE)
+
+    def test_every_request_is_a_get(self):
+        for name in routes.ROUTE_NAMES:
+            with self.subTest(route=name):
+                self.assertEqual(self.build(name).method, "GET")
+        self.assertEqual(routes.METHOD, "GET")
+
+    def test_a_non_get_method_is_refused_by_the_only_thing_that_opens_a_socket(self):
+        # AC-017's method half. routes.build cannot produce a non-GET, so the
+        # guarantee is asserted where a socket is actually opened: an edit that
+        # started constructing requests elsewhere would still be caught.
+        request = self.build("info")
+        request.method = "POST"
+        opened = []
+
+        def recording_connect(host, port, timeout, context):
+            opened.append(host)
+            raise AssertionError("unreachable")
+
+        with self.assertRaises(errors.InternalError):
+            transport.get_json(request, _StubCredential(), None,
+                               deadline.Deadline(), connect=recording_connect)
+        # The assertion is that no socket was opened, not merely that something
+        # was raised: get_json maps ANY unexpected exception to `internal`, so
+        # a version with no guard at all would also raise InternalError here —
+        # after connecting.
+        self.assertEqual(opened, [], "a socket was opened for a non-GET request")
+
+    def test_site_id_path_traversal_is_rejected_before_a_request_exists(self):
+        # AC-061, the exact inputs the criterion names.
+        for hostile in ("x/../../v1/hotspots", "../", "",
+                        "not-a-uuid",
+                        self.SITE + "/../../hotspots",
+                        self.SITE + "%2f..%2f",
+                        "140d6676-08f6-5cbd-806a-bff7222ccc5",
+                        "140d6676_08f6_5cbd_806a_bff7222ccc5d",
+                        self.SITE + "\n"):
+            with self.subTest(siteId=hostile):
+                with self.assertRaises(errors.HelperError) as caught:
+                    routes.build(self.ROOT, "devices", siteId=hostile)
+                self.assertNotIn(caught.exception.kind,
+                                 ("network", "timeout", "http"))
+
+    def test_a_rejected_site_id_is_never_quoted_back(self):
+        with self.assertRaises(errors.HelperError) as caught:
+            routes.build(self.ROOT, "devices", siteId="x/../../v1/hotspots")
+        self.assertNotIn("hotspots", caught.exception.message)
+
+    def test_path_segments_are_percent_encoded(self):
+        # Barrier 2. It cannot fire while barrier 1 (the UUID pattern) stands —
+        # a canonical UUID has nothing to encode — so it is tested directly
+        # rather than through build(). A barrier whose test never runs is one
+        # that gets deleted during a refactor.
+        self.assertEqual(routes.encode_segment("a/b"), "a%2Fb")
+        self.assertEqual(routes.encode_segment("../x"), "..%2Fx")
+        self.assertEqual(routes.encode_segment("a?b#c"), "a%3Fb%23c")
+        self.assertEqual(routes.encode_segment(self.SITE), self.SITE)
+
+    def test_the_assembled_url_is_re_checked_against_the_allowlist(self):
+        # Barrier 3, driven by bypassing barriers 1 and 2 the way a future edit
+        # would: a template that no longer matches its own pattern.
+        with _patched(routes, "ROUTES", dict(routes.ROUTES)):
+            routes.ROUTES["devices"] = dict(routes.ROUTES["devices"],
+                                            template="sites/{siteId}/hotspots")
+            with self.assertRaises(errors.InternalError) as caught:
+                routes.build(self.ROOT, "devices", siteId=self.SITE)
+            self.assertIn("allowlisted route", caught.exception.message)
+
+    def test_a_non_https_api_root_is_refused(self):
+        for hostile in ("http://192.168.1.1/proxy", "ftp://h/x", "file:///etc/passwd",
+                        "javascript:1", "//192.168.1.1/proxy", ""):
+            with self.subTest(apiRoot=hostile):
+                with self.assertRaises(errors.HelperError):
+                    routes.build(hostile, "info")
+
+    def test_an_api_root_with_embedded_credentials_is_refused(self):
+        with self.assertRaises(errors.HelperError):
+            routes.build("https://user:pass@192.168.1.1/proxy", "info")
+
+    def test_an_api_root_carrying_traversal_or_a_query_is_refused(self):
+        for hostile in ("https://h/proxy/../../admin", "https://h/proxy?x=1",
+                        "https://h/proxy#frag", "https://h/pro xy"):
+            with self.subTest(apiRoot=hostile):
+                with self.assertRaises(errors.HelperError):
+                    routes.build(hostile, "info")
+
+    def test_pagination_parameters_only_reach_paginated_routes(self):
+        self.assertIn("offset=0&limit=200", self.build("sites", offset=0, limit=200).url)
+        for name in ("info", "device_statistics"):
+            with self.subTest(route=name):
+                with self.assertRaises(errors.InternalError):
+                    self.build(name, offset=0, limit=200)
+
+    def test_pagination_parameters_are_range_checked(self):
+        for offset, limit in ((-1, 200), (0, 0), (0, 201), ("0", 200), (0, None)):
+            if limit is None:
+                continue
+            with self.subTest(offset=offset, limit=limit):
+                with self.assertRaises(errors.InternalError):
+                    self.build("sites", offset=offset, limit=limit)
+
+    def test_a_request_repr_cannot_leak_the_controller_address(self):
+        self.assertNotIn("192.168.1.1", repr(self.build("info")))
+
+
+class _StubCredential(object):
+    """A credential-shaped double. Never a real key, and never a plain string.
+
+    `transport` reads the header value through `header_value()` and nowhere
+    else; passing a str here would let a future edit that used the object
+    directly still pass this suite.
+    """
+
+    VALUE = "sk-test-not-a-real-key"
+
+    def header_value(self):
+        return self.VALUE
+
+
+class _RaisingConnection(object):
+    """A connection whose request() raises, for the AC-012a matrix."""
+
+    def __init__(self, exception):
+        self.exception = exception
+
+    def request(self, method, target, headers=None):
+        raise self.exception
+
+    def getresponse(self):
+        raise AssertionError("unreachable")
+
+    def close(self):
+        pass
+
+
+def _connect_raising(exception):
+    def factory(host, port, timeout, context):
+        return _RaisingConnection(exception)
+    return factory
+
+
+class StubServed(TempTree):
+    """A live HTTPS stub with a context that trusts exactly its CA."""
+
+    def serve(self, handler=None):
+        authority, certfile, keyfile = _shared_authority()
+        stub = tls_stub.TlsStub(certfile, keyfile, handler=handler)
+        stub.__enter__()
+        self.addCleanup(stub.__exit__, None, None, None)
+        context = tlsctx.build_context(ca_pem=authority.cert_pem)
+        # 127.0.0.1 rather than localhost: the stub binds IPv4 only, and
+        # "localhost" resolves to ::1 first on plenty of systems. The minted
+        # certificate carries an IP SAN for exactly this.
+        api_root = "https://127.0.0.1:%d/proxy/network/integration" % stub.port
+        return stub, context, api_root, authority
+
+
+class TransportRequests(StubServed):
+    """BIZ-001, SEC-010: what one GET actually puts on the wire."""
+
+    def get(self, handler, route="info", **kwargs):
+        stub, context, api_root, _authority = self.serve(handler)
+        request = routes.build(api_root, route)
+        return stub, transport.get_json(request, _StubCredential(), context,
+                                        deadline.Deadline(), **kwargs)
+
+    def test_a_successful_get_returns_the_decoded_body_and_its_size(self):
+        payload = b'{"applicationVersion":"9.1.0"}'
+        stub, (body, size) = self.get(lambda req, i: tls_stub.response(200, body=payload))
+        self.assertEqual(body, {"applicationVersion": "9.1.0"})
+        self.assertEqual(size, len(payload))
+        self.assertEqual(len(stub.received()), 1)
+
+    def test_the_request_carries_the_credential_header_and_asks_for_no_compression(self):
+        stub, _result = self.get(lambda req, i: tls_stub.response(200, body=b"{}"))
+        sent = stub.received()[0]
+        self.assertEqual(sent["method"], "GET")
+        self.assertEqual(sent["headers"]["x-api-key"], _StubCredential.VALUE)
+        self.assertEqual(sent["headers"]["accept"], "application/json")
+        # Never compressed: the helper will not be the thing that expands a
+        # decompression bomb, so it does not ask for one.
+        self.assertEqual(sent["headers"]["accept-encoding"], "identity")
+        self.assertEqual(sent["target"], "/proxy/network/integration/v1/info")
+
+    def test_the_credential_is_read_through_one_named_accessor(self):
+        headers = transport.request_headers(_StubCredential())
+        self.assertEqual(headers["X-API-Key"], _StubCredential.VALUE)
+        # Counted over the parsed tree, not the text: the module docstring
+        # names the accessor when it explains the rule, and a substring count
+        # would make documenting the rule break it.
+        import ast
+        tree = ast.parse(_read_source(
+            os.path.join(_REPO, "helper", "unifi", "transport.py")))
+        calls = [node for node in ast.walk(tree)
+                 if isinstance(node, ast.Call)
+                 and isinstance(node.func, ast.Attribute)
+                 and node.func.attr == "header_value"]
+        self.assertEqual(len(calls), 1,
+                         "the credential must have exactly one exit point")
+
+    def test_a_compressed_response_is_refused_rather_than_expanded(self):
+        with self.assertRaises(errors.MalformedResponseError):
+            self.get(lambda req, i: tls_stub.response(
+                200, body=b"{}", extra_headers={"Content-Encoding": "gzip"}))
+
+    def test_a_login_page_answering_200_is_not_treated_as_data(self):
+        with self.assertRaises(errors.MalformedResponseError):
+            self.get(lambda req, i: tls_stub.response(
+                200, body=b"<html>sign in</html>", content_type="text/html"))
+
+    def test_valid_json_under_the_wrong_content_type_is_still_refused(self):
+        # The case above is caught by the JSON parser whether or not the
+        # content type is checked, so it cannot tell the two rules apart. This
+        # body parses; only the content-type check rejects it.
+        with self.assertRaises(errors.MalformedResponseError):
+            self.get(lambda req, i: tls_stub.response(
+                200, body=b'{"applicationVersion":"9.1.0"}',
+                content_type="text/html"))
+
+    def test_a_body_that_is_not_json_is_malformed_not_internal(self):
+        with self.assertRaises(errors.MalformedResponseError):
+            self.get(lambda req, i: tls_stub.response(200, body=b"{not json"))
+
+    def test_a_json_array_is_refused_because_every_route_returns_an_object(self):
+        with self.assertRaises(errors.MalformedResponseError):
+            self.get(lambda req, i: tls_stub.response(200, body=b"[1,2,3]"))
+
+    def test_a_body_over_the_bound_is_oversized(self):
+        big = b'{"x":"' + b"a" * 4096 + b'"}'
+        with self.assertRaises(errors.OversizedResponseError):
+            self.get(lambda req, i: tls_stub.response(200, body=big), max_bytes=1024)
+
+    HOLD_SEC = 5.0
+
+    def test_a_declared_length_over_the_bound_fails_before_the_body_is_read(self):
+        # The measured check catches this too, which is why the declared-length
+        # check survived a first mutation pass. What it adds is that nothing is
+        # read at all: the server sends a head promising 100 MB and then holds
+        # the connection, so reading up to the bound would block for the whole
+        # socket timeout before failing with the same kind.
+        def handler(req, index):
+            head = ("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n"
+                    "Content-Length: 100000000\r\nConnection: close\r\n\r\n")
+            return head.encode("latin-1"), self.HOLD_SEC
+
+        stub, context, api_root, _authority = self.serve(handler)
+        request = routes.build(api_root, "info")
+        started = time.monotonic()
+        with self.assertRaises(errors.OversizedResponseError):
+            transport.get_json(request, _StubCredential(), context,
+                               deadline.Deadline(self.HOLD_SEC), max_bytes=1024)
+        self.assertLess(time.monotonic() - started, self.HOLD_SEC / 3,
+                        "the body was read before the declared length was checked")
+
+    def test_a_response_with_no_declared_length_is_still_bounded(self):
+        # Content-Length is a claim, and the pre-read check against it is only
+        # half the rule. A response framed by connection close declares no
+        # length at all, so nothing but the measurement stops it — this is the
+        # case where reading "until the server is done" reads whatever it sends.
+        big = b'{"x":"' + b"a" * 8192 + b'"}'
+
+        def handler(req, index):
+            head = ("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n"
+                    "Connection: close\r\n\r\n")
+            return head.encode("latin-1") + big
+
+        with self.assertRaises(errors.OversizedResponseError):
+            self.get(handler, max_bytes=1024)
+
+    def test_a_response_exactly_at_the_bound_is_accepted(self):
+        filler = b"a" * (1024 - len(b'{"x":""}'))
+        payload = b'{"x":"' + filler + b'"}'
+        self.assertEqual(len(payload), 1024)
+        stub, (body, size) = self.get(lambda req, i: tls_stub.response(200, body=payload),
+                                      max_bytes=1024)
+        self.assertEqual(size, 1024)
+
+
+class RedirectRefusal(StubServed):
+    """AC-014 / SEC-008. Nothing is followed and nothing is copied."""
+
+    STATUSES = (301, 302, 303, 307, 308)
+
+    def attempt(self, status, location, body=b"", content_length=None):
+        def handler(req, index):
+            if content_length is not None:
+                head = ("HTTP/1.1 %d Moved\r\nLocation: %s\r\n"
+                        "Content-Length: %d\r\nConnection: close\r\n\r\n"
+                        % (status, location, content_length))
+                return head.encode("latin-1") + body
+            return tls_stub.response(status, "Moved", body=body,
+                                     extra_headers={"Location": location})
+
+        stub, context, api_root, _authority = self.serve(handler)
+        request = routes.build(api_root, "info")
+        with self.assertRaises(errors.RedirectError) as caught:
+            transport.get_json(request, _StubCredential(), context,
+                               deadline.Deadline())
+        return stub, caught.exception
+
+    def test_every_redirect_status_is_refused(self):
+        for status in self.STATUSES:
+            with self.subTest(status=status):
+                stub, failure = self.attempt(status, "https://192.0.2.9/v1/info")
+                self.assertEqual(failure.kind, "redirect")
+                self.assertTrue(errors.retryable_for("redirect"))
+
+    def test_a_redirect_produces_exactly_one_request_and_one_credential_send(self):
+        for status in self.STATUSES:
+            with self.subTest(status=status):
+                stub, _failure = self.attempt(status, "https://192.0.2.9/v1/info")
+                sent = stub.received()
+                self.assertEqual(len(sent), 1, "a second request was constructed")
+                self.assertEqual(sent[0]["target"],
+                                 "/proxy/network/integration/v1/info")
+
+    def test_a_same_origin_redirect_is_refused_too(self):
+        stub, failure = self.attempt(302, "/proxy/network/integration/v1/sites")
+        self.assertEqual(failure.kind, "redirect")
+        self.assertEqual(len(stub.received()), 1)
+
+    def test_a_downgrade_to_plain_http_is_refused(self):
+        stub, failure = self.attempt(302, "http://192.0.2.9/v1/info")
+        self.assertEqual(failure.kind, "redirect")
+        self.assertEqual(len(stub.received()), 1)
+
+    def test_a_redirect_loop_cannot_loop(self):
+        # Location points back at the request's own target. An implementation
+        # that followed redirects at all would spin here rather than fail once.
+        stub, context, api_root, _authority = self.serve(
+            lambda req, i: tls_stub.response(
+                302, "Found", extra_headers={"Location": req["target"]}))
+        request = routes.build(api_root, "info")
+        with self.assertRaises(errors.RedirectError):
+            transport.get_json(request, _StubCredential(), context, deadline.Deadline())
+        self.assertEqual(len(stub.received()), 1)
+
+    HOLD_SEC = 5.0
+
+    def test_an_oversized_redirect_body_is_never_read(self):
+        # The body is announced as 100 MB, 16 bytes are sent, and the server
+        # then HOLDS the connection open. That last part is the whole test: a
+        # server that hangs up makes an unbounded read return at once, so an
+        # implementation that drained the body would look identical to one that
+        # discarded it. Holding it open means draining blocks for the whole
+        # socket timeout, and the elapsed time separates them.
+        def handler(req, index):
+            head = ("HTTP/1.1 302 Found\r\nLocation: https://192.0.2.9/v1/info\r\n"
+                    "Content-Length: 100000000\r\nConnection: close\r\n\r\n")
+            return head.encode("latin-1") + b"x" * 16, self.HOLD_SEC
+
+        stub, context, api_root, _authority = self.serve(handler)
+        request = routes.build(api_root, "info")
+        started = time.monotonic()
+        with self.assertRaises(errors.RedirectError):
+            transport.get_json(request, _StubCredential(), context,
+                               deadline.Deadline(self.HOLD_SEC))
+        self.assertLess(time.monotonic() - started, self.HOLD_SEC / 3,
+                        "the redirect body was read rather than discarded")
+
+    def test_the_location_header_is_never_consulted(self):
+        source = _read_source(os.path.join(_REPO, "helper", "unifi", "transport.py"))
+        self.assertNotIn('"Location"', source)
+        self.assertNotIn("'Location'", source)
+
+
+class TransportErrorTaxonomy(StubServed):
+    """DATA-007's exception precedence, and AC-012a."""
+
+    def attempt(self, exception):
+        request = routes.build("https://192.0.2.9/proxy/network/integration", "info")
+        with self.assertRaises(errors.HelperError) as caught:
+            transport.get_json(request, _StubCredential(), None, deadline.Deadline(),
+                               connect=_connect_raising(exception))
+        return caught.exception
+
+    def test_the_ac_012a_matrix_is_network(self):
+        cases = [
+            socket.gaierror(socket.EAI_NONAME, "Name or service not known"),
+            ConnectionRefusedError(errno.ECONNREFUSED, "Connection refused"),
+            ConnectionResetError(errno.ECONNRESET, "Connection reset by peer"),
+            OSError(errno.ENETUNREACH, "Network is unreachable"),
+            OSError(errno.EHOSTUNREACH, "No route to host"),
+        ]
+        for exception in cases:
+            with self.subTest(exception=type(exception).__name__,
+                              errno=getattr(exception, "errno", None)):
+                failure = self.attempt(exception)
+                self.assertEqual(failure.kind, "network")
+                self.assertTrue(errors.retryable_for(failure.kind))
+                built = errors.to_error_object(failure)
+                self.assertNotIn("httpStatus", built)
+                self.assertNotIn("x-api-key", built["message"].lower())
+                self.assertNotIn(_StubCredential.VALUE, built["message"])
+                self.assertNotIn("192.0.2.9", built["message"])
+
+    def test_a_tls_failure_outranks_the_oserror_it_is_a_subclass_of(self):
+        # ssl.SSLError IS an OSError. Classifying in the wrong order turns "your
+        # controller is being intercepted" into "the network is flaky".
+        failure = self.attempt(ssl.SSLCertVerificationError("bad cert"))
+        self.assertEqual(failure.kind, "tls")
+        self.assertTrue(issubclass(ssl.SSLError, OSError))
+
+    def test_a_socket_timeout_is_timeout_not_network(self):
+        self.assertEqual(self.attempt(socket.timeout("timed out")).kind, "timeout")
+
+    def test_a_kernel_etimedout_reports_the_same_kind_on_every_interpreter(self):
+        # This started as "ETIMEDOUT is network, not timeout". It cannot be:
+        # PEP 3151 makes OSError(ETIMEDOUT) construct a TimeoutError, and since
+        # 3.10 socket.timeout IS TimeoutError — so on 3.14 the kernel timeout
+        # and this helper's own socket timeout are one class, while on 3.9 they
+        # are two. A taxonomy that split them would report a different kind for
+        # the same failure depending on the user's Python. Both are `timeout`.
+        self.assertEqual(self.attempt(OSError(errno.ETIMEDOUT, "timed out")).kind,
+                         "timeout")
+        self.assertEqual(self.attempt(socket.timeout("timed out")).kind, "timeout")
+        self.assertNotIn(errno.ETIMEDOUT, transport._NETWORK_ERRNOS)
+
+    def test_a_framing_error_is_network_because_no_response_arrived(self):
+        self.assertEqual(self.attempt(http.client.BadStatusLine("garbage")).kind,
+                         "network")
+
+    def test_an_unrelated_oserror_is_internal_not_network(self):
+        self.assertEqual(self.attempt(OSError(errno.EACCES, "permission denied")).kind,
+                         "internal")
+
+    def test_an_untrusted_certificate_really_does_fail_the_handshake(self):
+        # The synthetic mapping above proves the precedence; this proves the
+        # condition happens at all. Both are needed: a mapping that is never
+        # reached is not a control.
+        stub, _context, api_root, _authority = self.serve(
+            lambda req, i: tls_stub.response(200, body=b"{}"))
+        request = routes.build(api_root, "info")
+        with self.assertRaises(errors.TlsError):
+            transport.get_json(request, _StubCredential(),
+                               tlsctx.build_context(), deadline.Deadline())
+        self.assertEqual(stub.received(), [])
+
+    def test_http_statuses_map_to_their_typed_kinds(self):
+        expected = {401: "unauthorized", 403: "forbidden", 429: "rate_limited",
+                    400: "http", 404: "http", 500: "http", 502: "http", 503: "http"}
+        for status, kind in expected.items():
+            with self.subTest(status=status):
+                stub, context, api_root, _authority = self.serve(
+                    lambda req, i, s=status: tls_stub.response(s, "Status", body=b"{}"))
+                request = routes.build(api_root, "info")
+                with self.assertRaises(errors.HelperError) as caught:
+                    transport.get_json(request, _StubCredential(), context,
+                                       deadline.Deadline())
+                self.assertEqual(caught.exception.kind, kind)
+                built = errors.to_error_object(caught.exception)
+                if kind == "http":
+                    self.assertEqual(built["httpStatus"], status)
+                self.assertEqual(built["retryable"],
+                                 errors.retryable_for(kind, status))
+
+    def test_a_204_is_not_silently_accepted_as_success(self):
+        stub, context, api_root, _authority = self.serve(
+            lambda req, i: tls_stub.response(204, "No Content", body=b""))
+        request = routes.build(api_root, "info")
+        with self.assertRaises(errors.HttpError) as caught:
+            transport.get_json(request, _StubCredential(), context, deadline.Deadline())
+        self.assertEqual(caught.exception.http_status, 204)
+
+    def test_a_429_carries_a_normalized_retry_after(self):
+        collector = warn.Warnings()
+        stub, context, api_root, _authority = self.serve(
+            lambda req, i: tls_stub.response(429, "Too Many", body=b"{}",
+                                             extra_headers={"Retry-After": "45"}))
+        request = routes.build(api_root, "info")
+        with self.assertRaises(errors.RateLimitedError) as caught:
+            transport.get_json(request, _StubCredential(), context,
+                               deadline.Deadline(), warnings=collector)
+        self.assertEqual(caught.exception.retry_after_sec, 45)
+        self.assertEqual(collector.codes(), [])
+
+    def test_an_implausible_retry_after_is_clamped_with_a_warning(self):
+        collector = warn.Warnings()
+        stub, context, api_root, _authority = self.serve(
+            lambda req, i: tls_stub.response(429, "Too Many", body=b"{}",
+                                             extra_headers={"Retry-After": "604800"}))
+        request = routes.build(api_root, "info")
+        with self.assertRaises(errors.RateLimitedError) as caught:
+            transport.get_json(request, _StubCredential(), context,
+                               deadline.Deadline(), warnings=collector)
+        self.assertEqual(caught.exception.retry_after_sec, transport.RETRY_AFTER_MAX_SEC)
+        self.assertEqual(collector.codes(), ["retry_after_clamped"])
+
+    def test_an_unreadable_retry_after_is_ignored_with_a_warning(self):
+        collector = warn.Warnings()
+        stub, context, api_root, _authority = self.serve(
+            lambda req, i: tls_stub.response(429, "Too Many", body=b"{}",
+                                             extra_headers={"Retry-After": "soon"}))
+        request = routes.build(api_root, "info")
+        with self.assertRaises(errors.RateLimitedError) as caught:
+            transport.get_json(request, _StubCredential(), context,
+                               deadline.Deadline(), warnings=collector)
+        self.assertIsNone(caught.exception.retry_after_sec)
+        self.assertEqual(collector.codes(), ["retry_after_ignored"])
+
+    def test_retry_after_accepts_both_documented_forms(self):
+        # R3: the API documents no Retry-After at all, so both branches are
+        # written against something that may never arrive.
+        self.assertEqual(transport.parse_retry_after("30"), 30)
+        self.assertEqual(
+            transport.parse_retry_after("Thu, 01 Jan 2099 00:00:00 GMT",
+                                        now=4070908800.0 - 120), 120)
+        self.assertIsNone(transport.parse_retry_after("Thu, 01 Jan 1999 00:00:00 GMT"))
+        self.assertIsNone(transport.parse_retry_after("Thu, 01 Jan 2099 00:00:00"))
+        self.assertIsNone(transport.parse_retry_after(""))
+        self.assertIsNone(transport.parse_retry_after("-30"))
+        self.assertIsNone(transport.parse_retry_after(None))
+
+
+class Pagination(unittest.TestCase):
+    """DATA-009 / 009a / 009b, driven by the Phase 1 corpus.
+
+    Every case is fed page by page from its fixture. When the response list is
+    exhausted it wraps around, which is what lets one committed list serve both
+    the collection read and the DATA-009a re-read of page 0 — and, for the drift
+    case, the retry that follows a first mismatch.
+    """
+
+    # The thirteen invariants, longhand, each with the fixture that must be
+    # rejected for exactly it. Written out rather than derived from
+    # pagination.INVARIANTS or from the corpus, because both are the things
+    # under test: a loop over either would agree with a table that had lost an
+    # entry, and AC-072 counts a rule as covered only when a test names it.
+    REJECTED = {
+        "offset_matches_request": "offset_matches_request",
+        "count_equals_data_length": "count_equals_data_length",
+        "count_within_limit": "count_within_limit",
+        "non_terminal_page_progresses": "non_terminal_page_progresses",
+        "record_ids_unique": "record_ids_unique",
+        "total_count_non_negative": "total_count_non_negative",
+        "total_count_stable": "total_count_stable",
+        "advance_by_validated_count": "advance_by_validated_count",
+        "max_pages_enforced": "max_pages_enforced",
+        "max_decoded_bytes_enforced": "max_decoded_bytes_enforced",
+        "empty_is_valid_not_premature": "empty_is_valid_not_premature",
+        "reread_page_zero_matches": "reread_page_zero_matches",
+        "terminal_completeness": "terminal_completeness",
+    }
+
+    ACCEPTED = ("accept_single_page_25", "accept_boundary_200",
+                "accept_boundary_201", "accept_three_pages_413",
+                "accept_empty_collection")
+
+    def setUp(self):
+        self.cases = fixture_pages.load_all(
+            os.path.join(_REPO, "tests", "fixtures", "api", "pagination"))
+
+    def feed(self, pages, record=None):
+        state = {"index": 0}
+
+        def fetch_page(offset, limit):
+            page = pages[state["index"] % len(pages)]
+            state["index"] += 1
+            if record is not None:
+                record.append((offset, limit))
+            return page, len(json.dumps(page))
+
+        return fetch_page
+
+    def collect_case(self, case_id, **kwargs):
+        case = self.cases[case_id]
+        pages = fixture_pages.responses_for(case)
+        return pagination.collect(self.feed(pages), limit=case["limit"], **kwargs)
+
+    def test_the_invariant_list_is_the_documented_thirteen(self):
+        self.assertEqual(sorted(pagination.INVARIANTS), sorted(self.REJECTED))
+        self.assertEqual(len(pagination.INVARIANTS), 13)
+
+    def test_every_invariant_rejects_its_own_fixture_and_names_itself(self):
+        for case_id, invariant in sorted(self.REJECTED.items()):
+            with self.subTest(invariant=invariant):
+                result = self.collect_case(case_id)
+                self.assertFalse(result.complete)
+                self.assertEqual(result.invariant, invariant)
+
+    def test_every_accept_fixture_collects_completely(self):
+        for case_id in self.ACCEPTED:
+            with self.subTest(case=case_id):
+                result = self.collect_case(case_id)
+                self.assertTrue(result.complete, result.invariant)
+                self.assertEqual(len(result.records), result.total_count)
+
+    def test_the_413_record_fixture_yields_all_413(self):
+        # AC-007's first half at this layer. The count itself is Phase 7's
+        # business; what is asserted here is that pagination handed it 413
+        # unique records over three pages.
+        result = self.collect_case("accept_three_pages_413")
+        self.assertEqual(len(result.records), 413)
+        self.assertEqual(result.total_count, 413)
+        self.assertEqual(result.pages_read, 3)
+        self.assertEqual(len(set(r["id"] for r in result.records)), 413)
+
+    def test_a_full_terminal_page_still_terminates(self):
+        # accept_boundary_200: the terminal page is FULL, so a reader that stops
+        # only on a short page never stops at all.
+        result = self.collect_case("accept_boundary_200")
+        self.assertTrue(result.complete)
+        self.assertEqual(result.pages_read, 1)
+
+    def test_an_empty_collection_is_complete_and_a_premature_empty_is_not(self):
+        # AC-043. The pair is the whole of DATA-009b; either case alone can be
+        # satisfied by a wrong rule.
+        empty = self.collect_case("accept_empty_collection")
+        self.assertTrue(empty.complete)
+        self.assertEqual(empty.records, [])
+        self.assertEqual(empty.total_count, 0)
+        premature = self.collect_case("empty_is_valid_not_premature")
+        self.assertFalse(premature.complete)
+        self.assertEqual(premature.invariant, "empty_is_valid_not_premature")
+
+    def test_a_short_page_with_a_missing_record_is_caught_by_completeness(self):
+        result = self.collect_case("terminal_completeness")
+        self.assertEqual(result.invariant, "terminal_completeness")
+
+    def test_offset_drift_is_retried_once_then_reported(self):
+        # AC-042. The first mismatch is ordinary on a busy controller and warns;
+        # the second is the collection genuinely unreadable.
+        collector = warn.Warnings()
+        result = self.collect_case("reread_page_zero_matches", warnings=collector)
+        self.assertFalse(result.complete)
+        self.assertEqual(result.invariant, "reread_page_zero_matches")
+        self.assertEqual(collector.codes(), ["page_reread_mismatch"])
+        self.assertTrue(result.reread_retried)
+
+    def test_the_reread_is_what_catches_drift_and_nothing_else_does(self):
+        # Every other invariant passes on this fixture. Removing the re-read
+        # must therefore make it collect "successfully" with a record missing —
+        # this asserts the fixture really is the trap it claims to be.
+        case = self.cases["reread_page_zero_matches"]
+        pages = fixture_pages.responses_for(case)
+        with _patched(pagination, "_reread_matches",
+                      lambda *args, **kwargs: True):
+            result = pagination.collect(self.feed(pages), limit=case["limit"])
+        self.assertTrue(result.complete)
+        self.assertEqual(len(result.records), 5)
+        self.assertNotIn("2f4dcb4c-0d20-5e6b-9a0e-0a03a6f8b111",
+                         [r["id"] for r in result.records])
+
+    def test_the_reader_advances_by_the_validated_count(self):
+        # The positive half of `advance_by_validated_count`: the offsets
+        # actually requested come from validated counts, and the last request is
+        # the DATA-009a re-read of page zero.
+        case = self.cases["accept_three_pages_413"]
+        pages = fixture_pages.responses_for(case)
+        asked = []
+        pagination.collect(self.feed(pages, record=asked), limit=case["limit"])
+        self.assertEqual(asked, [(0, 200), (200, 200), (400, 200), (0, 200)])
+
+    def test_a_page_echoing_a_different_limit_is_refused(self):
+        # The negative half. A reader that trusted the echoed limit for its
+        # arithmetic would skip records, so the page is refused before any
+        # arithmetic happens.
+        result = self.collect_case("advance_by_validated_count")
+        self.assertEqual(result.invariant, "advance_by_validated_count")
+
+    def test_the_page_bound_stops_a_collection_that_never_terminates(self):
+        result = self.collect_case("max_pages_enforced")
+        self.assertEqual(result.invariant, "max_pages_enforced")
+        self.assertEqual(pagination.MAX_PAGES, 64)
+
+    def test_the_byte_bound_is_reached_before_the_page_bound(self):
+        # The fixture is padded precisely so this ordering holds. Unpadded, 64
+        # pages of device records total under 4 MiB and this case would stop at
+        # the page bound while claiming to test the byte bound.
+        case = self.cases["max_decoded_bytes_enforced"]
+        pages = fixture_pages.responses_for(case)
+        self.assertLessEqual(len(pages), pagination.MAX_PAGES)
+        self.assertGreater(sum(len(json.dumps(p)) for p in pages),
+                           pagination.MAX_DECODED_BYTES)
+        result = self.collect_case("max_decoded_bytes_enforced")
+        self.assertEqual(result.invariant, "max_decoded_bytes_enforced")
+
+    def test_the_batch_budget_bounds_the_sum_of_collections(self):
+        # Per-collection bounds alone leave six collections able to read 48 MiB.
+        budget = pagination.ByteBudget(limit=4096)
+        case = self.cases["accept_three_pages_413"]
+        pages = fixture_pages.responses_for(case)
+        result = pagination.collect(self.feed(pages), limit=case["limit"],
+                                    budget=budget)
+        self.assertFalse(result.complete)
+        self.assertIsNotNone(result.error)
+        self.assertEqual(result.error.kind, "oversized_response")
+
+    def test_a_transport_failure_is_captured_not_raised(self):
+        def fetch_page(offset, limit):
+            raise errors.NetworkError("The controller could not be reached.")
+
+        result = pagination.collect(fetch_page)
+        self.assertFalse(result.complete)
+        self.assertIsNone(result.invariant)
+        self.assertEqual(result.error.kind, "network")
+
+    def test_pagination_does_not_know_whether_a_collection_is_required(self):
+        # A CP4b exit criterion, asserted structurally rather than by reading
+        # the code: there is no parameter and no result field through which
+        # BIZ-004's policy could be expressed here.
+        import inspect
+        signature = inspect.signature(pagination.collect)
+        for forbidden in ("required", "optional", "policy", "kind"):
+            self.assertNotIn(forbidden, signature.parameters)
+        for field in pagination.CollectResult.__slots__:
+            self.assertNotIn("required", field)
+            self.assertNotIn("optional", field)
+
+    def test_one_result_drives_both_biz_004_policies(self):
+        # The other half of the same criterion: the SAME failure, consumed by a
+        # required caller and an optional one, produces the two BIZ-004
+        # outcomes. If pagination decided, one of these could not be written.
+        result = self.collect_case("count_equals_data_length")
+
+        def required(collect_result):
+            if collect_result.error is not None:
+                raise collect_result.error
+            if not collect_result.complete:
+                raise errors.PartialResponseError("A required collection was incomplete.")
+            return collect_result.records
+
+        def optional(collect_result, collector):
+            if collect_result.complete:
+                return collect_result.records
+            collector.add("clients_unavailable")
+            return None
+
+        with self.assertRaises(errors.PartialResponseError) as caught:
+            required(result)
+        self.assertEqual(caught.exception.kind, "partial_response")
+
+        collector = warn.Warnings()
+        self.assertIsNone(optional(result, collector))
+        self.assertEqual(collector.codes(), ["clients_unavailable"])
+
+    def test_a_200_scale_short_page_is_partial_for_a_required_collection(self):
+        # AC-007's second half, at the scale the criterion states: page 2
+        # reports count = 200 with data.length = 199.
+        case = self.cases["accept_three_pages_413"]
+        pages = json.loads(json.dumps(fixture_pages.responses_for(case)))
+        pages[1]["data"] = pages[1]["data"][:199]
+        result = pagination.collect(self.feed(pages), limit=case["limit"])
+        self.assertFalse(result.complete)
+        self.assertEqual(result.invariant, "count_equals_data_length")
+        self.assertEqual(result.records, [])
+        self.assertIsNone(result.total_count)
+
+    def test_a_record_without_a_stable_id_cannot_be_counted(self):
+        page = {"offset": 0, "limit": 200, "count": 1, "totalCount": 1,
+                "data": [{"name": "no id"}]}
+        result = pagination.collect(self.feed([page]))
+        self.assertEqual(result.invariant, "record_ids_unique")
+
+    def test_a_malformed_page_is_a_protocol_failure_not_an_invariant(self):
+        for page in ({"offset": 0, "limit": 200, "count": 0},
+                     {"offset": 0, "limit": 200, "count": "0", "totalCount": 0,
+                      "data": []},
+                     {"offset": 0, "limit": 200, "count": 0, "totalCount": 0,
+                      "data": {}},
+                     "not a page"):
+            with self.subTest(page=page):
+                result = pagination.collect(self.feed([page]))
+                self.assertIsNone(result.invariant)
+                self.assertEqual(result.error.kind, "malformed_response")
+
+    def test_an_absurd_total_count_is_oversized_not_a_page_bound(self):
+        page = {"offset": 0, "limit": 200, "count": 0, "totalCount": 10 ** 9,
+                "data": []}
+        result = pagination.collect(self.feed([page]))
+        self.assertEqual(result.error.kind, "oversized_response")
+
+    def test_the_bounds_match_the_protocol_document(self):
+        self.assertEqual(pagination.PAGE_LIMIT, 200)
+        self.assertEqual(pagination.MAX_PAGES, 64)
+        self.assertEqual(pagination.MAX_DECODED_BYTES, 8 * 1024 * 1024)
+        self.assertEqual(pagination.MAX_BATCH_DECODED_BYTES, 16 * 1024 * 1024)
+        self.assertEqual(pagination.TOTAL_COUNT_MAX, 1000000)
+
+
+class VersionGate(unittest.TestCase):
+    """R2. The mechanism is complete; the matrix's contents are not, on purpose."""
+
+    def test_the_shipped_matrix_is_the_synthetic_entry_only(self):
+        # G-CONTROLLER blocks the VALUE, not the mechanism. Phase 12a adds the
+        # observed entry. Asserting the current contents means the day that
+        # happens, this test is what says so.
+        self.assertEqual(version_gate.TESTED_VERSIONS, ((9, 1),))
+
+    def test_the_synthetic_entry_matches_the_fixture_corpus(self):
+        with open(os.path.join(_REPO, "tests", "fixtures", "api", "scenarios",
+                               "healthy", "info.json"), encoding="utf-8") as handle:
+            reported = json.load(handle)["applicationVersion"]
+        self.assertTrue(version_gate.is_supported(reported))
+
+    def test_a_tested_version_passes_the_gate(self):
+        self.assertEqual(version_gate.check({"applicationVersion": "9.1.0"}), "9.1.0")
+        self.assertEqual(version_gate.check({"applicationVersion": "9.1"}), "9.1")
+        self.assertEqual(version_gate.check({"applicationVersion": "9.1.12-beta"}),
+                         "9.1.12-beta")
+
+    def test_an_untested_version_is_unsupported_not_a_transport_failure(self):
+        # The whole point of R2: a shape change must not surface as an
+        # authentication or connectivity problem the user then chases.
+        for reported in ("10.4.57", "8.9.0", "9.2.0", "1.0.0"):
+            with self.subTest(version=reported):
+                with self.assertRaises(errors.UnsupportedError) as caught:
+                    version_gate.check({"applicationVersion": reported})
+                self.assertEqual(caught.exception.kind, "unsupported")
+                self.assertFalse(errors.retryable_for("unsupported"))
+
+    def test_a_missing_or_unreadable_version_is_unsupported(self):
+        for info in ({}, {"applicationVersion": None}, {"applicationVersion": ""},
+                     {"applicationVersion": "banana"},
+                     {"applicationVersion": "9"},
+                     {"applicationVersion": "9." + "9" * 80}):
+            with self.subTest(info=info):
+                with self.assertRaises(errors.UnsupportedError):
+                    version_gate.check(info)
+
+    def test_the_unsupported_path_is_exercised_against_a_synthetic_entry(self):
+        # CP4b's criterion, stated as a test rather than as a claim: an injected
+        # matrix proves the gate follows the constant, so P12a changing the
+        # constant changes the behaviour.
+        self.assertEqual(
+            version_gate.check({"applicationVersion": "10.4.57"},
+                               tested=((10, 4),)), "10.4.57")
+        with self.assertRaises(errors.UnsupportedError):
+            version_gate.check({"applicationVersion": "9.1.0"}, tested=((10, 4),))
+
+    def test_a_non_object_info_body_is_malformed(self):
+        with self.assertRaises(errors.MalformedResponseError):
+            version_gate.check(["9.1.0"])
+
+
+class HelperIdentity(unittest.TestCase):
+
+    def test_the_helper_version_matches_the_manifest(self):
+        # meta.helperVersion is what a bug report will quote. If it disagreed
+        # with the version the user sees in the plugin list, the report would be
+        # unanswerable.
+        with open(os.path.join(_REPO, "manifest.json"), encoding="utf-8") as handle:
+            manifest = json.load(handle)
+        self.assertEqual(unifi.HELPER_VERSION, manifest["version"])
+
+    def test_the_user_agent_carries_no_credential_and_no_host(self):
+        self.assertIn(unifi.HELPER_VERSION, transport.USER_AGENT)
+        self.assertNotIn("key", transport.USER_AGENT.lower())
 
 
 # --- helpers ----------------------------------------------------------------

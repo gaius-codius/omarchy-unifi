@@ -2,7 +2,7 @@
   "collection": "devices",
   "expect": "advance_by_validated_count",
   "id": "advance_by_validated_count",
-  "limit": 200,
+  "limit": 2,
   "note": "The response echoes a limit of four when two was requested. Advancing by response arithmetic rather than the validated count skips records.",
   "responses": [
     {

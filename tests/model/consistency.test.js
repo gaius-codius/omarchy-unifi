@@ -359,3 +359,132 @@ test("the DATA-007a httpStatus column matches Protocol.js's rule table", () => {
     }
   }
 })
+
+// --- the cross-LANGUAGE seam (Phase 6) -------------------------------------
+//
+// Everything above holds two JavaScript modules to each other. The helper is
+// Python, so its copies of the same numbers and the same tables cannot be
+// required — they are read as source text. That is cruder, and it is still the
+// only thing standing between a bound the service enforces at 8 KiB and a
+// helper that emits 16, which would look exactly like a working plugin until
+// the day a controller returned enough data.
+
+const HELPER = (name) =>
+  fs.readFileSync(path.join(REPO, "helper/unifi", name), "utf8")
+
+function pyConst(source, name) {
+  const match = new RegExp("^" + name + " = ([^#\\n]+)", "m").exec(source)
+  assert.ok(match, "helper: no constant named " + name)
+  // Only the arithmetic the constants actually use: integers, and products of
+  // integers. Deliberately not eval().
+  const text = match[1].trim()
+  const product = /^(\d+)(?:\s*\*\s*(\d+))?(?:\s*\*\s*(\d+))?$/.exec(text)
+  assert.ok(product, "helper: " + name + " is not a plain numeric constant: " + text)
+  return product.slice(1).filter(Boolean).map(Number).reduce((a, b) => a * b, 1)
+}
+
+test("the helper's pagination bounds are the numbers protocol-v1.md states", () => {
+  const source = HELPER("pagination.py")
+  const rows = {
+    "requested `limit`": ["PAGE_LIMIT", 1],
+    "pages per collection": ["MAX_PAGES", 1],
+    "decoded bytes per collection": ["MAX_DECODED_BYTES", 1024 * 1024],
+    "decoded bytes per batch": ["MAX_BATCH_DECODED_BYTES", 1024 * 1024]
+  }
+  for (const label of Object.keys(rows)) {
+    const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+    const row = new RegExp("\\| " + escaped + " \\| ([\\d ]+)").exec(PROTOCOL)
+    assert.ok(row, "protocol-v1.md: no pagination bound row for " + label)
+    const documented = Number(row[1].replace(/\s/g, "")) * rows[label][1]
+    assert.strictEqual(pyConst(source, rows[label][0]), documented, label)
+  }
+  // The row reads "0 <en dash> 1 000 000", so the cell is taken whole and the
+  // last run of digits is the ceiling. Splitting on the dash would depend on
+  // which dash the document happens to use.
+  const totals = /\| accepted `totalCount` \| ([^|]+)\|/.exec(PROTOCOL)
+  assert.ok(totals, "protocol-v1.md: no accepted totalCount row")
+  const ceiling = totals[1].replace(/\*\*\[chosen\]\*\*/, "").match(/[\d ]+$/)
+  assert.ok(ceiling, "protocol-v1.md: unreadable totalCount ceiling")
+  assert.strictEqual(pyConst(source, "TOTAL_COUNT_MAX"),
+    Number(ceiling[0].replace(/\s/g, "")))
+})
+
+test("the helper and Schedule.js agree on the Retry-After ceiling", () => {
+  // The helper normalizes the header; the scheduler normalizes what the helper
+  // reports. Two ceilings would mean a value one side clamped and the other
+  // accepted, and the warning would name a number nothing enforced.
+  assert.strictEqual(pyConst(HELPER("transport.py"), "RETRY_AFTER_MAX_SEC"),
+    Schedule.RETRY_AFTER_MAX_SEC)
+})
+
+test("the helper's DATA-007 kind list is the same nineteen Protocol.js knows", () => {
+  const source = HELPER("errors.py")
+  const block = /^KINDS = \(([\s\S]*?)\n\)/m.exec(source)
+  assert.ok(block, "errors.py: no KINDS tuple")
+  const names = block[1].match(/KIND_[A-Z_]+/g) || []
+  const kinds = names.map((name) => {
+    const value = new RegExp("^" + name + ' = "([a-z_]+)"', "m").exec(source)
+    assert.ok(value, "errors.py: " + name + " has no string value")
+    return value[1]
+  })
+  assert.strictEqual(kinds.length, 19)
+  assert.deepStrictEqual([...kinds].sort(), [...Schedule.ERROR_KINDS].sort())
+})
+
+test("the helper's retry classes are the ones Schedule.js schedules by", () => {
+  // The producer sets `error.retryable` from its table; the consumer rejects an
+  // envelope whose `retryable` disagrees with its own (DATA-007a). If the two
+  // tables differ, every failure of that kind is rejected as malformed and the
+  // real reason never reaches the panel.
+  const source = HELPER("errors.py")
+  const block = /^RETRY_CLASS = \{([\s\S]*?)\n\}/m.exec(source)
+  assert.ok(block, "errors.py: no RETRY_CLASS map")
+  const pairs = [...block[1].matchAll(/KIND_([A-Z_]+): CLASS_([A-Z]+)/g)]
+  assert.strictEqual(pairs.length, 18, "http is status-dependent and must be absent")
+  for (const [, kindName, className] of pairs) {
+    const kind = new RegExp("^KIND_" + kindName + ' = "([a-z_]+)"', "m").exec(source)[1]
+    assert.strictEqual(Schedule.retryClassFor(kind), className.toLowerCase(), kind)
+  }
+  const transient = /^TRANSIENT_HTTP_STATUSES = \(([\d, ]+)\)/m.exec(source)
+  assert.ok(transient, "errors.py: no TRANSIENT_HTTP_STATUSES")
+  assert.deepStrictEqual(transient[1].split(",").map((s) => Number(s.trim())),
+    Schedule.TRANSIENT_HTTP_STATUSES)
+})
+
+test("the helper emits only warning codes protocol-v1.md enumerates", () => {
+  const source = HELPER("warn.py")
+  const block = /^CODES = \(([\s\S]*?)\n\)/m.exec(source)
+  assert.ok(block, "warn.py: no CODES tuple")
+  const codes = (block[1].match(/"([a-z_]+)"/g) || []).map((q) => q.slice(1, -1))
+  const table = /\| `code` \| Raised when \| `detail` \|\n\|[-| ]+\|\n((?:\|.*\n)+)/.exec(PROTOCOL)
+  assert.ok(table, "protocol-v1.md: could not locate the warning code table")
+  const documented = table[1].split("\n")
+    .filter((line) => line.startsWith("|"))
+    .map((line) => line.split("|")[1].trim().replace(/`/g, ""))
+  assert.deepStrictEqual([...codes].sort(), [...documented].sort())
+})
+
+test("the helper's route allowlist is the six in api-contract.md", () => {
+  const contract = fs.readFileSync(
+    path.join(REPO, "docs/feature-specs/omarchy-unifi-plugin/api-contract.md"), "utf8")
+  const table = /\| # \| Route \| Purpose \| Paginated \|\n\|[-| ]+\|\n((?:\|.*\n)+)/.exec(contract)
+  assert.ok(table, "api-contract.md: could not locate the route table")
+  const rows = table[1].split("\n").filter((line) => line.startsWith("|"))
+  assert.strictEqual(rows.length, 6, "the allowlist is six routes")
+
+  const source = HELPER("routes.py")
+  for (const row of rows) {
+    const cells = row.split("|").map((cell) => cell.trim())
+    const route = cells[2].replace(/`/g, "")
+    // "/v1/sites/{siteId}/devices" -> the template routes.py stores.
+    const template = route.replace(/^\/v1\//, "")
+    assert.ok(source.includes('"template": "' + template + '"'),
+      "routes.py has no template for " + route)
+    const paginated = cells[4].toLowerCase() === "yes"
+    const spec = new RegExp('"template": "' + template.replace(/[{}]/g, "\\$&")
+      + '",\\s*\\n\\s*"params": \\([^)]*\\),\\s*\\n\\s*"paginated": (True|False)')
+      .exec(source)
+    assert.ok(spec, "routes.py: cannot read the paginated flag for " + route)
+    assert.strictEqual(spec[1] === "True", paginated, route + " pagination")
+  }
+})

@@ -123,7 +123,7 @@
     "api/pagination/terminal_completeness": {
       "enforcedBy": "helper",
       "invariant": "terminal_completeness",
-      "note": "The collection terminates with fewer unique records accumulated than the terminal totalCount claims.",
+      "note": "The collection terminates on a short page with fewer unique records accumulated than the terminal totalCount claims: 3 against 5.",
       "rule": "DATA-009 / terminal_completeness",
       "synthesized": false,
       "verdict": "reject"

@@ -3,7 +3,7 @@
   "expect": "terminal_completeness",
   "id": "terminal_completeness",
   "limit": 2,
-  "note": "The collection terminates with fewer unique records accumulated than the terminal totalCount claims.",
+  "note": "The collection terminates on a short page with fewer unique records accumulated than the terminal totalCount claims: 3 against 5.",
   "responses": [
     {
       "count": 2,
@@ -48,7 +48,7 @@
       "totalCount": 5
     },
     {
-      "count": 2,
+      "count": 1,
       "data": [
         {
           "features": [
@@ -66,34 +66,10 @@
           "name": "Page 0002",
           "state": "ONLINE",
           "supported": true
-        },
-        {
-          "features": [
-            "switching"
-          ],
-          "firmwareUpdatable": false,
-          "firmwareVersion": "9.1.0",
-          "id": "c33683eb-50af-542f-98fd-da995979c280",
-          "interfaces": [
-            "ports"
-          ],
-          "ipAddress": "192.168.10.242",
-          "macAddress": "02:00:00:00:03:eb",
-          "model": "USW-Lite-8-PoE",
-          "name": "Page 0003",
-          "state": "ONLINE",
-          "supported": true
         }
       ],
       "limit": 2,
       "offset": 2,
-      "totalCount": 5
-    },
-    {
-      "count": 0,
-      "data": [],
-      "limit": 2,
-      "offset": 4,
       "totalCount": 5
     }
   ],

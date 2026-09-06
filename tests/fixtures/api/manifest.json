@@ -1104,8 +1104,8 @@
     },
     "terminal_completeness": {
       "expect": "terminal_completeness",
-      "note": "The collection terminates with fewer unique records accumulated than the terminal totalCount claims.",
-      "responses": 3,
+      "note": "The collection terminates on a short page with fewer unique records accumulated than the terminal totalCount claims: 3 against 5.",
+      "responses": 2,
       "synthesized": false
     },
     "total_count_non_negative": {

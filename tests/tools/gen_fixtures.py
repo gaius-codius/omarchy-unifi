@@ -416,8 +416,16 @@ def pagination_cases():
     """
     cases = []
 
-    def case(case_id, expect, note, responses=None, synthesize=None):
-        cases.append((case_id, expect, note, responses, synthesize))
+    def case(case_id, expect, note, responses=None, synthesize=None,
+             limit=PAGE_LIMIT):
+        # `limit` is the limit the HELPER REQUESTED, which is not always the
+        # limit a page echoes back — advance_by_validated_count exists precisely
+        # because a page can echo a different one. It was previously inferred
+        # from responses[0]["limit"], which made that case declare a requested
+        # limit of 200 while its own note and its other pages said 2. Inferring
+        # the request from the response is the exact confusion the invariant is
+        # about, so it is stated per case instead.
+        cases.append((case_id, expect, note, responses, synthesize, limit))
 
     # ---- accept: the boundaries that need realistic scale ----------------
     case("accept_single_page_25", "accept",
@@ -444,49 +452,58 @@ def pagination_cases():
     # ---- one per invariant, at small scale -------------------------------
     bad = clone(small_pages()); bad[1]["offset"] = 1
     case("offset_matches_request", "offset_matches_request",
-         "Page 2 answers with offset 1 for a request at offset 2.", bad)
+         "Page 2 answers with offset 1 for a request at offset 2.", bad,
+         limit=SMALL_LIMIT)
 
     bad = clone(small_pages()); bad[0]["count"] = 1
     case("count_equals_data_length", "count_equals_data_length",
-         "count says 1 while data holds 2.", bad)
+         "count says 1 while data holds 2.", bad,
+         limit=SMALL_LIMIT)
 
     bad = clone(small_pages())
     bad[0]["count"] = 3
     bad[0]["data"] = bulk(3, limit=SMALL_LIMIT)
     case("count_within_limit", "count_within_limit",
-         "A page returns three records for a limit of two.", bad)
+         "A page returns three records for a limit of two.", bad,
+         limit=SMALL_LIMIT)
 
     bad = clone(small_pages()); bad[1]["count"] = 0; bad[1]["data"] = []
     case("non_terminal_page_progresses", "non_terminal_page_progresses",
          "A middle page is empty while offset < totalCount: premature, and the "
-         "deliberate twin of accept_empty_collection.", bad)
+         "deliberate twin of accept_empty_collection.", bad,
+         limit=SMALL_LIMIT)
 
     bad = clone(small_pages()); bad[0]["data"][1]["id"] = bad[0]["data"][0]["id"]
     case("record_ids_unique", "record_ids_unique",
          "Two records on one page share an id, so accumulation reaches four "
-         "unique records for a totalCount of five and never terminates.", bad)
+         "unique records for a totalCount of five and never terminates.", bad,
+         limit=SMALL_LIMIT)
 
     bad = clone(small_pages())
     for pg in bad:
         pg["totalCount"] = -1
     case("total_count_non_negative", "total_count_non_negative",
-         "A negative totalCount.", bad)
+         "A negative totalCount.", bad,
+         limit=SMALL_LIMIT)
 
     bad = clone(small_pages()); bad[2]["totalCount"] = 99
     case("total_count_stable", "total_count_stable",
-         "totalCount changes between the first page and the last.", bad)
+         "totalCount changes between the first page and the last.", bad,
+         limit=SMALL_LIMIT)
 
     bad = clone(small_pages()); bad[0]["limit"] = 4
     case("advance_by_validated_count", "advance_by_validated_count",
          "The response echoes a limit of four when two was requested. Advancing "
          "by response arithmetic rather than the validated count skips records.",
-         bad)
+         bad,
+         limit=SMALL_LIMIT)
 
     case("empty_is_valid_not_premature", "empty_is_valid_not_premature",
          "count == 0 while offset < totalCount. Read together with "
          "accept_empty_collection this pair is the whole of DATA-009b; either "
          "one alone can be satisfied by a wrong rule.",
-         [page([], 0, SMALL_LIMIT, SMALL)])
+         [page([], 0, SMALL_LIMIT, SMALL)],
+         limit=SMALL_LIMIT)
 
     # OFFSET DRIFT AT CONSTANT CARDINALITY, modelled faithfully rather than just
     # made to differ. The collection starts as [r0..r4]. After page 0 is read,
@@ -518,16 +535,26 @@ def pagination_cases():
          "uniqueness, totalCount stability and terminal completeness ALL still "
          "pass. The trailing response is the DATA-009a re-read of page 0, which "
          "is the only thing in the contract that catches this.",
-         drift)
+         drift,
+         limit=SMALL_LIMIT)
 
-    bad = clone(small_pages()); bad[-1]["totalCount"] = SMALL
-    for pg in bad[:-1]:
-        pg["totalCount"] = SMALL
-    bad[-1]["data"] = []
-    bad[-1]["count"] = 0
+    # The terminal page must be SHORT, not EMPTY. An earlier version emptied it,
+    # which made this case indistinguishable from non_terminal_page_progresses:
+    # `count == 0` with `offset < totalCount` is premature by DATA-009b, so a
+    # correct reader rejected it under that invariant and never reached the
+    # completeness check. This case can then only fail for the wrong reason,
+    # which is the same as not testing the invariant it names.
+    #
+    # A short page is the controller's end-of-collection signal, so the reader
+    # terminates on it and only then asks whether it accumulated what totalCount
+    # promised: 3 unique records against a claimed 5.
+    bad = clone(small_pages())[:2]
+    bad[1]["data"] = bad[1]["data"][:1]
+    bad[1]["count"] = 1
     case("terminal_completeness", "terminal_completeness",
-         "The collection terminates with fewer unique records accumulated than "
-         "the terminal totalCount claims.", bad)
+         "The collection terminates on a short page with fewer unique records "
+         "accumulated than the terminal totalCount claims: 3 against 5.", bad,
+         limit=SMALL_LIMIT)
 
     # ---- the two bound cases, synthesized -------------------------------
     case("max_pages_enforced", "max_pages_enforced",
@@ -537,10 +564,17 @@ def pagination_cases():
          "repository that gets cloned into the plugins directory on install.",
          None, {"pages": 65, "recordsPerPage": PAGE_LIMIT, "totalCount": 100000})
 
+    # `paddingBytes` is what makes this case test its own bound. Without it a
+    # page of 200 ordinary device records is ~62 KB, so 64 pages total ~3.8 MiB
+    # and the collection stops at the PAGE bound having never approached 8 MiB —
+    # the case would have passed while proving nothing about decoded bytes.
+    # Padded to ~268 KB, the byte bound is crossed around page 32, comfortably
+    # before the page count runs out.
     case("max_decoded_bytes_enforced", "max_decoded_bytes_enforced",
          "Pages whose accumulated decoded size crosses the 8 MiB per-collection "
          "bound before the page count does. Synthesized, as above.",
-         None, {"pages": 64, "recordsPerPage": PAGE_LIMIT, "totalCount": 100000})
+         None, {"pages": 64, "recordsPerPage": PAGE_LIMIT, "totalCount": 100000,
+                "paddingBytes": 1024})
 
     return cases
 
@@ -618,11 +652,11 @@ def generate(out_dir):
             "schemaDeviation": deviation,
         }
 
-    for case_id, expectation, note, responses, synthesize in pagination_cases():
+    for case_id, expectation, note, responses, synthesize, limit in pagination_cases():
         body = {
             "id": case_id,
             "collection": "devices",
-            "limit": SMALL_LIMIT if (responses and responses[0]["limit"] == SMALL_LIMIT) else PAGE_LIMIT,
+            "limit": limit,
             "expect": expectation,
             "note": note,
             "responses": responses,

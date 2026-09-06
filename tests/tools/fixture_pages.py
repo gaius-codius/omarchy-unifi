@@ -18,15 +18,22 @@ import json
 import os
 
 
-def _record(index):
+def _record(index, padding_bytes=0):
     """A minimally-shaped adopted-device record.
 
     Synthesized records only ever feed a case that must be REJECTED for a bound
     violation, so the reader stops before content matters. They still carry the
     required fields, because a reader that rejected them for the wrong reason
     would make the case pass while testing nothing.
+
+    `padding_bytes` inflates the record so a case about DECODED BYTES actually
+    reaches its bound. An unpadded page of 200 of these is ~62 KB, so the 64
+    page limit is hit at ~3.8 MiB and the 8 MiB bound is never approached. The
+    padding is a plain ASCII run in a field the reader ignores: it must not
+    resemble a credential, a MAC, an address or a UUID, because
+    tests/test_fixtures.py scans the corpus for all four.
     """
-    return {
+    record = {
         "id": "00000000-0000-5000-8000-%012x" % index,
         "name": "Bulk %06d" % index,
         "model": "USW-Lite-8-PoE",
@@ -40,6 +47,9 @@ def _record(index):
         "firmwareUpdatable": False,
         "supported": True,
     }
+    if padding_bytes:
+        record["notes"] = "pad" * (padding_bytes // 3 + 1)
+    return record
 
 
 def responses_for(case):
@@ -49,6 +59,7 @@ def responses_for(case):
 
     plan = case["synthesize"]
     per_page = plan["recordsPerPage"]
+    padding = plan.get("paddingBytes", 0)
     pages = []
     for index in range(plan["pages"]):
         offset = index * per_page
@@ -57,7 +68,7 @@ def responses_for(case):
             "limit": case["limit"],
             "count": per_page,
             "totalCount": plan["totalCount"],
-            "data": [_record(offset + i) for i in range(per_page)],
+            "data": [_record(offset + i, padding) for i in range(per_page)],
         })
     return pages
 
