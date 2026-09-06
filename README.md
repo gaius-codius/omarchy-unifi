@@ -46,9 +46,41 @@ Controller details and the credential live outside the plugin folder, in
 | `api-key` | the API key and nothing else |
 | `commit.json` | written by `scripts/configure`; do not edit by hand |
 
-Run `scripts/configure` to create them. The API key is read by the Python helper
-directly from that file — it is never placed in `shell.json`, in an environment
-variable, on a command line, or anywhere in this repository.
+Run `scripts/configure` to create them:
+
+```bash
+printf '%s' "$YOUR_API_KEY" | scripts/configure \
+  --api-root https://<console-ip>/proxy/network/integration --api-key-stdin
+```
+
+The key is read from standard input or from `--api-key-file`, never from a
+command-line value: argv is world-readable through `/proc`, so an option that
+took the key as a value would publish it to every user on the machine for as
+long as the command ran. It is read by the Python helper directly from
+`api-key` — never placed in `shell.json`, in an environment variable, on a
+command line, or anywhere in this repository.
+
+If your controller has more than one site, the first run reports which ones it
+found; pick one with `scripts/configure --site <uuid>`. A controller with
+exactly one site is selected automatically.
+
+Other options:
+
+| Option | Effect |
+|---|---|
+| `--site <uuid>` | choose which site to display |
+| `--custom-ca <file>` | trust this PEM certificate authority instead of the system store |
+| `--no-custom-ca` | go back to the system trust store |
+| `--allow-insecure-tls` | **disable** TLS verification; the panel then shows a permanent warning |
+| `--verify-tls` | re-enable TLS verification |
+| `--commit` | re-validate the files as they are on disk and write a fresh commit marker, after editing `config.json` by hand |
+
+After writing the files, `configure` asks the running shell to reload. It exits
+0 when the change was applied, and also when there is no shell running or the
+widget is not on the bar yet — both mean the configuration is saved and will be
+picked up. It exits non-zero if the shell was reachable but could not accept
+the change, and in that case the previous configuration is left exactly as it
+was, so a failed run never leaves you half-configured.
 
 ### Widget settings
 

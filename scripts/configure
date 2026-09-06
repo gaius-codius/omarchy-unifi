@@ -1,0 +1,61 @@
+#!/usr/bin/env bash
+# The setup entry point. Bash, so that a missing or too-old python3 is reported
+# as a sentence rather than as an interpreter error.
+#
+# Omarchy's plugin installer does not install runtime packages (SPEC §11), so
+# the interpreter is the one thing that can be absent on an otherwise correct
+# system. Checking it here, before anything imports, is what turns
+# "ModuleNotFoundError" into "install python3".
+#
+# The delegation runs `python3 -B -E -s`:
+#
+#   -B   `configure` runs from the INSTALLED plugin directory and imports
+#        helper/unifi/commitset.py. Without -B that import writes __pycache__
+#        into the plugin tree, which PluginRegistry sees as a change and
+#        hot-reloads the plugin — in the middle of the configuration this
+#        script is performing (HC-14).
+#   -E   PYTHON* environment variables must not steer a process that reads and
+#        rewrites the API key.
+#   -s   the user site directory likewise. Not -I: that would also drop the
+#        script's own directory from sys.path on 3.11+ (HC-15).
+set -uo pipefail
+
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# SPEC §11's floor. Stated as two numbers rather than a version string so the
+# comparison cannot go wrong on a double-digit minor.
+MIN_MAJOR=3
+MIN_MINOR=9
+
+if ! command -v python3 >/dev/null 2>&1; then
+  cat >&2 <<'MSG'
+python3 is not installed.
+
+The UniFi plugin's helper is a Python program, and Omarchy's plugin installer
+does not install runtime packages. Install python3 with your package manager
+and run this script again.
+MSG
+  exit 1
+fi
+
+read -r have_major have_minor < <(
+  python3 -B -E -s -c 'import sys; print(sys.version_info[0], sys.version_info[1])' 2>/dev/null
+) || true
+
+if [[ -z ${have_major:-} || -z ${have_minor:-} ]]; then
+  echo "python3 is present but could not report its version." >&2
+  exit 1
+fi
+
+if (( have_major < MIN_MAJOR || (have_major == MIN_MAJOR && have_minor < MIN_MINOR) )); then
+  cat >&2 <<MSG
+python3 $have_major.$have_minor is too old.
+
+The UniFi plugin needs Python $MIN_MAJOR.$MIN_MINOR or newer: it opens its
+configuration by file descriptor, which needs dir_fd support that older
+versions do not have.
+MSG
+  exit 1
+fi
+
+exec python3 -B -E -s "$HERE/configure.py" "$@"

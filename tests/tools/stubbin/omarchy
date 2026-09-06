@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+# A stub `omarchy` for tests/test_configure.sh.
+#
+# HC-5 is the reason this exists: `omarchy-shell` prints its outcome on stderr
+# and exits 1 for every failure mode, so `scripts/configure` classifies on the
+# exact message. That classification cannot be tested without a program that
+# produces each exact message on demand, and the real `omarchy` produces
+# whichever one the machine happens to be in.
+#
+# STUB_OMARCHY_STDERR is the message to emit; empty means the delivered case.
+# STUB_OMARCHY_EXIT overrides the exit status, which defaults to what the real
+# wrapper does: 1 whenever it printed a message, 0 otherwise.
+# STUB_OMARCHY_LOG, when set, records the argv of every call, so a test can
+# assert that -q was NOT passed.
+set -uo pipefail
+
+if [[ -n ${STUB_OMARCHY_LOG:-} ]]; then
+  printf '%s\n' "$*" >> "$STUB_OMARCHY_LOG"
+fi
+
+message="${STUB_OMARCHY_STDERR:-}"
+if [[ -n $message ]]; then
+  printf '%s\n' "$message" >&2
+  exit "${STUB_OMARCHY_EXIT:-1}"
+fi
+
+# The delivered case: the handler's return value on stdout, exit 0.
+printf 'ok\n'
+exit "${STUB_OMARCHY_EXIT:-0}"

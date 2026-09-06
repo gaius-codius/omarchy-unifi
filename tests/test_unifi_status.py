@@ -34,8 +34,10 @@ _REPO = os.path.dirname(_HERE)
 # directory, which is deliberate — the helper must not be steerable through the
 # environment — so the path to the package is stated here rather than inherited.
 sys.path.insert(0, os.path.join(_REPO, "helper"))
+sys.path.insert(0, os.path.join(_REPO, "scripts"))
 sys.path.insert(0, os.path.join(_HERE, "tools"))
 
+import configure  # noqa: E402  (scripts/configure.py)
 import fixture_pages  # noqa: E402
 import normalize_inputs  # noqa: E402
 import tls_stub  # noqa: E402
@@ -94,7 +96,12 @@ class TempTree(unittest.TestCase):
         self.addCleanup(_close_quietly, fd)
         return fd
 
-    def commit(self, config=b'{"apiRoot":"https://192.168.1.1"}', key=b"sk-abc\n",
+    # TEST-NET-1 (RFC 5737), which is guaranteed not to be routed. Every
+    # apiRoot in this suite that could conceivably reach a socket uses it, so a
+    # test that grew a real request by accident cannot reach a device on the
+    # machine's own network. The route-building tests below are the exception
+    # and say why.
+    def commit(self, config=b'{"apiRoot":"https://192.0.2.9"}', key=b"sk-abc\n",
                generation=1, marker=None):
         """Write a consistent, committed set. Returns the raw bytes written."""
         self.write(paths.CONFIG_NAME, config)
@@ -438,7 +445,7 @@ class CommittedSetVerification(TempTree):
         # and identical on every retry, which is why it has to be impossible by
         # construction rather than caught by a test in the field.
         key = b"sk-abc\n"
-        config = b'{"apiRoot":"https://192.168.1.1"}'
+        config = b'{"apiRoot":"https://192.0.2.9"}'
         wrong = {
             commitset.GENERATION_KEY: 1,
             commitset.CONFIG_DIGEST_KEY: commitset.digest(config),
@@ -459,7 +466,7 @@ class CommittedSetVerification(TempTree):
             self.assertEqual(credential.parse(loaded.api_key_bytes).header_value(), "sk-abc")
 
     def test_a_malformed_marker_is_uncommitted(self):
-        config = b'{"apiRoot":"https://192.168.1.1"}'
+        config = b'{"apiRoot":"https://192.0.2.9"}'
         key = b"sk-abc\n"
         for bad in (b"not json", b"[]", b"{}", b'{"commitGeneration":"one"}',
                     b'{"commitGeneration":-1}', b'{"commitGeneration":true}',
@@ -797,7 +804,7 @@ class InterpreterFloor(unittest.TestCase):
         allowed = {"os", "ssl", "stat", "json", "hashlib", "hmac", "io", "sys",
                    "socket", "errno", "time", "re", "base64", "urllib", "typing",
                    "collections", "datetime", "unicodedata", "subprocess",
-                   "email", "http",
+                   "email", "http", "argparse", "fcntl", "tempfile",
                    # The helper's own package. `unifi_status.py` is a SCRIPT,
                    # not a module inside the package, so it cannot use a
                    # relative import; the explicit sys.path bootstrap above it
@@ -1104,6 +1111,9 @@ class TimeBudget(unittest.TestCase):
 class RouteAllowlist(unittest.TestCase):
     """AC-017, AC-018, AC-061. BIZ-001, SEC-009, SEC-013."""
 
+    # A LAN-shaped address on purpose: these tests assert the exact string a
+    # local console produces, and nothing here opens a socket — `routes.build`
+    # returns a Request and never connects.
     ROOT = "https://192.168.1.1/proxy/network/integration"
     SITE = "140d6676-08f6-5cbd-806a-bff7222ccc5d"
     DEVICE = "2f4dcb4c-0d20-5e6b-9a0e-0a03a6f8b111"
@@ -2611,6 +2621,140 @@ class EnvelopeShape(unittest.TestCase):
         text, exceeded = envelope.bounded_stderr("short")
         self.assertEqual(text, "short")
         self.assertFalse(exceeded)
+
+
+class ConfigureProtocol(unittest.TestCase):
+    """DATA-004's commit protocol, at the level `tests/test_configure.sh` cannot reach.
+
+    That suite drives the real script and asserts what a user would see. Two
+    properties are invisible from there: the ORDER the three files are written
+    in, and whether the directory is fsynced after each rename. Both survived a
+    mutation pass against the shell suite, which is what this class is for.
+    """
+
+    def setUp(self):
+        self.directory = tempfile.mkdtemp(prefix="omarchy-unifi-commit-")
+        self.addCleanup(shutil.rmtree, self.directory, True)
+
+    def test_commit_json_is_written_last(self):
+        # DATA-004 calls `commit.json` the commit point. The ordering is what
+        # makes the meaning of an interrupted write unambiguous: at every
+        # instant the marker on disk is one that was fully written and
+        # certified a set that existed.
+        #
+        # Worth being precise about what this does NOT buy: the safety property
+        # comes from the marker carrying digests of BOTH files, so an
+        # interruption in either order leaves a set that fails verification and
+        # is reported `uncommitted`. The order is the protocol and the clarity;
+        # the two digests are the guarantee.
+        written = []
+        with _patched(configure, "atomic_write",
+                      lambda directory, name, data: written.append(name)):
+            configure.commit(self.directory, b'{"apiRoot":"https://192.0.2.9"}',
+                             b"sk-key\n", 3)
+        self.assertEqual(written, [paths.CONFIG_NAME, paths.API_KEY_NAME,
+                                   paths.COMMIT_NAME])
+
+    def test_a_rollback_also_writes_the_marker_last(self):
+        # And on the way OUT, for the same reason: at no instant may a reader
+        # see a marker certifying bytes that are no longer there.
+        written = []
+        with _patched(configure, "atomic_write",
+                      lambda directory, name, data: written.append(name)):
+            configure._restore(self.directory, {
+                paths.CONFIG_NAME: b"c", paths.API_KEY_NAME: b"k",
+                paths.COMMIT_NAME: b"m"})
+        self.assertEqual(written[-1], paths.COMMIT_NAME)
+
+    def test_each_rename_is_followed_by_a_directory_fsync(self):
+        # The step people leave out. Without it the RENAME itself can be lost on
+        # a crash, and `commit.json` can become durable before the files it
+        # certifies — which is the one ordering the protocol exists to prevent.
+        synced = []
+        real_fsync = os.fsync
+
+        def recording_fsync(fd):
+            try:
+                synced.append(stat.S_ISDIR(os.fstat(fd).st_mode))
+            except OSError:
+                synced.append(None)
+            return real_fsync(fd)
+
+        with _patched(os, "fsync", recording_fsync):
+            configure.atomic_write(self.directory, "probe", b"contents")
+        self.assertIn(True, synced, "the directory was never fsynced")
+        self.assertIn(False, synced, "the file was never fsynced")
+        # File first, then the directory: fsyncing the directory before the file
+        # makes the rename durable ahead of the bytes it points at.
+        self.assertLess(synced.index(False), synced.index(True))
+
+    def test_the_written_file_carries_no_group_or_other_bits(self):
+        configure.atomic_write(self.directory, "probe", b"contents")
+        mode = stat.S_IMODE(os.stat(os.path.join(self.directory, "probe")).st_mode)
+        self.assertEqual(mode & 0o077, 0, "SEC-002 forbids every group and other bit")
+
+    def test_a_written_set_verifies_against_the_helper_s_own_loader(self):
+        # The agreement is by SHARED CODE — configure imports commitset.py — so
+        # this asserts the consequence rather than restating the algorithm.
+        config_bytes = b'{"apiRoot":"https://192.0.2.9/proxy"}\n'
+        api_key_bytes = b"sk-round-trip-key\n"
+        configure.commit(self.directory, config_bytes, api_key_bytes, 5)
+        dir_fd = paths.open_config_dir(self.directory)
+        try:
+            loaded = commitset.load(dir_fd)
+        finally:
+            os.close(dir_fd)
+        self.assertEqual(loaded.generation, 5)
+        self.assertEqual(loaded.config_bytes, config_bytes)
+        self.assertEqual(loaded.api_key_bytes, api_key_bytes)
+
+    def test_the_credential_is_stored_exactly_as_it_is_hashed(self):
+        # DATA-004b. A version that hashed the trimmed value while writing the
+        # raw one — or the reverse — produces a set that can NEVER validate,
+        # and the failure is permanent rather than intermittent.
+        #
+        # Normalizing to a single trailing newline is a separate, cosmetic
+        # choice; it is safe either way because both sides work from the file's
+        # bytes. What is asserted here is the property that is not cosmetic.
+        for supplied in (b"sk-key", b"sk-key\n", b"  sk-key  \n"):
+            with self.subTest(supplied=supplied):
+                stored = configure.read_credential(_KeyFromBytes(self, supplied))
+                configure.commit(self.directory, b'{"apiRoot":"https://192.0.2.9"}',
+                                 stored, 1)
+                with open(os.path.join(self.directory, paths.API_KEY_NAME), "rb") as handle:
+                    on_disk = handle.read()
+                self.assertEqual(on_disk, stored)
+                with open(os.path.join(self.directory, paths.COMMIT_NAME), "rb") as handle:
+                    marker = json.loads(handle.read().decode("utf-8"))
+                self.assertEqual(marker[commitset.API_KEY_DIGEST_KEY],
+                                 commitset.digest(on_disk))
+
+    def test_the_reload_outcome_table_is_the_seven_data_010b_rows(self):
+        expected = [
+            ("", 0),
+            ("omarchy-shell is not running", 0),
+            ("Target not found.", 0),
+            ("omarchy-shell is not responding", 1),
+            ("omarchy-shell is not ready", 1),
+            ("Function not found.", 1),
+        ]
+        self.assertEqual([(row[0], row[3]) for row in configure.RELOAD_OUTCOMES],
+                         expected)
+        # The seventh row is "any other", which is the fallthrough.
+        self.assertEqual(configure.UNKNOWN_OUTCOME[2], configure.EXIT_FAILURE)
+        exits_zero = [row for row in configure.RELOAD_OUTCOMES if row[3] == 0]
+        self.assertEqual(len(exits_zero), 3)
+
+
+class _KeyFromBytes(object):
+    """An args-shaped double that hands `read_credential` a file of bytes."""
+
+    def __init__(self, case, data):
+        path = os.path.join(case.directory, "supplied-key")
+        with open(path, "wb") as handle:
+            handle.write(data)
+        self.api_key_file = path
+        self.api_key_stdin = False
 
 
 class EntryPoint(unittest.TestCase):
