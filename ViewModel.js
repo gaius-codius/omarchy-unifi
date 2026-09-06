@@ -28,6 +28,30 @@ const LEVEL_RENDERING = {
   grey: { token: "bar.foreground", badge: false, darkenFactor: 1.55 }
 }
 
+// REQ-000's five device classes, and REQ-008a's four WAN statuses, as the words
+// the panel prints. They live here, beside LEVEL_WORD, for the same reason: the
+// panel must never hold a string table, because a table in QML is a table
+// `node --test` cannot read.
+const CLASS_WORD = {
+  online: "online",
+  transitional: "updating",
+  down: "down",
+  impaired: "impaired",
+  unknown: "unknown"
+}
+
+// The order the class cells are printed in. Fixed, and fixed deliberately: a
+// row whose columns move between renders is unreadable, and `for (key in obj)`
+// is not required to agree between V4 and V8.
+const CLASS_ORDER = ["online", "transitional", "down", "impaired", "unknown"]
+
+const WAN_STATUS_WORD = {
+  up: "Up",
+  down: "Down",
+  degraded: "Degraded",
+  unknown: "Unknown"
+}
+
 // UX-002: colour is never the sole signal. Every level also has words, so the
 // bar item is readable to someone who cannot distinguish the levels at all.
 const LEVEL_WORD = {
@@ -144,6 +168,18 @@ function wordFor(healthLevel) {
   return known === undefined ? LEVEL_WORD.grey : known
 }
 
+function classWord(deviceClass) {
+  const known = CLASS_WORD[deviceClass]
+  // REQ-003: an unrecognised state is reported as unknown, never dropped and
+  // never silently rendered as the empty string, which would read as "fine".
+  return known === undefined ? CLASS_WORD.unknown : known
+}
+
+function wanStatusWord(status) {
+  const known = WAN_STATUS_WORD[status]
+  return known === undefined ? WAN_STATUS_WORD.unknown : known
+}
+
 // --- BIZ-003 -------------------------------------------------------------
 // Zero is reserved for a value the controller actually reported as zero.
 // `null` means the controller did not tell us, and rendering that as "0" would
@@ -219,11 +255,168 @@ function offlineList(snapshot) {
   const total = typeof counts.offlineTotal === "number" ? counts.offlineTotal : listed.length
   const remainder = total - listed.length
   return {
-    devices: listed,
+    devices: listed.map(deviceRow),
     total: total,
     truncated: remainder > 0,
     moreLabel: remainder > 0 ? "and " + remainder + " more" : ""
   }
+}
+
+// A device as the panel prints it. The raw fields are kept alongside the
+// rendered ones so the row stays inspectable in a test failure, and so a future
+// column does not need a second pass over the array.
+function deviceRow(device) {
+  const entry = device || {}
+  return {
+    id: typeof entry.id === "string" ? entry.id : "",
+    name: entry.name,
+    model: entry.model,
+    state: entry.state,
+    class: entry.class,
+    nameText: displayName(entry),
+    modelText: typeof entry.model === "string" && entry.model !== ""
+      ? entry.model : "unknown model",
+    classText: classWord(entry.class)
+  }
+}
+
+// A device with no name is not a formatting problem, it is the common case for
+// a freshly adopted unit. Falling back to the id keeps the row identifiable;
+// falling back to the empty string would print a blank line the user cannot act
+// on.
+function displayName(entry) {
+  if (typeof entry.name === "string" && entry.name !== "") return entry.name
+  if (typeof entry.id === "string" && entry.id !== "") return entry.id
+  return "unnamed device"
+}
+
+// --- REQ-008 / REQ-008a: the WAN rows ------------------------------------
+// Every row is always present. BIZ-003 forbids rendering an absent optional
+// metric as 0, and REQ-008 forbids hiding it — a row that disappears reads as
+// "there is no uplink", which is a different and wrong claim.
+function wanRows(wan) {
+  const data = wan || {}
+  return [
+    { key: "status", label: "WAN", value: wanStatusWord(data.status) },
+    { key: "uptime", label: "Uptime", value: formatUptime(data.uptimeSec) },
+    { key: "download", label: "Download", value: formatBps(data.downloadBps) },
+    { key: "upload", label: "Upload", value: formatBps(data.uploadBps) }
+  ]
+}
+
+// REQ-008a: `wan` carries the aggregate status plus the PRIMARY gateway's
+// metrics, and the panel additionally lists every gateway individually. This is
+// that list. Gateways beyond the fourth carry no statistics (they were never
+// fetched), and say so rather than reporting them as unknown-for-some-reason.
+function gatewayRows(gateways) {
+  const list = Array.isArray(gateways) ? gateways : []
+  const rows = []
+  for (let i = 0; i < list.length; i++) {
+    const entry = list[i] || {}
+    const hasMetrics = entry.uptimeSec !== null && entry.uptimeSec !== undefined
+      || entry.downloadBps !== null && entry.downloadBps !== undefined
+      || entry.uploadBps !== null && entry.uploadBps !== undefined
+    rows.push({
+      id: typeof entry.id === "string" ? entry.id : "",
+      nameText: displayName(entry),
+      modelText: typeof entry.model === "string" && entry.model !== ""
+        ? entry.model : "unknown model",
+      classText: classWord(entry.class),
+      uptimeText: formatUptime(entry.uptimeSec),
+      downloadText: formatBps(entry.downloadBps),
+      uploadText: formatBps(entry.uploadBps),
+      hasMetrics: hasMetrics
+    })
+  }
+  return rows
+}
+
+// --- REQ-009: the role count rows ----------------------------------------
+function countRows(counts) {
+  if (!counts) return []
+  const roles = [
+    { key: "gateways", label: "Gateways" },
+    { key: "switches", label: "Switches" },
+    { key: "accessPoints", label: "Access points" }
+  ]
+  const rows = []
+  for (let i = 0; i < roles.length; i++) {
+    const bucket = counts[roles[i].key]
+    if (!bucket) continue
+    const cells = []
+    let total = 0
+    for (let j = 0; j < CLASS_ORDER.length; j++) {
+      const key = CLASS_ORDER[j]
+      const value = typeof bucket[key] === "number" ? bucket[key] : 0
+      total += value
+      cells.push({ key: key, label: CLASS_WORD[key], value: value })
+    }
+    rows.push({ key: roles[i].key, label: roles[i].label, total: total, cells: cells })
+  }
+  return rows
+}
+
+// AC-025: the label the not-a-partition flag is attached to. It names the unique
+// total, because "these rows do not sum to the total" is only useful next to the
+// number they do not sum to.
+function roleCountsNote(counts) {
+  if (!counts) return ""
+  const total = typeof counts.devicesTotal === "number" ? counts.devicesTotal : 0
+  return "A device is counted in every role it reports, so these rows total more "
+    + "than the " + total + " adopted device" + (total === 1 ? "" : "s") + "."
+}
+
+// --- AC-052 / DATA-006a: the meta rows -----------------------------------
+// Rendered as "unknown" rather than omitted, so an `unconfigured` failure — the
+// case with the least information and the most need for it — still shows the
+// same four rows in the same places.
+function metaRows(meta) {
+  const data = meta || {}
+  return [
+    { key: "apiRootHost", label: "Controller", value: formatOptional(data.apiRootHost) },
+    { key: "siteId", label: "Site id", value: formatOptional(data.siteId) },
+    { key: "helperVersion", label: "Helper", value: formatOptional(data.helperVersion) },
+    { key: "commitGeneration", label: "Config generation",
+      value: formatOptional(data.commitGeneration) }
+  ]
+}
+
+// --- REQ-013a: the warning rows ------------------------------------------
+function warningRows(warnings) {
+  const list = Array.isArray(warnings) ? warnings : []
+  const rows = []
+  for (let i = 0; i < list.length; i++) {
+    const entry = list[i] || {}
+    const code = typeof entry.code === "string" ? entry.code : "unknown"
+    const message = typeof entry.message === "string" && entry.message !== ""
+      ? entry.message : code
+    // The code is kept beside the message because a bug report that quotes the
+    // sentence is not searchable, and one that quotes the code is.
+    rows.push({ key: code + "#" + i, code: code, text: message })
+  }
+  return rows
+}
+
+// --- UX-006a: the discovered sites ---------------------------------------
+// DATA-012 carries the {id, name} pairs in a `sites_discovered` warning rather
+// than in `data`, because the batch that discovers them has no `data` at all.
+function sitesFromWarnings(warnings) {
+  const list = Array.isArray(warnings) ? warnings : []
+  const sites = []
+  for (let i = 0; i < list.length; i++) {
+    const entry = list[i] || {}
+    if (entry.code !== "sites_discovered") continue
+    const detail = entry.detail || {}
+    const found = Array.isArray(detail.sites) ? detail.sites : []
+    for (let j = 0; j < found.length; j++) {
+      const site = found[j] || {}
+      if (typeof site.id !== "string" || site.id === "") continue
+      const name = typeof site.name === "string" && site.name !== ""
+        ? site.name : "unnamed site"
+      sites.push({ id: site.id, name: name, label: name + "  —  " + site.id })
+    }
+  }
+  return sites
 }
 
 // --- AC-011 / SEC-009 / UX-010 -------------------------------------------
@@ -344,6 +537,16 @@ function tooltip(model) {
   return lines.join("\n")
 }
 
+// The panel hero's one-line summary. It repeats the tooltip's last line on
+// purpose: the tooltip is for the bar item, the hero is for the open panel, and
+// a user who opened the panel should not have to hover the thing they just
+// clicked to find out what it says.
+function headline(healthLevel, hasSnapshot, lastUpdateText) {
+  const word = wordCase(wordFor(healthLevel))
+  return hasSnapshot ? word + "  \u00b7  updated " + lastUpdateText
+    : word + "  \u00b7  never updated"
+}
+
 function attemptLine(state) {
   if (state.errorKind) return "failed (" + state.errorKind + ")"
   if (state.hasSnapshot) return "succeeded"
@@ -373,7 +576,8 @@ function forNullService() {
     compactText: "",
     hasSnapshot: false,
     tooltip: "UniFi\nLast update: never\nLatest attempt: unavailable\n"
-      + sentenceFor("service_unavailable")
+      + sentenceFor("service_unavailable"),
+    headline: headline("grey", false, "never")
   })
 }
 
@@ -390,14 +594,24 @@ const EMPTY_MODEL = {
   compactText: "",
   hasSnapshot: false,
   tooltip: "",
+  headline: "",
   siteName: "",
   wan: null,
+  wanRows: [],
   gateways: [],
+  gatewayRows: [],
   counts: null,
+  countRows: [],
+  clientsText: "unknown",
+  devicesTotalText: "unknown",
   offline: { devices: [], total: 0, truncated: false, moreLabel: "" },
   roleCountsAreNotAPartition: false,
+  roleCountsNote: "",
   warnings: [],
+  warningRows: [],
+  sites: [],
   errorKind: null,
+  errorMessage: "",
   isStale: false,
   pollingSuspended: false,
   refreshEnabled: false,
@@ -405,7 +619,10 @@ const EMPTY_MODEL = {
   nextAttemptText: "",
   lastUpdateText: "never",
   dashboard: null,
-  meta: null
+  meta: null,
+  metaRows: [],
+  insecureTls: false,
+  customCaInUse: false
 }
 
 function complete(partial) {
@@ -464,23 +681,40 @@ function build(input) {
   // REQ-011: the Refresh button is disabled, with an explanatory label,
   // whenever polling is suspended (REQ-018a). "Suspended is not idle."
   const suspended = state.pollingSuspended === true
+  const warnings = state.warnings || []
+  const error = state.error || null
   return complete({
     state: panel,
-    sentence: sentenceFor(panel),
+    // `ok` is the twenty-fifth state and deliberately NOT in PANEL_SENTENCES:
+    // REQ-013 enumerates the twenty-four conditions that need explaining, and a
+    // healthy site is not one of them. It must still be given the empty string
+    // rather than being left to sentenceFor's DATA-007 fallback, which would
+    // hand a perfectly healthy panel the internal-error sentence.
+    sentence: panel === "ok" ? "" : sentenceFor(panel),
     healthLevel: healthLevel,
     rendering: renderingFor(healthLevel),
     word: wordFor(healthLevel),
     compactText: compactText(settings.compactMetric, counts),
     hasSnapshot: hasSnapshot,
     tooltip: tooltip(tooltipModel),
+    headline: headline(healthLevel, hasSnapshot, relativePast(secondsSinceSuccess)),
     siteName: snapshot && snapshot.site ? snapshot.site.name : "",
     wan: snapshot ? snapshot.wan : null,
+    wanRows: snapshot ? wanRows(snapshot.wan) : [],
     gateways: snapshot ? (snapshot.gateways || []) : [],
+    gatewayRows: snapshot ? gatewayRows(snapshot.gateways) : [],
     counts: counts,
+    countRows: countRows(counts),
+    clientsText: formatOptional(counts ? counts.clients : null),
+    devicesTotalText: formatOptional(counts ? counts.devicesTotal : null),
     offline: offlineList(snapshot),
     roleCountsAreNotAPartition: roleCountsAreNotAPartition(counts),
-    warnings: state.warnings || [],
+    roleCountsNote: roleCountsAreNotAPartition(counts) ? roleCountsNote(counts) : "",
+    warnings: warnings,
+    warningRows: warningRows(warnings),
+    sites: sitesFromWarnings(warnings),
     errorKind: errorKind,
+    errorMessage: error && typeof error.message === "string" ? error.message : "",
     isStale: state.isStale === true,
     pollingSuspended: suspended,
     refreshEnabled: !suspended,
@@ -489,7 +723,13 @@ function build(input) {
     lastUpdateText: hasSnapshot ? relativePast(secondsSinceSuccess) : "never",
     dashboard: dashboardUrlFor(settings.dashboardUrl,
       meta ? meta.apiRootHost : null),
-    meta: meta
+    meta: meta,
+    metaRows: metaRows(meta),
+    // UX-009 / AC-070: a boolean, not a chain. The panel row is bound to one
+    // property with no `&&` in it, so there is no arrangement of a null `meta`
+    // in which the row quietly becomes undefined instead of false.
+    insecureTls: meta ? meta.allowInsecureTls === true : false,
+    customCaInUse: meta ? meta.customCaInUse === true : false
   })
 }
 
@@ -578,9 +818,24 @@ if (typeof module !== "undefined") module.exports = {
   relativeFuture: relativeFuture,
   relativePast: relativePast,
   offlineList: offlineList,
+  deviceRow: deviceRow,
+  displayName: displayName,
+  classWord: classWord,
+  wanStatusWord: wanStatusWord,
+  wanRows: wanRows,
+  gatewayRows: gatewayRows,
+  countRows: countRows,
+  roleCountsNote: roleCountsNote,
+  metaRows: metaRows,
+  warningRows: warningRows,
+  sitesFromWarnings: sitesFromWarnings,
+  CLASS_WORD: CLASS_WORD,
+  CLASS_ORDER: CLASS_ORDER,
+  WAN_STATUS_WORD: WAN_STATUS_WORD,
   acceptDashboardUrl: acceptDashboardUrl,
   dashboardUrlFor: dashboardUrlFor,
   tooltip: tooltip,
+  headline: headline,
   forNullService: forNullService,
   EMPTY_MODEL: EMPTY_MODEL,
   build: build,

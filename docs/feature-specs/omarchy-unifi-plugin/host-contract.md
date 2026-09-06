@@ -389,6 +389,85 @@ cycle; `hjkl` and arrows move; Return/Space activate.
 Tooltips: set `tooltipText` on a `BarIconButton` (bar tooltip, 400 ms delay,
 `Bar.qml:885-933`), or `PanelToolTip` inside a popup.
 
+### The surface Phase 10 actually uses (verified 2026-09-06 against Omarchy 4.0.2-1)
+
+Everything the view layer touches, with the line that declares it. Anything not
+on this list is not used; adding to the list means reading the host source
+first, which is what R1a's citation rule is for.
+
+`Ui/Panel` (`Ui/Panel.qml`) — the bar-widget entry-point base:
+`bar` `:12`, `moduleName` `:13`, `settings` `:14`, `ipcTarget` `:15`,
+`manageIpc` `:16`, `controller` `:17`, `opened` `:21`, `barForeground` `:22`,
+`open()` `:24`, `close()` `:25`, `toggle()` `:31`, `switchPanel()` `:32`,
+`setting(name, fallback)` `:39`. `manageIpc: false` suppresses the base's own
+`IpcHandler` `:48-57`, which is required here because DATA-010 puts the IPC
+target on the *service*, and two handlers on one target is HC-4's failure.
+
+`Ui/BarIconButton` (`Ui/BarIconButton.qml`), which extends `Ui/WidgetButton`:
+`iconComponent` `:8`, `slotSize` `:9`, `opticalSize` `:10`. The glyph is hidden
+whenever `iconComponent !== null` `:32`, so `text` and `iconComponent` are
+mutually exclusive — a widget wanting a drawn mark *and* text beside it must
+widen `slotSize` and put both inside the component. From `WidgetButton`:
+`text` `:8`, `fontFamily` `:9`, `foreground` `:11`, `tooltipText` `:29`,
+`signal pressed(int button)` `:32`, and the sizing contract
+`implicitWidth/implicitHeight` from `fixedWidth/fixedHeight` `:68-69`.
+**Never write a `MouseArea`** — `WidgetButton.qml:95-118` owns hover, cursor,
+tooltip show/hide, click dispatch and wheel.
+
+`Ui/KeyboardPanel` (`Ui/KeyboardPanel.qml`): `anchorItem` (required) `:40`,
+`bar` (required) `:41`, `owner` `:42`, `contentWidth` `:45`, `contentHeight`
+`:46`, `open` `:49`, `focusTarget` `:61`, default `contentItem` alias `:63`,
+`fittedContentWidth(width, cap)` `:161`, `fittedContentHeight(implicit, cap)`
+`:168`. It calls `bar.requestPopout` `:241` and `bar.releasePopout` `:246`
+itself — see HC-13.
+
+`Ui/PanelKeyCatcher` (`Ui/PanelKeyCatcher.qml`): `blocked` `:36`, and the
+signals `moveRequested` `:38`, `activateRequested` `:39`, `returnRequested`
+`:40`, `closeRequested` `:41`, `deleteRequested` `:42`, `tabRequested` `:43`,
+`textKey` `:44`. Bindings at `:51-83`: Esc closes; Tab/Backtab cycle;
+`hjkl` and arrows move; Return/Space activate.
+
+`Ui/Button` (`Ui/Button.qml`): `text` `:23`, `tooltipText` `:25`,
+`hasCursor` `:30`, `focusable` `:31`, `bordered` `:33`, `foreground` `:35`,
+`fontFamily` `:40`, `signal clicked()` `:61`. It carries no `enabled` property
+of its own; `enabled` is `QQuickItem`'s and propagates to the internal
+`MouseArea`, which is what makes REQ-011's disabled Refresh actually inert.
+
+`Ui/PanelHero` (`Ui/PanelHero.qml`): `iconComponent` `:7`, `title` `:8`,
+`meta` `:9`, `detail` `:10`, `foreground` `:11`, `fontFamily` `:12`,
+`iconSize` `:13`, `iconOpacity` `:14`, `trailingControl` `:20`.
+
+`Ui/PanelSectionHeader` (`Ui/PanelSectionHeader.qml`) is a `Text` subtype;
+callers bind `text` from outside `:14-16` (the file says so in its own comment). Properties `foreground` `:10`,
+`fontFamily` `:11`, `fontSize` `:12`.
+
+`Ui/PanelSeparator` (`Ui/PanelSeparator.qml`): `foreground` `:10`,
+`strength` `:11`; it takes its width from its parent `:13`.
+
+### HC-18: `qmllint` cannot see inside an inline `QtObject`
+
+Every grouped theme token in Omarchy is an unnamed `QtObject` sub-object —
+`Style.font` (`Commons/Style.qml:322`), `Style.spacing` (`:234`), `Style.bar`
+(`:342`), `Color.bar` / `Color.popups` / `Color.tooltip` (`Commons/Color.qml:73`,
+`:78`, `:83`) — and every bar-injected colour arrives through a property
+declared `QtObject` (`Ui/Panel.qml:12`, `Ui/KeyboardPanel.qml:40`).
+
+`qmllint` resolves none of them. With `--missing-property error` it reports
+each access as
+
+```
+Error: file.qml:1:1: Member "md" not found on type "QObject" [missing-property]
+```
+
+This is not a property of this repository: the **shipped** tailscale plugin
+emits 35 of the identical error under the same invocation (verified 2026-09-06,
+Qt 6). `tests/lint/qmllint.sh` therefore exempts that one message shape, by
+**resolved type** rather than by file, line or property name — `QObject` is
+qmllint's "I could not resolve the container" answer, so the exemption covers
+exactly the set of accesses about which the tool has no information. A typo on
+a type it *can* resolve still reads `not found on type "Text"` and still fails;
+`tests/lint/selftest.sh` seeds one to prove it.
+
 ---
 
 ## 8. Theme tokens

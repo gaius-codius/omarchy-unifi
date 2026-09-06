@@ -5,10 +5,40 @@ the bar and a popup panel with WAN state, device counts, and which devices are
 offline. It is **read-only** — it issues six GET requests and never changes
 anything on your controller.
 
-> **Status: pre-release.** Phase 0 of `docs/feature-specs/omarchy-unifi-plugin/PLAN.md`.
-> The manifest, entry-point stubs, and the full gate and test harness are in
-> place. The service, panel, and helper are not written yet, so installing this
-> today gets you a widget that does nothing.
+> **Status: pre-release.** Through Phase 10 of
+> `docs/feature-specs/omarchy-unifi-plugin/PLAN.md`. The helper, the service and
+> the view layer are written and tested; the plugin has not yet been installed
+> into a real Omarchy shell or pointed at a real controller, which are Phases 11
+> and 12. Installing it today is untested territory.
+
+## What it shows
+
+**On the bar:** one glyph, coloured by overall site health using Omarchy theme
+tokens only — there are no hard-coded colours, so it follows your theme,
+including light ones. The theme exposes no green/amber/red, so the four health
+levels are four theme-native *visual* levels rather than four hues: the plain
+foreground when healthy, the foreground plus a small urgent dot when degraded,
+the urgent colour when every gateway is down, and dimmed when the reading is
+unknown or too old to trust. Colour is never the only signal — the tooltip and
+the panel always say the condition in words. Optionally, the connected client
+count sits beside the glyph.
+
+A small hollow ring in the opposite corner means the *last refresh* failed while
+the reading you are looking at is still current. That is deliberately a
+different shape in a different place from the degraded dot, because "I could not
+reach the controller" and "the controller says something is wrong" are different
+problems.
+
+**In the panel:** the site name and how long ago it last updated; WAN state with
+the gateway's uptime and current throughput; every gateway listed individually;
+the connected client count and the number of adopted devices; per-role counts in
+each of the five device states; the devices that are down or impaired, with an
+honest "and N more" when there are more than fit; and any warnings the last
+fetch raised, each with its code so it is searchable.
+
+When something is wrong, the panel says which of twenty-four conditions it is
+and names the single action that fixes it. A metric the controller did not
+report reads "unknown" — never `0`.
 
 ## Requirements
 

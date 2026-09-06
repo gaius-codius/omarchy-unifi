@@ -95,6 +95,16 @@ check no_repo_writes copy \
 check qmllint copy \
   'printf "import QtQuick\nItem { NoSuchType { } }\n" > Seed.qml'
 
+# The second qmllint seed guards the QObject-member exemption the gate carries.
+# That exemption skips `Member "x" not found on type "QObject"` — qmllint's
+# answer when it could not resolve the container at all — and the risk of any
+# exemption is that it quietly covers more than it was meant to. This seed is
+# the SAME message shape on a type qmllint CAN resolve, so it survives the
+# filter and must still fail the gate. If someone widens the exemption to the
+# message rather than the type, this is what stops it.
+check qmllint copy \
+  'printf "import QtQuick\nItem { Text { id: t; text: \"x\" } property int n: t.pixelSizzle }\n" > Seed.qml'
+
 # The banned term is assembled from halves for the same reason the gate does
 # it: writing it literally here would make this file trip the gate it tests.
 check no_latency_metric copy \

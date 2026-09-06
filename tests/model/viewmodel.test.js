@@ -557,3 +557,266 @@ test("build never throws on a snapshot it has never seen before", () => {
   assert.doesNotThrow(() => ViewModel.build(null))
   assert.doesNotThrow(() => ViewModel.build({}))
 })
+
+// --- Phase 10: the rows the view binds to --------------------------------
+//
+// Everything below exists because CP7 requires the panel to render from `vm`
+// with NO computation in QML. A string that is assembled in a .qml file is a
+// string `node --test` cannot read, so each of these is the testable half of
+// something the panel would otherwise be doing in a binding.
+
+test("the ok state has no sentence, and every other state has one", () => {
+  // The defect this pins: `panelState` returns "ok" for a healthy site, "ok" is
+  // deliberately not in PANEL_SENTENCES (REQ-013 enumerates the twenty-four
+  // conditions that need EXPLAINING, and healthy is not one), and
+  // `sentenceFor`'s DATA-007 fallback maps anything unknown to `internal`.
+  // Wired naively, a perfectly healthy panel reads "The plugin hit an internal
+  // error."
+  const healthy = build()
+  assert.strictEqual(healthy.state, "ok")
+  assert.strictEqual(healthy.sentence, "")
+  assert.ok(!/internal error/i.test(healthy.sentence))
+
+  for (const state of ViewModel.PANEL_STATES) {
+    assert.ok(ViewModel.sentenceFor(state).length > 0, state)
+  }
+  assert.ok(build({ errorKind: "network" }).sentence.length > 0)
+  assert.ok(build({ snapshot: null }).sentence.length > 0)
+})
+
+test("REQ-008: every WAN row is present, and an absent metric is unknown", () => {
+  const rows = ViewModel.wanRows({ status: "up", uptimeSec: null,
+    downloadBps: null, uploadBps: 0 })
+  assert.deepStrictEqual(rows.map((r) => r.key),
+    ["status", "uptime", "download", "upload"])
+  assert.strictEqual(rows[0].value, "Up")
+  // BIZ-003: null is "unknown"; a real zero is "0 bps". REQ-008 also forbids
+  // dropping the row, which would read as "there is no uplink".
+  assert.strictEqual(rows[1].value, "unknown")
+  assert.strictEqual(rows[2].value, "unknown")
+  assert.strictEqual(rows[3].value, "0 bps")
+  assert.strictEqual(ViewModel.wanRows(null).length, 4)
+  assert.strictEqual(ViewModel.wanRows(undefined)[0].value, "Unknown")
+})
+
+test("REQ-008a: the WAN status word is total over the domain", () => {
+  assert.deepStrictEqual(Object.keys(ViewModel.WAN_STATUS_WORD).sort(),
+    ["degraded", "down", "unknown", "up"])
+  for (const status of ["up", "down", "degraded", "unknown"]) {
+    assert.ok(ViewModel.wanStatusWord(status).length > 0, status)
+  }
+  // A newer helper must not brick an older panel.
+  assert.strictEqual(ViewModel.wanStatusWord("flapping"), "Unknown")
+  assert.strictEqual(ViewModel.wanStatusWord(undefined), "Unknown")
+})
+
+test("REQ-008a: each gateway is listed, and 'not fetched' is not 'unknown'", () => {
+  const rows = ViewModel.gatewayRows([
+    { id: "g-1", name: "UDM Pro", model: "UDM-Pro", class: "online",
+      uptimeSec: 3600, downloadBps: 1000, uploadBps: 2000 },
+    // Past REQ-008a's four-gateway statistics bound: never fetched, so all
+    // three metrics are absent together. That is a different fact from one
+    // metric failing, and the panel says so.
+    { id: "g-5", name: null, model: null, class: "down",
+      uptimeSec: null, downloadBps: null, uploadBps: null }
+  ])
+  assert.strictEqual(rows[0].nameText, "UDM Pro")
+  assert.strictEqual(rows[0].classText, "online")
+  assert.strictEqual(rows[0].hasMetrics, true)
+  // A nameless device falls back to its id, which is identifiable; falling back
+  // to "" would print a blank line the user cannot act on.
+  assert.strictEqual(rows[1].nameText, "g-5")
+  assert.strictEqual(rows[1].modelText, "unknown model")
+  assert.strictEqual(rows[1].hasMetrics, false)
+  assert.strictEqual(ViewModel.gatewayRows(null).length, 0)
+  assert.strictEqual(ViewModel.gatewayRows("nonsense").length, 0)
+})
+
+test("REQ-009: role rows carry all five classes in a fixed order", () => {
+  const rows = ViewModel.countRows(HEALTHY.counts)
+  assert.deepStrictEqual(rows.map((r) => r.key),
+    ["gateways", "switches", "accessPoints"])
+  for (const row of rows) {
+    // Fixed, and fixed deliberately: `for (key in obj)` is not required to
+    // agree between V4 and V8, and a row whose columns move between renders is
+    // unreadable.
+    assert.deepStrictEqual(row.cells.map((c) => c.key), ViewModel.CLASS_ORDER)
+    assert.strictEqual(row.cells.length, 5)
+  }
+  assert.strictEqual(rows[2].total, 2)
+  // A missing bucket is skipped rather than rendered as five zeros, which
+  // would claim the controller reported something it did not.
+  assert.strictEqual(ViewModel.countRows({ gateways: null }).length, 0)
+  assert.strictEqual(ViewModel.countRows(null).length, 0)
+})
+
+test("AC-025: the not-a-partition note names the unique total", () => {
+  const counts = JSON.parse(JSON.stringify(HEALTHY.counts))
+  counts.devicesTotal = 3
+  counts.accessPoints.online = 3
+  const model = ViewModel.build({ snapshot: Object.assign({}, HEALTHY,
+    { counts: counts }), level: { level: "green" } })
+  assert.strictEqual(model.roleCountsAreNotAPartition, true)
+  assert.ok(model.roleCountsNote.indexOf("3 adopted devices") !== -1,
+    "the note must name the total the rows do not sum to: " + model.roleCountsNote)
+  // Silent when the rows do happen to agree, so it never explains away a
+  // discrepancy that is not there.
+  assert.strictEqual(build().roleCountsAreNotAPartition, false)
+  assert.strictEqual(build().roleCountsNote, "")
+  const one = { devicesTotal: 1, gateways: { online: 2 } }
+  assert.ok(ViewModel.roleCountsNote(one).indexOf("1 adopted device.") !== -1,
+    "singular: " + ViewModel.roleCountsNote(one))
+})
+
+test("REQ-010: an offline row carries the words the panel prints", () => {
+  const model = ViewModel.build({
+    snapshot: {
+      counts: { devicesTotal: 3, offlineTotal: 2 },
+      offlineDevices: [
+        { id: "d-1", name: "Garage AP", model: "U6-Lite", class: "down" },
+        { id: "d-2", name: "", model: "", class: "impaired" }
+      ]
+    },
+    level: { level: "amber" }
+  })
+  assert.strictEqual(model.offline.devices[0].nameText, "Garage AP")
+  assert.strictEqual(model.offline.devices[0].classText, "down")
+  assert.strictEqual(model.offline.devices[1].nameText, "d-2")
+  assert.strictEqual(model.offline.devices[1].modelText, "unknown model")
+  assert.strictEqual(model.offline.devices[1].classText, "impaired")
+  assert.strictEqual(ViewModel.displayName({}), "unnamed device")
+  // REQ-003: an unrecognised state is reported as unknown, never as the empty
+  // string, which would read as "fine".
+  assert.strictEqual(ViewModel.classWord("MOON_PHASE"), "unknown")
+  assert.strictEqual(ViewModel.classWord(undefined), "unknown")
+})
+
+test("AC-052: every meta row is present, and a null field reads unknown", () => {
+  // The two failure kinds that most need a `meta` — unconfigured and
+  // uncommitted — are precisely the ones where the configuration could not be
+  // read, so this is the shape the panel sees when it has least to say.
+  const rows = ViewModel.metaRows({ commitGeneration: null, apiRootHost: null,
+    siteId: null, allowInsecureTls: null, customCaInUse: null,
+    helperVersion: "0.1.0" })
+  assert.deepStrictEqual(rows.map((r) => r.key),
+    ["apiRootHost", "siteId", "helperVersion", "commitGeneration"])
+  assert.strictEqual(rows[0].value, "unknown")
+  assert.strictEqual(rows[2].value, "0.1.0")
+  assert.strictEqual(ViewModel.metaRows(null).length, 4)
+  // A commit generation of 0 is a real generation, not an absent one.
+  assert.strictEqual(ViewModel.metaRows({ commitGeneration: 0 })[3].value, "0")
+})
+
+test("UX-009: the insecure-TLS flag is a boolean on every path", () => {
+  // Bound to one property with no `&&` in it, so there is no arrangement of a
+  // null meta in which the row quietly becomes undefined instead of false.
+  assert.strictEqual(build({ meta: { allowInsecureTls: true } }).insecureTls, true)
+  assert.strictEqual(build({ meta: { allowInsecureTls: null } }).insecureTls, false)
+  assert.strictEqual(build({ meta: null }).insecureTls, false)
+  assert.strictEqual(ViewModel.forNullService().insecureTls, false)
+  assert.strictEqual(build({ meta: { customCaInUse: true } }).customCaInUse, true)
+  // AC-070: it is present on a FAILURE envelope too, which is the case where
+  // no batch has ever succeeded and the user most needs to know.
+  const failing = build({ snapshot: null, errorKind: "tls",
+    meta: { allowInsecureTls: true } })
+  assert.strictEqual(failing.insecureTls, true)
+})
+
+test("REQ-013a: a warning row keeps its code beside its sentence", () => {
+  const rows = ViewModel.warningRows([
+    { code: "insecure_tls", message: "TLS verification is disabled." },
+    { code: "clients_unavailable", message: "" },
+    // The same code twice, which is the case the key has to survive:
+    // `statistics_unavailable` is raised once per gateway, so a Repeater keyed
+    // on the code alone would collapse four warnings about four different
+    // gateways into one row.
+    { code: "statistics_unavailable", message: "Gateway A has no statistics." },
+    { code: "statistics_unavailable", message: "Gateway B has no statistics." },
+    null
+  ])
+  assert.strictEqual(rows.length, 5)
+  assert.strictEqual(rows[0].code, "insecure_tls")
+  assert.strictEqual(rows[0].text, "TLS verification is disabled.")
+  // A code with no message still prints something actionable rather than a
+  // blank row.
+  assert.strictEqual(rows[1].text, "clients_unavailable")
+  assert.strictEqual(rows[4].code, "unknown")
+  assert.strictEqual(rows[2].code, rows[3].code)
+  assert.notStrictEqual(rows[2].text, rows[3].text)
+  const keys = rows.map((r) => r.key)
+  assert.strictEqual(new Set(keys).size, keys.length,
+    "two warnings sharing a code must not share a Repeater key")
+  assert.strictEqual(ViewModel.warningRows(null).length, 0)
+})
+
+test("UX-006a: the discovered sites come out of the warning that carries them", () => {
+  const sites = ViewModel.sitesFromWarnings([
+    { code: "insecure_tls", message: "x" },
+    // DATA-012 puts the pairs under ONE code. A different warning carrying a
+    // `sites` detail is not a site list — reading every warning's detail would
+    // let an unrelated code populate UX-006a's "run scripts/configure --site
+    // <id>" list with ids that are not sites.
+    { code: "site_auto_selected", message: "z",
+      detail: { sites: [{ id: "99999999-9999-4999-8999-999999999999",
+                          name: "Not a discovery" }] } },
+    { code: "sites_discovered", message: "y", detail: { sites: [
+      { id: "11111111-1111-4111-8111-111111111111", name: "Home" },
+      { id: "22222222-2222-4222-8222-222222222222", name: null },
+      { id: "", name: "no id" },
+      { name: "no id at all" }
+    ] } }
+  ])
+  assert.strictEqual(sites.length, 2)
+  assert.ok(sites.every((site) => site.name !== "Not a discovery"),
+    "only sites_discovered carries the DATA-012 pairs")
+  assert.strictEqual(sites[0].name, "Home")
+  assert.ok(sites[0].label.indexOf("11111111-1111-4111-8111-111111111111") !== -1,
+    "UX-006a lists the id, because that is what --site takes")
+  assert.strictEqual(sites[1].name, "unnamed site")
+  assert.deepStrictEqual(ViewModel.sitesFromWarnings([]), [])
+  assert.deepStrictEqual(ViewModel.sitesFromWarnings(null), [])
+  assert.deepStrictEqual(
+    ViewModel.sitesFromWarnings([{ code: "sites_discovered", detail: null }]), [])
+})
+
+test("the hero headline states the level in words on both paths", () => {
+  // UX-002: colour is never the sole signal.
+  assert.strictEqual(ViewModel.headline("red", false, "never"),
+    "Down  ·  never updated")
+  assert.ok(ViewModel.headline("green", true, "2m ago").indexOf("2m ago") !== -1)
+  assert.ok(ViewModel.forNullService().headline.length > 0)
+  assert.ok(build().headline.indexOf("Healthy") === 0)
+})
+
+test("build's error message is a string on every path", () => {
+  assert.strictEqual(build().errorMessage, "")
+  assert.strictEqual(build({ error: { kind: "tls", message: "bad cert" } }).errorMessage,
+    "bad cert")
+  assert.strictEqual(build({ error: { kind: "tls" } }).errorMessage, "")
+  assert.strictEqual(build({ error: null }).errorMessage, "")
+})
+
+test("every key the view binds to survives a snapshot-less model", () => {
+  // The Phase 10 view binds around forty properties. A key present in `build`
+  // and absent from EMPTY_MODEL becomes `undefined` on exactly the frame
+  // REQ-013b exists for, which is the frame nobody tests by hand.
+  const full = build()
+  const empty = ViewModel.forNullService()
+  for (const key of Object.keys(full)) {
+    assert.ok(Object.prototype.hasOwnProperty.call(empty, key),
+      "forNullService is missing " + key)
+    assert.ok(Object.prototype.hasOwnProperty.call(ViewModel.EMPTY_MODEL, key),
+      "EMPTY_MODEL is missing " + key)
+  }
+  for (const key of Object.keys(ViewModel.EMPTY_MODEL)) {
+    assert.ok(Object.prototype.hasOwnProperty.call(full, key),
+      "build is missing " + key)
+  }
+  // The array-valued keys must be arrays, not null: a Repeater bound to null
+  // is a warning per delegate rather than an empty list.
+  for (const key of ["wanRows", "gatewayRows", "countRows", "warningRows",
+                     "sites", "metaRows", "gateways", "warnings"]) {
+    assert.ok(Array.isArray(empty[key]), key + " must be an array when empty")
+    assert.ok(Array.isArray(full[key]), key + " must be an array when populated")
+  }
+})

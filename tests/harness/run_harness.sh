@@ -7,16 +7,57 @@
 # approval.
 set -uo pipefail
 
+# --- --only <regex> ----------------------------------------------------------
+# Runs just the cases whose name matches <regex>. Purely a development
+# aid: the full run takes five minutes, because several assertions are ABOUT
+# durations of 17, 26 and 31 seconds and cannot be made shorter without
+# testing something else. Filtering breaks the ordering some cases rely on, so
+# a checkpoint always runs unfiltered — and the teardown assertion below is
+# skipped when a filter is in force, because it belongs to a case that may not
+# have run.
+ONLY=""
+if [[ ${1:-} == --only ]]; then
+  ONLY="${2:-}"
+  [[ -n $ONLY ]] || { echo "run_harness.sh: --only needs a regex" >&2; exit 2; }
+fi
+
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"
 STUB_ROOT="/tmp/unifi-harness/plugin"
 QML_ROOT="/tmp/unifi-harness/qml"
 
-# The dual-use modules Service.qml imports. Symlinked rather than copied so the
-# harness cannot silently test a stale snapshot of the code.
-MODULES=(Service.qml Health.js Protocol.js Schedule.js Settings.js ViewModel.js)
+# One run at a time. Both roots are fixed paths that this script deletes and
+# rebuilds, and the stub's scenario file is shared mutable state, so two
+# overlapping runs rewrite each other's fixtures mid-case and every verdict in
+# both is noise. That has now happened twice in this project — once to the
+# mutation probe loop (see the lock in its probe script) and once here — so it
+# is made impossible rather than left as something to remember.
+mkdir -p /tmp/unifi-harness
+exec 9>/tmp/unifi-harness/.run.lock
+if ! flock -w 600 9; then
+  echo "run_harness.sh: another run holds the lock" >&2
+  exit 2
+fi
+
+# The dual-use modules Service.qml imports, and the Phase 10 view layer.
+# Symlinked rather than copied so the harness cannot silently test a stale
+# snapshot of the code.
+#
+# Panel.qml and its five components go in beside them because a bar widget is
+# loaded from ONE directory at runtime — `Panel.qml` reaches `BarItem.qml` and
+# `ViewModel.js` through the implicit directory import and a relative `.js`
+# import, and both of those resolve against the config root. Testing the view
+# from anywhere else would test a layout that never ships.
+MODULES=(
+  Service.qml Health.js Protocol.js Schedule.js Settings.js ViewModel.js
+  Panel.qml BarItem.qml HealthColor.qml UnifiGlyph.qml StatusPanel.qml
+  DeviceList.qml WarningList.qml
+)
+
+SHELL_TREE=/usr/share/omarchy/shell
 
 command -v quickshell >/dev/null 2>&1 || { echo "run_harness.sh: quickshell not on PATH" >&2; exit 2; }
 [[ -n ${WAYLAND_DISPLAY:-} ]] || { echo "run_harness.sh: needs a live Wayland session (HC-11)" >&2; exit 2; }
+[[ -d $SHELL_TREE ]] || { echo "run_harness.sh: $SHELL_TREE not found" >&2; exit 2; }
 
 for dir in "$STUB_ROOT" "$QML_ROOT"; do
   case "$dir" in
@@ -40,14 +81,34 @@ mkdir -p "$QML_ROOT"
 for module in "${MODULES[@]}"; do
   ln -s "$REPO/$module" "$QML_ROOT/$module"
 done
+
+# HC-17: `qs.X` maps to <config-root>/X/qmldir — NOT <config-root>/qs/X, which
+# is the qmllint convention and the opposite one. Every shell module directory
+# carrying a qmldir is linked, rather than just Ui and Commons, so a future
+# Omarchy release that adds one does not surface as "module is not installed"
+# in a test that has nothing to do with it.
+found=0
+for d in "$SHELL_TREE"/*/; do
+  [[ -f "$d/qmldir" ]] || continue
+  ln -s "${d%/}" "$QML_ROOT/$(basename "$d")"
+  found=$((found + 1))
+done
+(( found > 0 )) || { echo "run_harness.sh: no qmldir modules under $SHELL_TREE" >&2; exit 2; }
+
 cp "$REPO/tests/harness/runner.qml" "$QML_ROOT/runner.qml"
-printf '{"repoRoot":"%s","stubRoot":"%s"}\n' "$REPO" "$STUB_ROOT" > "$QML_ROOT/harness.json"
+printf '{"repoRoot":"%s","stubRoot":"%s","only":"%s"}\n' \
+  "$REPO" "$STUB_ROOT" "$ONLY" > "$QML_ROOT/harness.json"
 
 # QML_XHR_ALLOW_FILE_READ: Qt refuses XMLHttpRequest against file:// URLs
 # unless this is set, and the runner reads the fixture corpus that way — the
 # same 77 envelopes `node --test` drives, so that V4's verdicts can be compared
 # with V8's. It is scoped to this one process and affects nothing that ships.
-out="$(QML_XHR_ALLOW_FILE_READ=1 timeout 240 quickshell -p "$QML_ROOT/runner.qml" 2>&1)"
+# 420 s, not 240: the service cases alone spend 17 s, 26 s and 31 s inside
+# single assertions — REQ-023a's cadence, REQ-016's skipped ticks and REQ-017a's
+# watchdog cannot be observed in less time than they take — and Phase 10 added
+# another 12 s of view cases. The bound exists to stop a wedged harness hanging
+# a checkpoint, so it is set well above the real runtime rather than near it.
+out="$(QML_XHR_ALLOW_FILE_READ=1 timeout 420 quickshell -p "$QML_ROOT/runner.qml" 2>&1)"
 status=$?
 
 # Quickshell prefixes every console.log with a colourised level tag.
@@ -62,11 +123,13 @@ fi
 # AC-028: teardown emits one line naming each released resource. Asserted here
 # rather than inside the runner, because the runner cannot observe its own
 # console output.
-if grep -q 'gaius-codius.unifi: released wakeTimer, watchdog, freshnessTimer, helper Process' <<< "$clean"; then
-  echo "HARNESS: ok   teardown named every released resource"
-else
-  echo "HARNESS: FAIL teardown named every released resource" >&2
-  exit 1
+if [[ -z $ONLY ]]; then
+  if grep -q 'gaius-codius.unifi: released wakeTimer, watchdog, freshnessTimer, helper Process' <<< "$clean"; then
+    echo "HARNESS: ok   teardown named every released resource"
+  else
+    echo "HARNESS: FAIL teardown named every released resource" >&2
+    exit 1
+  fi
 fi
 
 if grep -q 'HARNESS RESULT: PASS' <<< "$clean"; then

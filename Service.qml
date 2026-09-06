@@ -97,6 +97,14 @@ Item {
   property int _launchTag: 0
   property int _activeTag: -1
 
+  // DATA-011 / UX-004. True from the moment a reload is accepted until the
+  // first batch after it completes. It is a separate flag rather than an
+  // inference from "no snapshot", because "no snapshot yet" is `loading` and
+  // means something entirely different to the user: one says the first reading
+  // is on its way, the other says the reading you were looking at has been
+  // thrown away because it may have come from a different controller.
+  property bool _reconfiguring: false
+
   property var _snapshot: null          // the last COMPLETE successful data object
   property var _snapshotMeta: null
   property var _warnings: []
@@ -238,6 +246,15 @@ Item {
   // The service owns that tick so widgets can bind to a published value.
   Timer {
     id: freshnessTimer
+    // AC-071 / UX-007 are satisfied here, not in Panel.qml. The relative
+    // strings — "in 4m", "2h ago" — are rebuilt by _recompute(), so a tick of
+    // this timer IS the recomputation the panel needs, at 5 s against a
+    // required 15 s.
+    //
+    // A second timer inside the panel would be a second clock: one per monitor,
+    // each with its own idea of "now", against REQ-014's rule that per-monitor
+    // widgets hold no state. The one that already exists is in the object that
+    // owns the clock, so every widget updates from the same instant.
     interval: 5000
     repeat: true
     running: root.ready
@@ -366,8 +383,20 @@ Item {
       overdue: immediate === true || Schedule.wallOverdue(_schedule, clocks.nowWall())
     })
     _schedule = out.state
-    if (out.launched) _launch()
-    else _rearm()
+    if (out.launched) {
+      _launch()
+    } else {
+      _rearm()
+      // DATA-011: `reconfiguring` is a PROMISE that a new reading is on its
+      // way. A tick that launched nothing against a scheduler that is not in a
+      // batch means none is coming — the new configuration is faulty and
+      // polling is suspended — so the promise has to give way to the fault's
+      // own sentence. Without this, a reload into `unconfigured`,
+      // `uncommitted`, `configuration_conflict` or `site_unselected` replaces
+      // four messages that each name the fix with "Applying the new
+      // configuration", permanently.
+      if (_schedule.state !== "active-batch") _reconfiguring = false
+    }
     _recompute()
   }
 
@@ -624,6 +653,12 @@ Item {
   }
 
   function _afterBatch() {
+    // DATA-011: `reconfiguring` ends when the FIRST batch after the reload
+    // completes, whatever its outcome. Ending it on success alone would leave a
+    // controller that is now unreachable reading "applying the new
+    // configuration" forever, which is the one thing it is not doing.
+    _reconfiguring = false
+
     // REQ-018: a manual refresh coalesced during the batch starts now.
     var pending = Schedule.takePendingManual(_schedule, {
       now: clocks.now(), nowWall: clocks.nowWall()
@@ -667,6 +702,7 @@ Item {
       isStale: stale
     })
     viewModel = ViewModel.build({
+      reconfiguring: _reconfiguring,
       snapshot: _snapshot,
       meta: _snapshotMeta,
       level: level,
@@ -699,6 +735,20 @@ Item {
     _schedule = Schedule.create({
       configured: false, intervalSec: _settings.refreshIntervalSec
     })
+
+    // DATA-011: a reload clears the CACHED SNAPSHOT as well as the retry state.
+    // The new configuration may point at a different controller entirely, and
+    // continuing to display the old site's device counts under the new site's
+    // name would be a lie the user has no way to detect. UX-004 names this as
+    // the one case where a widget with a snapshot is allowed to blank.
+    _snapshot = null
+    _snapshotMeta = null
+    _warnings = []
+    _errorKind = ""
+    _lastError = null
+    _reconfiguring = true
+    _recompute()
+
     Qt.callLater(root._afterReload)
   }
 
@@ -726,6 +776,7 @@ Item {
       isStale: Schedule.isStale(_schedule, clocks.nowWall()),
       errorKind: _errorKind === "" ? null : _errorKind,
       hasSnapshot: _snapshot !== null,
+      reconfiguring: _reconfiguring,
       healthLevel: viewModel ? viewModel.healthLevel : null,
       panelState: viewModel ? viewModel.state : null,
       warnings: _warnings.map(function (w) { return w.code }),

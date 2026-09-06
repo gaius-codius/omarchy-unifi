@@ -28,6 +28,10 @@ import Quickshell.Io
 import "Protocol.js" as Protocol
 import "ViewModel.js" as ViewModel
 import "Schedule.js" as Schedule
+// HC-17. The view layer needs the real theme singletons, which resolve because
+// run_harness.sh links every shell module directory into the harness root.
+// Nothing is staged: this is a root under /tmp that Omarchy never reads.
+import qs.Commons
 
 ShellRoot {
   id: harness
@@ -151,12 +155,15 @@ ShellRoot {
     injectHost(service, intervalSec === undefined ? 30 : intervalSec)
   }
 
-  function injectHost(instance, intervalSec, duplicate) {
+  function injectHost(instance, intervalSec, duplicate, extra) {
     var layout = { left: [], center: [], right: [] }
     var entry = { id: "gaius-codius.unifi" }
     if (intervalSec !== undefined && intervalSec !== null) {
       entry.refreshIntervalSec = intervalSec
     }
+    // DATA-002b: the service reads its settings out of `bar.layout`, not from
+    // the injected `settings`, so REQ-005's compactMetric has to arrive here.
+    if (extra) { for (var key in extra) entry[key] = extra[key] }
     layout.right.push(entry)
     if (duplicate !== undefined && duplicate !== null) {
       layout.left.push({ id: "gaius-codius.unifi", refreshIntervalSec: duplicate })
@@ -187,17 +194,39 @@ ShellRoot {
     onTriggered: harness.runAssert()
   }
 
+  // `prepare` and `setup` are wrapped for a reason found the hard way: an
+  // exception in either one skipped `driver.start()`, so the driver never
+  // fired, `runNext` was never reached, and the whole harness sat silent until
+  // the outer `timeout` killed it seven minutes later. A test that hangs
+  // instead of failing costs more than the bug it was hiding — here, a case
+  // calling a method on a service an earlier case had destroyed.
   function runNext() {
     if (pending.length === 0) { finish(); return }
     currentCase = pending.shift()
     console.log("HARNESS: -- " + currentCase.name)
-    if (currentCase.prepare) currentCase.prepare()
+    if (currentCase.prepare) {
+      try {
+        currentCase.prepare()
+      } catch (e) {
+        bad(currentCase.name, "prepare threw: " + e)
+        Qt.callLater(harness.runNext)
+        return
+      }
+    }
     afterWriter(harness.runAct)
   }
 
   function runAct() {
     currentCase.startedAt = Date.now()
-    if (currentCase.setup) currentCase.setup()
+    if (currentCase.setup) {
+      try {
+        currentCase.setup()
+      } catch (e) {
+        bad(currentCase.name, "setup threw: " + e)
+        Qt.callLater(harness.runNext)
+        return
+      }
+    }
     driver.interval = currentCase.waitMs === undefined ? 0 : currentCase.waitMs
     driver.start()
   }
@@ -237,6 +266,21 @@ ShellRoot {
     console.log("HARNESS: repo=" + repoRoot + " stub=" + stubRoot)
     pureCases()
     serviceCases()
+    uiCases()
+    // run_harness.sh --only <regex>. A development aid; see the note there.
+    // A regex rather than a substring because the cases that matter are rarely
+    // adjacent: several of them depend on a service or a panel an earlier case
+    // built, so a useful filter is usually an alternation.
+    var only = typeof config.only === "string" ? config.only : ""
+    if (only !== "") {
+      var pattern = new RegExp(only)
+      var kept = []
+      for (var i = 0; i < pending.length; i++) {
+        if (pattern.test(pending[i].name)) kept.push(pending[i])
+      }
+      pending = kept
+      console.log("HARNESS: --only " + only + " selected " + pending.length + " case(s)")
+    }
     runNext()
   }
 
@@ -468,6 +512,762 @@ ShellRoot {
   // =========================================================================
   // Service cases: the real Process, real timers, real signals
   // =========================================================================
+
+
+  // =========================================================================
+  // Phase 10: the view layer (CP7)
+  //
+  // The panel is instantiated the way the host instantiates it — constructed
+  // first, `bar` assigned afterwards — because DATA-003a's whole hazard is the
+  // frame where `bar` is still null. Everything asserted here is either a
+  // decision the view makes (AC-011's launcher, UX-008's focus ring) or a
+  // string that reached the screen (REQ-008/009/010/013a).
+  // =========================================================================
+
+  property var panelWidget: null
+  property var openedUrls: []
+
+  // The stub bar. Only what the widget and the qs.Ui components actually
+  // touch, so a new host dependency shows up here as an undefined rather than
+  // being quietly satisfied by a catch-all.
+  Component {
+    id: stubBarFactory
+    QtObject {
+      property var shell: null
+      // Deliberately NOT the Color.* defaults. A stub whose colours match the
+      // fallbacks makes "takes its colour from the bar" and "fell back to the
+      // theme singleton" indistinguishable — a widget that ignored `bar`
+      // entirely would paint identically and pass.
+      property color foreground: "darkseagreen"
+      property color barForeground: "steelblue"
+      property color urgent: "firebrick"
+      property string fontFamily: Style.font.family
+      property bool vertical: false
+      property int barSize: Style.bar.sizeHorizontal
+      property string position: "top"
+      property bool foregroundAnimationEnabled: false
+      property var activePopout: null
+      function showTooltip(item, text) {}
+      function hideTooltip(item) {}
+      function registerClickTarget(item) {}
+      function unregisterClickTarget(item) {}
+      // REQ-007a is the host's, not ours (HC-13). The stub records the calls
+      // so a panel that started arbitrating for itself would be visible.
+      function requestPopout(key) { return true }
+      function releasePopout(key) {}
+    }
+  }
+  Component {
+    id: stubShellForWidget
+    QtObject {
+      property var unifiService: null
+      function serviceFor(id) {
+        return id === "gaius-codius.unifi" ? unifiService : null
+      }
+    }
+  }
+
+  function createPanel() {
+    var component = Qt.createComponent("Panel.qml", Component.PreferSynchronous)
+    if (component.status !== Component.Ready) {
+      bad("Panel.qml loads", component.errorString())
+      return null
+    }
+    var instance = component.createObject(harness)
+    if (instance === null) {
+      bad("Panel.qml instantiates", "createObject returned null")
+      return null
+    }
+    // AC-011: the launcher is replaced before anything can call it, so a
+    // browser is never opened by the suite and the call is observable.
+    openedUrls = []
+    instance.urlOpener = function (url) { harness.openedUrls.push(String(url)) }
+    return instance
+  }
+
+  function attachBar(widget, unifiService) {
+    var shell = stubShellForWidget.createObject(harness, { unifiService: unifiService })
+    var stub = stubBarFactory.createObject(harness, { shell: shell })
+    widget.bar = stub
+    return stub
+  }
+
+  // Every string that reached an item, wherever it is in the tree. A panel that
+  // "renders from vm" is only demonstrated by the text actually arriving on
+  // screen — a binding that was never evaluated because its delegate was never
+  // created reads identically from the outside.
+  function collectText(node, out, depth) {
+    if (node === null || node === undefined || depth > 20) return out
+    // INVISIBLE SUBTREES ARE SKIPPED. Without this the walk proves only that a
+    // binding evaluated, not that anything reached the screen — and `visible:
+    // false` on the gateway list and on the insecure-TLS row both survived a
+    // mutation pass while every assertion still passed.
+    try { if (node.visible === false) return out } catch (e) { /* not an item */ }
+    try {
+      if (typeof node.text === "string" && node.text !== "") out.push(node.text)
+    } catch (e) { /* not a text-bearing object */ }
+    var kids = null
+    try { kids = node.data } catch (e) { kids = null }
+    if (kids === null || kids === undefined) {
+      try { kids = node.children } catch (e) { kids = null }
+    }
+    if (kids === null || kids === undefined) return out
+    var length = 0
+    try { length = kids.length } catch (e) { return out }
+    for (var i = 0; i < length; i++) {
+      var child = null
+      try { child = kids[i] } catch (e) { child = null }
+      collectText(child, out, depth + 1)
+    }
+    try {
+      if (node.contentItem !== undefined && node.contentItem !== null) {
+        collectText(node.contentItem, out, depth + 1)
+      }
+    } catch (e) { /* not a window */ }
+    return out
+  }
+
+  // The same walk, for a property that is not `text`. `tooltipText` lives on
+  // the BarIconButton, which is not reachable by id from here — the widget is
+  // created by Qt.createComponent, exactly as the host creates it, so the
+  // runner sees only its root.
+  function collectProperty(node, name, out, depth) {
+    if (node === null || node === undefined || depth > 20) return out
+    try { if (node.visible === false) return out } catch (e) { /* not an item */ }
+    try {
+      var value = node[name]
+      if (value !== undefined && value !== null && value !== "") out.push(value)
+    } catch (e) { /* no such property here */ }
+    var kids = null
+    try { kids = node.data } catch (e) { kids = null }
+    if (kids === null || kids === undefined) return out
+    var length = 0
+    try { length = kids.length } catch (e) { return out }
+    for (var i = 0; i < length; i++) {
+      var child = null
+      try { child = kids[i] } catch (e) { child = null }
+      collectProperty(child, name, out, depth + 1)
+    }
+    return out
+  }
+
+  function findByObjectName(node, wanted, depth) {
+    if (node === null || node === undefined || depth > 20) return null
+    try { if (node.objectName === wanted) return node } catch (e) { /* not a QObject */ }
+    var kids = null
+    try { kids = node.data } catch (e) { kids = null }
+    if (kids === null || kids === undefined) return null
+    var length = 0
+    try { length = kids.length } catch (e) { return null }
+    for (var i = 0; i < length; i++) {
+      var child = null
+      try { child = kids[i] } catch (e) { child = null }
+      var hit = findByObjectName(child, wanted, depth + 1)
+      if (hit !== null) return hit
+    }
+    return null
+  }
+
+  function panelTextContains(needle) {
+    var found = collectText(panelWidget, [], 0)
+    for (var i = 0; i < found.length; i++) {
+      if (String(found[i]).indexOf(needle) !== -1) return true
+    }
+    return false
+  }
+
+  function uiCases() {
+    // --- AC-067 / DATA-003a -------------------------------------------------
+    pending.push({
+      name: "AC-067: the widget renders service_unavailable with no bar at all",
+      waitMs: 60,
+      setup: function () { panelWidget = createPanel() },
+      assert: function () {
+        if (panelWidget === null) return
+        // The first frame. `bar` has never been assigned, so
+        // `bar?.shell?.serviceFor(...)` is null and REQ-013b applies.
+        check("the service reference is null", null, panelWidget.unifiService)
+        check("the state is service_unavailable", "service_unavailable",
+              panelWidget.vm.state)
+        check("the sentence is not blank", true, panelWidget.vm.sentence.length > 0)
+        // Bar.qml:1581-1582 sizes the slot from these. A zero-sized widget is
+        // an invisible one, which is the other way REQ-013b fails.
+        check("the widget has a non-zero implicit width", true,
+              panelWidget.implicitWidth > 0)
+        check("the widget has a non-zero implicit height", true,
+              panelWidget.implicitHeight > 0)
+        check("no binding produced undefined", false,
+              String(panelWidget.vm.tooltip).indexOf("undefined") !== -1)
+      }
+    })
+
+    pending.push({
+      name: "AC-067: a bar whose shell has no service renders the same state",
+      waitMs: 200,
+      setup: function () {
+        attachBar(panelWidget, null)
+        // The text walk skips invisible subtrees, so the panel has to be open
+        // for its content to count as rendered. It stays open for the rest of
+        // the view cases.
+        panelWidget.open()
+      },
+      assert: function () {
+        if (panelWidget === null) return
+        check("serviceFor returned null", null, panelWidget.unifiService)
+        check("the state is still service_unavailable", "service_unavailable",
+              panelWidget.vm.state)
+        check("the sentence reached the panel", true,
+              panelTextContains("service is not running"))
+      }
+    })
+
+    // --- AC-034: the four REQ-001a expressions ------------------------------
+    pending.push({
+      name: "AC-034: all four health levels map to a theme expression",
+      waitMs: 0,
+      assert: function () {
+        if (panelWidget === null) return
+        var evaluator = colourProbe
+        var seen = {}
+        var levels = ["green", "amber", "red", "grey"]
+        for (var i = 0; i < levels.length; i++) {
+          var rendering = ViewModel.renderingFor(levels[i])
+          seen[levels[i]] = String(evaluator.colorFor(rendering))
+        }
+        // healthy and degraded share the token on purpose — the badge is what
+        // separates them, which is why the badge flag is checked here too.
+        check("healthy paints the foreground token", seen.green,
+              String(evaluator.foreground))
+        check("degraded shares the healthy token", seen.green, seen.amber)
+        check("degraded carries the badge", true,
+              ViewModel.renderingFor("amber").badge)
+        check("healthy carries no badge", false,
+              ViewModel.renderingFor("green").badge)
+        check("critical paints the urgent token", seen.red,
+              String(evaluator.urgent))
+        check("unknown is dimmed, not the foreground", true, seen.grey !== seen.green)
+        check("unknown is not the urgent token", true, seen.grey !== seen.red)
+        // A missing descriptor is the never-injected frame: grey, not healthy.
+        check("a missing descriptor is dim, never healthy", seen.grey,
+              String(evaluator.colorFor(null)))
+      }
+    })
+
+    // --- AC-011 / SEC-009 / UX-010 -----------------------------------------
+    pending.push({
+      name: "AC-011: the dashboard opens through the injected launcher only",
+      waitMs: 0,
+      assert: function () {
+        if (panelWidget === null) return
+        var rejected = ["https://a b", "https://u:p@h/", "file:///etc/passwd",
+                        "javascript:1", "https://h/;reboot"]
+        for (var i = 0; i < rejected.length; i++) {
+          var verdict = ViewModel.acceptDashboardUrl(rejected[i])
+          check("rejected: " + rejected[i], false, verdict.accepted)
+        }
+        openedUrls = []
+        // Nothing is configured and there is no service, so there is no URL:
+        // the button refuses rather than opening something it invented.
+        check("no URL means no launch", "rejected", panelWidget.openDashboard())
+        check("nothing was opened", 0, openedUrls.length)
+
+        // UX-010: the warning is produced WITH the acceptance, so a caller
+        // cannot open the URL without having been handed the warning first.
+        var plain = ViewModel.acceptDashboardUrl("http://h/")
+        check("plain http is accepted", true, plain.accepted)
+        check("plain http warns before the launch", true, plain.warnPlainHttp)
+      }
+    })
+
+    // --- the wired path ----------------------------------------------------
+    pending.push({
+      name: "REQ-014: the widget renders the service's model and computes none",
+      waitMs: 900,
+      prepare: function () { writeScenario({ mode: "success" }) },
+      setup: function () {
+        // AC-028's case destroyed the service the earlier block used, so this
+        // one builds its own. Constructed first and injected afterwards, which
+        // is the order the host uses and the order DATA-003 is about.
+        service = createService()
+        panelWidget.bar.shell.unifiService = service
+        injectHost(service, 30)
+      },
+      assert: function () {
+        if (panelWidget === null || service === null) return
+        check("the widget found the service", true,
+              panelWidget.unifiService === service)
+        check("the widget's model IS the service's", true,
+              panelWidget.vm === service.viewModel)
+        check("a snapshot arrived", true, panelWidget.vm.hasSnapshot)
+        check("the healthy state carries no sentence", "", panelWidget.vm.sentence)
+      }
+    })
+
+    pending.push({
+      name: "REQ-008/008a/009/010/013a: the panel renders from vm",
+      waitMs: 250,
+      setup: function () { panelWidget.open() },
+      assert: function () {
+        if (panelWidget === null || service === null) return
+        var model = panelWidget.vm
+        check("the panel is open", true, panelWidget.opened)
+
+        // REQ-008a: the aggregate status word, from ViewModel.wanRows.
+        check("the WAN status word is on screen", true,
+              model.wanRows.length === 4
+              && panelTextContains(model.wanRows[0].value))
+        // REQ-008a: and every gateway, individually.
+        if (model.gatewayRows.length > 0) {
+          check("the gateway name is on screen", true,
+                panelTextContains(model.gatewayRows[0].nameText))
+        } else {
+          bad("the stub snapshot has a gateway to list")
+        }
+        // REQ-009: the client count and the unique device total.
+        check("the client count is on screen", true,
+              panelTextContains(model.clientsText))
+        check("the adopted-device total is on screen", true,
+              panelTextContains(model.devicesTotalText))
+        // REQ-010 and REQ-013a render only when there is something to render;
+        // asserted against the model so the case cannot pass by rendering
+        // nothing when the model was empty.
+        if (model.offline.devices.length > 0) {
+          check("an offline device is on screen", true,
+                panelTextContains(model.offline.devices[0].nameText))
+        }
+        if (model.warningRows.length > 0) {
+          check("a warning is on screen", true,
+                panelTextContains(model.warningRows[0].text))
+        }
+        // AC-052: the meta rows are present whatever else is.
+        check("the helper version row is on screen", true,
+              panelTextContains(model.metaRows[2].value))
+      }
+    })
+
+    // --- REQ-010 / REQ-013a / UX-009 / AC-025 / AC-063 ----------------------
+    //
+    // Against the healthy snapshot, `DeviceList` and `WarningList` render
+    // nothing and a case guarded by `if (list.length > 0)` passes without ever
+    // running them. This one uses the degraded fixture, whose lists are all
+    // non-empty, so the assertions below cannot be satisfied by an empty panel.
+    pending.push({
+      name: "REQ-010/013a/UX-009: the degraded panel renders every list",
+      waitMs: 900,
+      prepare: function () {
+        writeScenario({ mode: "success", variant: "degraded", insecureTls: true })
+      },
+      setup: function () { resetService(30) },
+      assert: function () {
+        if (panelWidget === null || service === null) return
+        var model = panelWidget.vm
+        check("a snapshot arrived", true, model.hasSnapshot)
+        check("the panel is open", true, panelWidget.opened)
+
+        // REQ-002 rule 4, and REQ-001a's one level with no colour of its own.
+        check("the level is degraded", "amber", model.healthLevel)
+        check("degraded is carried by the badge", true, model.rendering.badge)
+        // REQ-001a: `degraded` paints the SAME token as `healthy`, so the badge
+        // is the entire visual difference between "fine" and "something is
+        // wrong". Asserted on the glyph, not on the model — the descriptor
+        // being right does not put a dot on the bar.
+        var barGlyph = findByObjectName(panelWidget, "unifi-bar-glyph", 0)
+        var heroGlyph = findByObjectName(panelWidget, "unifi-hero-glyph", 0)
+        if (barGlyph === null || heroGlyph === null) {
+          bad("both glyphs exist", "bar=" + barGlyph + " hero=" + heroGlyph)
+          return
+        }
+        check("the bar glyph carries the badge", true, barGlyph.showBadge)
+        check("the panel hero carries it too", true, heroGlyph.showBadge)
+        // AMD-13 / REQ-001a: the hero shares the bar item's evaluator rather
+        // than restating the table, so it must resolve to the BAR's colour and
+        // not to the Commons fallback. The stub's colours differ from the
+        // theme's precisely so this can tell the two apart.
+        check("the hero glyph takes its colour from the bar",
+              String(panelWidget.bar.barForeground), String(heroGlyph.glyphColor))
+
+        // REQ-008a: two gateways, and the second has no statistics at all —
+        // a different fact from one metric being unknown.
+        check("both gateways are listed", 2, model.gatewayRows.length)
+        check("the online gateway is on screen", true, panelTextContains("UDM Pro"))
+        check("the down gateway is on screen", true, panelTextContains("USG Backup"))
+        check("the metric-less gateway says so", false, model.gatewayRows[1].hasMetrics)
+        check("'statistics not fetched' is on screen", true,
+              panelTextContains("statistics not fetched"))
+
+        // REQ-010 / AC-063: two listed, seven down. The remainder comes from
+        // counts.offlineTotal and never from the array's length.
+        check("two devices are listed", 2, model.offline.devices.length)
+        check("the total is the independent integer", 7, model.offline.total)
+        check("the remainder is five", "and 5 more", model.offline.moreLabel)
+        check("an offline device is on screen", true, panelTextContains("Garage AP"))
+        check("an impaired device is on screen", true, panelTextContains("Loft Switch"))
+        check("its class is on screen", true, panelTextContains("impaired"))
+        check("the remainder line is on screen", true, panelTextContains("and 5 more"))
+
+        // REQ-013a: both warnings, each with its code beside its sentence.
+        check("both warnings are modelled", 2, model.warningRows.length)
+        check("a warning sentence is on screen", true,
+              panelTextContains("offline device list is truncated"))
+        check("its code is on screen", true, panelTextContains("offline_list_truncated"))
+
+        // AC-025: the role rows sum to 13 over 12 unique devices.
+        check("the role rows are not a partition", true, model.roleCountsAreNotAPartition)
+        check("the note names the unique total", true,
+              panelTextContains("12 adopted device"))
+
+        // UX-009 / AC-070: driven by meta, present for the whole session, and
+        // with no dismiss handler anywhere in the file.
+        check("the insecure-TLS flag is set", true, model.insecureTls)
+        // The row's OWN sentence, not the shared opening clause: the warning
+        // list carries a `insecure_tls` warning reading "TLS verification is
+        // disabled for this controller.", so matching on that prefix is
+        // satisfied by a panel whose dedicated row is hidden.
+        check("the insecure-TLS row is on screen", true,
+              panelTextContains("Anything on the network path"))
+      }
+    })
+
+    pending.push({
+      name: "AC-070: the insecure-TLS row survives a close, a reopen and a refresh",
+      waitMs: 900,
+      setup: function () {
+        panelWidget.close()
+        panelWidget.open()
+        panelWidget.doRefresh()
+      },
+      assert: function () {
+        if (panelWidget === null) return
+        check("the panel reopened", true, panelWidget.opened)
+        check("the flag is still set after a successful refresh", true,
+              panelWidget.vm.insecureTls)
+        check("the row is still on screen", true,
+              panelTextContains("Anything on the network path"))
+      }
+    })
+
+    // --- REQ-004 / UX-003 ---------------------------------------------------
+    //
+    // The case REQ-004 exists for: a fresh snapshot, and the refresh that
+    // followed it failed. The colour must stay whatever the snapshot said —
+    // never green because the fetch failed, never red because it did — and a
+    // separate affordance must say "the last attempt failed" in a shape that
+    // is not the degraded badge.
+    pending.push({
+      name: "REQ-004/UX-003: a failed refresh over a fresh snapshot is marked, not recoloured",
+      waitMs: 1000,
+      prepare: function () { writeScenario({ mode: "failure", kind: "network" }) },
+      setup: function () {
+        this.levelBefore = panelWidget.vm.healthLevel
+        this.hadSnapshot = panelWidget.vm.hasSnapshot
+        panelWidget.doRefresh()
+      },
+      assert: function () {
+        if (panelWidget === null || service === null) return
+        var model = panelWidget.vm
+        check("there was a snapshot to preserve", true, this.hadSnapshot)
+        check("the snapshot survived the failure", true, model.hasSnapshot)
+        // BIZ-005 / REQ-021: an unsuccessful batch does not replace the snapshot.
+        check("the colour is still the snapshot's", this.levelBefore, model.healthLevel)
+        check("the failure is named", "network", model.errorKind)
+        check("it is not stale yet", false, model.isStale)
+
+        // UX-003's affordance, on the glyph. A different shape in a different
+        // corner from the degraded badge, because the whole requirement is that
+        // "the last refresh failed" be distinguishable from "confirmed bad".
+        var marks = collectProperty(panelWidget, "showRefreshFailure", [], 0)
+        var marked = false
+        for (var i = 0; i < marks.length; i++) { if (marks[i] === true) marked = true }
+        check("the refresh-failure mark is shown", true, marked)
+
+        // REQ-004 again, in words: the tooltip has to say BOTH things, or the
+        // user reads a healthy site as broken or a broken refresh as fine.
+        check("the tooltip names the failure", true,
+              model.tooltip.indexOf("failed (network)") !== -1)
+        check("the tooltip still reports the last update", true,
+              model.tooltip.indexOf("Last update:") !== -1)
+      }
+    })
+
+    // --- REQ-005 / REQ-006 --------------------------------------------------
+    pending.push({
+      name: "REQ-005/006: the compact metric and the tooltip reach the bar item",
+      waitMs: 900,
+      prepare: function () { writeScenario({ mode: "success" }) },
+      setup: function () {
+        service._reload()
+        injectHost(service, 30, null, { compactMetric: "clients" })
+      },
+      assert: function () {
+        if (panelWidget === null || service === null) return
+        var model = panelWidget.vm
+        check("the setting reached the service", "clients",
+              service._status().compactMetric)
+        check("the compact text is the client count", "42", model.compactText)
+        // On the BAR, not merely somewhere in the widget: the client count also
+        // appears in the panel's Devices section, so a containment check over
+        // the whole tree is satisfied by a bar item rendering nothing.
+        var figure = findByObjectName(panelWidget, "unifi-bar-compact", 0)
+        if (figure === null) {
+          bad("the bar item has a compact-text element")
+        } else {
+          check("the bar figure is visible", true, figure.visible)
+          check("the bar figure is the client count", "42", String(figure.text))
+        }
+
+        // REQ-006: the tooltip is what makes UX-002's "colour is never the sole
+        // signal" true for the bar item, so it has to be ON the button rather
+        // than merely present on the model.
+        var tooltips = collectProperty(panelWidget, "tooltipText", [], 0)
+        var found = false
+        for (var i = 0; i < tooltips.length; i++) {
+          if (tooltips[i] === model.tooltip) found = true
+        }
+        check("the bar button carries the model's tooltip", true, found)
+        check("the tooltip names the site", true, model.tooltip.indexOf("Home") !== -1)
+        check("the tooltip states the last update", true,
+              model.tooltip.indexOf("Last update:") !== -1)
+        check("the tooltip states the latest attempt", true,
+              model.tooltip.indexOf("Latest attempt:") !== -1)
+      },
+      teardown: function () {
+        // Back to the default, so the cases after this one see the settings
+        // they were written against.
+        service._reload()
+        injectHost(service, 30)
+      }
+    })
+
+    // --- UX-007 / AC-071 ----------------------------------------------------
+    pending.push({
+      name: "UX-007: a failed batch shows its retry as a relative time",
+      waitMs: 1400,
+      prepare: function () { writeScenario({ mode: "failure", kind: "network" }) },
+      setup: function () { resetService(15) },
+      assert: function () {
+        if (panelWidget === null || service === null) return
+        check("the panel is still open", true, panelWidget.opened)
+        check("the batch failed", "network", panelWidget.vm.errorKind)
+        check("polling is not suspended", false, panelWidget.vm.pollingSuspended)
+        // UX-007: "never a static instant". The retry deadline reaches the
+        // panel as a countdown whatever schedule produced it — here REQ-023b's
+        // two-second ramp, which is the shortest one that exists.
+        var text = panelWidget.vm.nextAttemptText
+        if (/^in \d+s$|^now$/.test(text)) ok("the retry is shown as a countdown (" + text + ")")
+        else bad("the retry is shown as a countdown", "got [" + text + "]")
+        check("the countdown reached the panel", true,
+              text === "" || panelTextContains(text))
+      }
+    })
+
+    // The measurement is taken against a SUCCESSFUL schedule, not a failed one.
+    // REQ-023b's ramp retries a fresh `network` failure every two seconds and
+    // resets the deadline each time, so the countdown there is a sawtooth
+    // between "in 1s" and "in 2s" — it recomputes constantly and still never
+    // moves by twelve seconds. Reading a twelve-second decrease off it is
+    // measuring the ramp, not the tick. An idle interval is monotone, which is
+    // what makes the drop mean what the assertion says it means.
+    pending.push({
+      name: "AC-071: an idle countdown is running before the measurement",
+      waitMs: 900,
+      prepare: function () { writeScenario({ mode: "success" }) },
+      setup: function () { resetService(30) },
+      assert: function () {
+        if (panelWidget === null || service === null) return
+        check("a snapshot arrived", true, panelWidget.vm.hasSnapshot)
+        check("the scheduler is idle between polls", "idle-normal",
+              service._status().schedulerState)
+        var text = panelWidget.vm.nextAttemptText
+        if (/^in \d+s$/.test(text)) ok("the countdown is rendered in seconds (" + text + ")")
+        else bad("the countdown is rendered in seconds", "got [" + text + "]")
+      }
+    })
+
+    pending.push({
+      name: "AC-071: the countdown recomputes while the panel is open",
+      // Twelve seconds against a 5 s tick, so at least two recomputations must
+      // fall inside the window. SAMPLING — rather than reading once at the end
+      // — is what makes this a measurement of the interval rather than a single
+      // observation that happens to land just after a tick: a one-shot read six
+      // seconds in can legitimately see a one-second drop, because the last
+      // tick may have fired a second after the baseline was taken. That is how
+      // the first version of this case failed while the code was correct.
+      waitMs: 12000,
+      setup: function () {
+        var self = this
+        self.before = panelWidget.vm.nextAttemptText
+        self.rebuilds = 0
+        self.lastAt = Date.now()
+        self.maxGapMs = 0
+        self.lastModel = panelWidget.vm
+        pollTimer.callback = function () {
+          if (panelWidget.vm === self.lastModel) return
+          self.lastModel = panelWidget.vm
+          self.rebuilds++
+          var now = Date.now()
+          if (now - self.lastAt > self.maxGapMs) self.maxGapMs = now - self.lastAt
+          self.lastAt = now
+        }
+        pollTimer.running = true
+      },
+      teardown: function () { pollTimer.running = false; pollTimer.callback = null },
+      assert: function () {
+        if (panelWidget === null || service === null) return
+        var after = panelWidget.vm.nextAttemptText
+
+        if (this.rebuilds < 2) {
+          bad("the model was rebuilt more than once in twelve seconds",
+              "saw " + this.rebuilds)
+        } else {
+          ok("the model was rebuilt " + this.rebuilds + " times in twelve seconds")
+        }
+        // AC-071's actual bound, measured rather than assumed: the gap between
+        // consecutive recomputations is what "recomputes at least every 15 s"
+        // is a statement about.
+        if (this.maxGapMs <= 15000) {
+          ok("the longest gap between recomputations was "
+             + this.maxGapMs + "ms (AC-071 allows 15000)")
+        } else {
+          bad("the longest gap between recomputations is within 15 s",
+              this.maxGapMs + "ms")
+        }
+
+        if (!/^in \d+s$/.test(after)) {
+          bad("the countdown is still in seconds", "got [" + after + "]")
+          return
+        }
+        var wasSec = parseInt(this.before.replace(/[^0-9]/g, ""), 10)
+        var nowSec = parseInt(after.replace(/[^0-9]/g, ""), 10)
+        // Lower bound (window - tick): a countdown that has not been
+        // recomputed since the last tick can be one tick stale, and no more.
+        // Upper bound is the window plus slack, because the baseline is read in
+        // `setup` and the assertion runs after the driver's own scheduling —
+        // a measured 13 against a nominal 12 is the driver, not a fault.
+        between("the countdown fell by roughly the elapsed time",
+                7, 15, wasSec - nowSec)
+        check("the new countdown reached the panel", true, panelTextContains(after))
+        // The panel holds no timer of its own: one clock, in the object that
+        // owns it, so every monitor's widget updates from the same instant
+        // (REQ-014 / UX-011).
+        check("the countdown is still the service's own", true,
+              panelWidget.vm === service.viewModel)
+      }
+    })
+
+    // --- REQ-011 / AC-038 ---------------------------------------------------
+    pending.push({
+      name: "REQ-011: Refresh is refused, with a reason, while polling is suspended",
+      waitMs: 700,
+      prepare: function () { writeScenario({ mode: "success" }) },
+      setup: function () {
+        // A duplicate entry disagreeing about a service-consumed setting is
+        // DATA-002's configuration conflict, which suspends polling.
+        service._reload()
+        injectHost(service, 30, 60)
+      },
+      assert: function () {
+        if (panelWidget === null || service === null) return
+        check("polling is suspended", true, panelWidget.vm.pollingSuspended)
+        check("Refresh is disabled", false, panelWidget.vm.refreshEnabled)
+        check("the reason is not blank", true,
+              panelWidget.vm.refreshDisabledReason.length > 0)
+        var before = service._status().generation
+        check("pressing Refresh is refused", "disabled", panelWidget.doRefresh())
+        check("no batch was launched", before, service._status().generation)
+        check("the reason reached the panel", true,
+              panelTextContains("Refresh is unavailable"))
+      }
+    })
+
+    // --- UX-008 -------------------------------------------------------------
+    pending.push({
+      name: "UX-008: Tab cycles the two actions and Enter activates the focused one",
+      waitMs: 0,
+      assert: function () {
+        if (panelWidget === null) return
+        panelWidget.focusIndex = 0
+        panelWidget.moveFocus(1)
+        check("Tab moves to Open UniFi", 1, panelWidget.focusIndex)
+        panelWidget.moveFocus(1)
+        check("Tab wraps back to Refresh", 0, panelWidget.focusIndex)
+        panelWidget.moveFocus(-1)
+        check("Backtab wraps the other way", 1, panelWidget.focusIndex)
+        openedUrls = []
+        check("Enter on Open UniFi tries the dashboard", "rejected",
+              panelWidget.activateFocused())
+        panelWidget.focusIndex = 0
+        check("Enter on Refresh reaches the refresh path", "disabled",
+              panelWidget.activateFocused())
+      }
+    })
+
+    // --- DATA-011 / UX-004 --------------------------------------------------
+    pending.push({
+      name: "DATA-011: a snapshot is in hand before the reload",
+      waitMs: 1200,
+      // A deliberately slow helper, so the batch that follows the reload is
+      // still running when the next case asserts. Without that, "reconfiguring
+      // holds for the whole batch" and "reconfiguring is cleared the instant
+      // the batch launches" are indistinguishable.
+      prepare: function () { writeScenario({ mode: "success", delaySec: 0.4 }) },
+      setup: function () { resetService(30) },
+      assert: function () {
+        if (panelWidget === null || service === null) return
+        check("a snapshot is in hand before the reload", true,
+              panelWidget.vm.hasSnapshot)
+        check("the panel is showing data", "ok", panelWidget.vm.state)
+      }
+    })
+
+    pending.push({
+      name: "DATA-011: a reload discards the snapshot and renders reconfiguring",
+      waitMs: 250,
+      setup: function () { service._reload() },
+      assert: function () {
+        if (panelWidget === null || service === null) return
+        // The cached snapshot may belong to a different controller entirely;
+        // continuing to show it under the new site's name would be a lie the
+        // user has no way to detect.
+        check("the snapshot is discarded", false, panelWidget.vm.hasSnapshot)
+        check("the panel says reconfiguring", "reconfiguring", panelWidget.vm.state)
+        check("the sentence explains why the reading vanished", true,
+              panelWidget.vm.sentence.indexOf("different controller") !== -1)
+        // The state has to HOLD for the batch, not merely appear for the frame
+        // between the reload and the launch. A reload that flashed
+        // `reconfiguring` and then showed `loading` would be indistinguishable
+        // from a first start, which is the confusion UX-004 exists to remove.
+        var status = service._status()
+        check("the replacement batch is still running", true, status.helperRunning)
+        check("reconfiguring is still in force", true, status.reconfiguring)
+        check("the state is not mistaken for a first load", true,
+              panelWidget.vm.state !== "loading")
+      }
+    })
+
+    pending.push({
+      name: "DATA-011: reconfiguring ends when the next batch completes",
+      waitMs: 1200,
+      assert: function () {
+        if (panelWidget === null || service === null) return
+        check("reconfiguring has ended", false, service._status().reconfiguring)
+        check("the panel is showing data again", true, panelWidget.vm.hasSnapshot)
+        check("the panel is out of the reconfiguring state", true,
+              panelWidget.vm.state !== "reconfiguring")
+      },
+      teardown: function () {
+        panelWidget.close()
+        panelWidget.destroy()
+        panelWidget = null
+        service.destroy()
+        service = null
+      }
+    })
+  }
+
+  // The colour evaluator under test, instantiated once. REQ-001a lives in
+  // HealthColor.qml and nowhere else, so AC-034 has to drive that file rather
+  // than a copy of its table.
+  HealthColor { id: colourProbe }
 
   function serviceCases() {
     pending.push({
@@ -855,20 +1655,16 @@ ShellRoot {
     pending.push({
       name: "DATA-008a: a backwards clock re-baselines once and retries",
       waitMs: 4000,
-      prepare: function () { writeScenario({ mode: "skew", skewSec: 3600 }) },
-      setup: function () {
-        resetService(30)
-        var self = this
-        // Switch to a good stub once the skewed batch has been rejected, so the
-        // retry has something to succeed against.
-        overlapTimer.callback = function () {
-          overlapTimer.running = false
-          writeScenario({ mode: "success" })
-        }
-        overlapTimer.interval = 1500
-        overlapTimer.running = true
+      prepare: function () {
+        // The stub advances its OWN scenario: it skews once and succeeds
+        // afterwards. A timer in the runner cannot do this, because the
+        // re-baseline retry is a `Qt.callLater` a few milliseconds behind the
+        // batch it retries — and until this was written the case passed on a
+        // snapshot left over from an earlier case, which is not the thing it
+        // claims to assert.
+        writeScenario({ mode: "skew", skewSec: 3600, then: { mode: "success" } })
       },
-      teardown: function () { overlapTimer.running = false; overlapTimer.callback = null },
+      setup: function () { resetService(30) },
       assert: function () {
         var status = service._status()
         // The retry is the whole of DATA-008a. A version that re-baselined but
