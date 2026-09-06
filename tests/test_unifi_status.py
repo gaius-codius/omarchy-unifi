@@ -37,11 +37,14 @@ sys.path.insert(0, os.path.join(_REPO, "helper"))
 sys.path.insert(0, os.path.join(_HERE, "tools"))
 
 import fixture_pages  # noqa: E402
+import normalize_inputs  # noqa: E402
 import tls_stub  # noqa: E402
 import unifi  # noqa: E402
-from unifi import commitset, credential, deadline, errors, pagination  # noqa: E402
-from unifi import paths, routes, sanitize, tlsctx, transport  # noqa: E402
-from unifi import version_gate, warn  # noqa: E402
+import unifi_status  # noqa: E402
+from unifi import collect, commitset, credential, deadline, envelope  # noqa: E402
+from unifi import config as config_module  # noqa: E402
+from unifi import errors, normalize, pagination, paths, routes  # noqa: E402
+from unifi import sanitize, tlsctx, transport, version_gate, warn  # noqa: E402
 
 
 _AUTHORITY = []
@@ -794,7 +797,12 @@ class InterpreterFloor(unittest.TestCase):
         allowed = {"os", "ssl", "stat", "json", "hashlib", "hmac", "io", "sys",
                    "socket", "errno", "time", "re", "base64", "urllib", "typing",
                    "collections", "datetime", "unicodedata", "subprocess",
-                   "email", "http"}
+                   "email", "http",
+                   # The helper's own package. `unifi_status.py` is a SCRIPT,
+                   # not a module inside the package, so it cannot use a
+                   # relative import; the explicit sys.path bootstrap above it
+                   # is what makes this absolute one resolve.
+                   "unifi"}
         for path in _shipped_python_sources():
             tree = ast.parse(_read_source(path), filename=path)
             for node in ast.walk(tree):
@@ -1996,6 +2004,687 @@ class HelperIdentity(unittest.TestCase):
     def test_the_user_agent_carries_no_credential_and_no_host(self):
         self.assertIn(unifi.HELPER_VERSION, transport.USER_AGENT)
         self.assertNotIn("key", transport.USER_AGENT.lower())
+
+
+# --- Phase 7: normalize, collect, envelope, entry point ---------------------
+
+class NormalizedModel(unittest.TestCase):
+    """DATA-006, and the producer half of risk R-F.
+
+    The accept corpus is one artifact used in two directions: the model tests
+    feed it to `Health.js` as input, and these assert it as `normalize.py`'s
+    output. The inputs come from `tests/tools/normalize_inputs.py`, which is
+    authored from device states and `features` arrays — so every count here is
+    DERIVED and compared against a literal, not restated.
+    """
+
+    def normalized(self, case):
+        inputs = normalize_inputs.cases()[case]
+        collector = warn.Warnings()
+        data = normalize.build(inputs["site"], inputs["devices"],
+                               inputs["clients"], inputs["statistics"],
+                               inputs["applicationVersion"], collector)
+        return data, collector
+
+    def expected(self, case):
+        path = os.path.join(_REPO, "tests", "fixtures", "envelopes", "accept",
+                            "%s.json" % case)
+        with open(path, encoding="utf-8") as handle:
+            return json.load(handle)
+
+    def test_every_accept_envelope_is_reproduced_byte_for_byte(self):
+        cases = normalize_inputs.cases()
+        self.assertEqual(len(cases), 15)
+        for case in sorted(cases):
+            with self.subTest(case=case):
+                data, _warnings = self.normalized(case)
+                self.assertEqual(
+                    json.dumps(data, sort_keys=True),
+                    json.dumps(self.expected(case)["data"], sort_keys=True))
+
+    def test_the_input_corpus_covers_every_success_envelope(self):
+        # A gap here is invisible otherwise: the loop above would still pass
+        # while silently skipping whichever envelope had no input authored.
+        directory = os.path.join(_REPO, "tests", "fixtures", "envelopes", "accept")
+        envelopes = sorted(name[:-5] for name in os.listdir(directory)
+                           if name.startswith("success_"))
+        self.assertEqual(sorted(normalize_inputs.cases()), envelopes)
+
+    def test_ac_025_role_counts_are_not_a_partition(self):
+        # AC-025 against normalize.py: multi-role counting derived from a
+        # `features` array on the wire, not from a hand-built Health.js input.
+        data, _warnings = self.normalized("success_multi_feature_roles")
+        counts = data["counts"]
+        self.assertEqual(counts["devicesTotal"], 3)
+        self.assertEqual(counts["gateways"]["online"], 1)
+        self.assertEqual(counts["switches"]["online"], 1)
+        self.assertEqual(counts["accessPoints"]["online"], 3)
+        # Five role placements over three unique devices. The rows are not
+        # expected to sum to the total, and that contrast is the point.
+        self.assertEqual(sum(counts[role]["online"] for role in
+                             ("gateways", "switches", "accessPoints")), 5)
+        self.assertEqual(sum(counts["byClass"].values()), 3)
+
+    def test_a_featureless_device_is_still_counted_once(self):
+        data, _warnings = self.normalized("success_featureless_device")
+        counts = data["counts"]
+        self.assertEqual(counts["devicesTotal"], 3)
+        self.assertEqual(sum(counts["byClass"].values()), 3)
+        # It appears in no role object at all, so byClass is the only place it
+        # is visible — and a partition that dropped it would satisfy every
+        # role-based check while under-reporting the site.
+        self.assertEqual(sum(counts[role]["online"] for role in
+                             ("gateways", "switches", "accessPoints")), 2)
+
+    def test_ac_063_the_offline_list_is_bounded_and_the_total_is_not(self):
+        # AC-063 against normalize.py: the ten-row bound with an independent
+        # offlineTotal, so "and 490 more" is right on the wire.
+        data, collector = self.normalized("success_500_down_bounded_list")
+        self.assertEqual(len(data["offlineDevices"]), normalize.OFFLINE_LIST_MAX)
+        self.assertEqual(data["counts"]["offlineTotal"], 500)
+        self.assertIn("offline_list_truncated", collector.codes())
+        detail = collector.to_list()[-1]["detail"]
+        self.assertEqual(detail, {"listed": 10, "total": 500})
+
+    def test_the_offline_list_is_ordered_before_it_is_bounded(self):
+        # The corpus happens to author devices in ascending id order, so the
+        # sort was untested until a mutation removed it and nothing failed.
+        # These arrive scrambled, which is what a controller is free to do.
+        scrambled = [normalize_inputs.device(60 - i, "OFFLINE", ["switching"],
+                                             "Switch %02d" % (60 - i))
+                     for i in range(20)]
+        data = normalize.build({"id": "s", "name": "S"}, scrambled, 0, {},
+                               "9.1.0", warn.Warnings())
+        listed = [entry["id"] for entry in data["offlineDevices"]]
+        self.assertEqual(listed, sorted(listed))
+        # The lowest ten ids, not the first ten the controller happened to send:
+        # an unstable list would show a different set of devices on every poll.
+        self.assertEqual(listed,
+                         [normalize_inputs.uid(41 + i) for i in range(10)])
+        self.assertEqual(data["counts"]["offlineTotal"], 20)
+
+    def test_the_down_gateway_is_not_the_device_the_bound_drops(self):
+        # It sorts first, so it heads the list. A bound applied before ordering
+        # would drop the one device REQ-002 rule 3 turns on.
+        data, _warnings = self.normalized("success_500_down_bounded_list")
+        self.assertEqual(data["offlineDevices"][0]["name"], "UDM Pro")
+
+    def test_a_transitional_device_never_reaches_the_offline_list(self):
+        data, _warnings = self.normalized("success_transitional_only")
+        self.assertEqual(data["offlineDevices"], [])
+        self.assertEqual(data["counts"]["offlineTotal"], 0)
+        self.assertEqual(data["counts"]["byClass"]["transitional"], 2)
+
+    def test_an_unrecognised_state_is_unknown_and_warns_with_the_value(self):
+        data, collector = self.normalized("success_unknown_state")
+        self.assertEqual(data["counts"]["byClass"]["unknown"], 1)
+        self.assertEqual(data["counts"]["offlineTotal"], 0)
+        warning = [entry for entry in collector.to_list()
+                   if entry["code"] == "unknown_device_state"]
+        self.assertEqual(len(warning), 1)
+        self.assertEqual(warning[0]["detail"]["state"], "REBOOTING")
+
+    def test_every_documented_state_maps_to_its_class(self):
+        # The ten API states, longhand against protocol-v1.md's table.
+        expected = {
+            "ONLINE": "online",
+            "PENDING_ADOPTION": "transitional",
+            "UPDATING": "transitional",
+            "GETTING_READY": "transitional",
+            "ADOPTING": "transitional",
+            "DELETING": "transitional",
+            "OFFLINE": "down",
+            "CONNECTION_INTERRUPTED": "down",
+            "ISOLATED": "impaired",
+            "U5G_INCORRECT_TOPOLOGY": "impaired",
+        }
+        for state, klass in expected.items():
+            with self.subTest(state=state):
+                self.assertEqual(normalize.classify_state(state), klass)
+        for state in ("REBOOTING", "", "online", None, 7):
+            with self.subTest(state=state):
+                self.assertEqual(normalize.classify_state(state), "unknown")
+
+    def test_a_missing_metric_is_null_and_never_zero(self):
+        # BIZ-003. Zero is a value a controller can actually report.
+        data, _warnings = self.normalized("success_optional_gaps")
+        self.assertIsNone(data["wan"]["uptimeSec"])
+        self.assertIsNone(data["wan"]["downloadBps"])
+        self.assertIsNone(data["gateways"][0]["uptimeSec"])
+        self.assertIsNone(data["counts"]["clients"])
+
+    def test_a_zero_metric_the_controller_reported_survives_as_zero(self):
+        inputs = normalize_inputs.cases()["success_healthy"]
+        statistics = {normalize_inputs.uid(10):
+                      normalize_inputs.stats(0, 0, 0)}
+        data = normalize.build(inputs["site"], inputs["devices"], 0, statistics,
+                               "9.1.0", warn.Warnings())
+        self.assertEqual(data["wan"]["uptimeSec"], 0)
+        self.assertEqual(data["wan"]["downloadBps"], 0)
+        self.assertEqual(data["counts"]["clients"], 0)
+
+    def test_a_non_integer_metric_is_refused_rather_than_coerced(self):
+        inputs = normalize_inputs.cases()["success_healthy"]
+        for value in (True, "864000", 1.5, -1):
+            with self.subTest(value=value):
+                statistics = {normalize_inputs.uid(10): {"uptimeSec": value}}
+                data = normalize.build(inputs["site"], inputs["devices"], 0,
+                                       statistics, "9.1.0", warn.Warnings())
+                self.assertIsNone(data["wan"]["uptimeSec"])
+
+    def test_the_wan_model_omits_the_metrics_the_api_cannot_supply(self):
+        data, _warnings = self.normalized("success_healthy")
+        self.assertEqual(sorted(data["wan"]),
+                         ["downloadBps", "status", "uploadBps", "uptimeSec"])
+
+    def test_wan_status_follows_req_008a_for_every_gateway_combination(self):
+        def status(states):
+            devices = [normalize_inputs.device(10 + i, state, ["gateway"])
+                       for i, state in enumerate(states)]
+            return normalize.build({"id": "s", "name": "S"}, devices, 0, {},
+                                   "9.1.0", warn.Warnings())["wan"]["status"]
+
+        self.assertEqual(status([]), "unknown")
+        self.assertEqual(status(["OFFLINE"]), "down")
+        self.assertEqual(status(["OFFLINE", "CONNECTION_INTERRUPTED"]), "down")
+        self.assertEqual(status(["ONLINE"]), "up")
+        self.assertEqual(status(["ONLINE", "ONLINE"]), "up")
+        self.assertEqual(status(["ONLINE", "OFFLINE"]), "degraded")
+        self.assertEqual(status(["ONLINE", "ISOLATED"]), "degraded")
+        self.assertEqual(status(["ONLINE", "REBOOTING"]), "degraded")
+        # A transitional gateway is not a degraded WAN: REQ-008a's third bullet
+        # names down, impaired and unknown, and nothing else.
+        self.assertEqual(status(["ONLINE", "UPDATING"]), "up")
+
+    def test_the_primary_gateway_is_always_among_the_four_fetched(self):
+        # One ordering serves both choices. With two, the primary could be the
+        # one gateway whose statistics nobody asked for — and `wan`'s metrics
+        # would be null on a site where four calls succeeded.
+        devices = [normalize_inputs.device(10 + i, "OFFLINE", ["gateway"])
+                   for i in range(5)]
+        devices.append(normalize_inputs.device(99, "ONLINE", ["gateway"]))
+        ordered = normalize.gateway_order(devices)
+        fetched = ordered[:normalize.GATEWAY_STATISTICS_MAX]
+        self.assertIn(ordered[0], fetched)
+        # The single ONLINE gateway sorts first despite the highest id.
+        self.assertEqual(ordered[0]["id"], normalize_inputs.uid(99))
+
+    def test_the_producer_refuses_to_emit_a_broken_partition(self):
+        # DATA-006b is checked here as well as by the service. Failing with
+        # `internal` names the process that has the bug; shipping the envelope
+        # would get it rejected as `malformed_response`, which points at the
+        # wire instead.
+        data, _warnings = self.normalized("success_degraded")
+        good = json.loads(json.dumps(data))
+        normalize._check_invariants(good)          # the control
+
+        broken = json.loads(json.dumps(data))
+        broken["counts"]["devicesTotal"] += 1
+        with self.assertRaises(errors.InternalError):
+            normalize._check_invariants(broken)
+
+        broken = json.loads(json.dumps(data))
+        broken["counts"]["offlineTotal"] += 1
+        with self.assertRaises(errors.InternalError):
+            normalize._check_invariants(broken)
+
+    def test_every_build_runs_the_invariant_check(self):
+        # The check above is only worth anything if `build` calls it. Patched to
+        # record rather than asserted by reading the source, so a refactor that
+        # moved the call still has to keep it.
+        seen = []
+        inputs = normalize_inputs.cases()["success_healthy"]
+        with _patched(normalize, "_check_invariants", lambda data: seen.append(data)):
+            normalize.build(inputs["site"], inputs["devices"], inputs["clients"],
+                            inputs["statistics"], "9.1.0", warn.Warnings())
+        self.assertEqual(len(seen), 1)
+
+
+class Configuration(unittest.TestCase):
+    """`config.json`: four keys, none of them trusted.
+
+    This class exists because a mutation pass found the module had no test at
+    all — removing the apiRoot check, the unknown-key check and the boolean
+    check for `allowInsecureTls` all survived. The last one is the reason it
+    matters: a coerced `"false"` is truthy, and silently disabling TLS
+    verification is not a thing to guess at.
+    """
+
+    def parse(self, body):
+        return config_module.parse(json.dumps(body).encode("utf-8"))
+
+    def test_a_minimal_configuration_parses_with_its_defaults(self):
+        parsed = self.parse({"apiRoot": "https://192.168.1.1/proxy"})
+        self.assertEqual(parsed.api_root, "https://192.168.1.1/proxy")
+        self.assertIsNone(parsed.site_id)
+        self.assertIsNone(parsed.custom_ca_path)
+        self.assertIs(parsed.allow_insecure_tls, False)
+
+    def test_the_parsed_configuration_is_immutable(self):
+        parsed = self.parse({"apiRoot": "https://h/proxy"})
+        with self.assertRaises(AttributeError):
+            parsed.api_root = "https://elsewhere/proxy"
+        with self.assertRaises(AttributeError):
+            del parsed.site_id
+
+    def test_a_repr_never_carries_the_controller_address(self):
+        parsed = self.parse({"apiRoot": "https://192.168.1.1/proxy"})
+        self.assertNotIn("192.168.1.1", repr(parsed))
+
+    def test_a_missing_api_root_is_unconfigured_not_internal(self):
+        # Without this check the value reaches `.strip()` as None, and the
+        # entry point's backstop reports `internal` — which tells the user
+        # their helper is broken rather than that their configuration is.
+        for body in ({}, {"apiRoot": None}, {"apiRoot": ""}, {"apiRoot": "   "},
+                     {"apiRoot": 7}, {"apiRoot": ["https://h"]}):
+            with self.subTest(body=body):
+                with self.assertRaises(errors.ConfigError) as caught:
+                    self.parse(body)
+                self.assertEqual(caught.exception.kind, "unconfigured")
+
+    def test_allow_insecure_tls_is_never_coerced(self):
+        for value in ("false", "true", 0, 1, "", []):
+            with self.subTest(value=value):
+                with self.assertRaises(errors.ConfigError):
+                    self.parse({"apiRoot": "https://h/p", "allowInsecureTls": value})
+        self.assertIs(
+            self.parse({"apiRoot": "https://h/p", "allowInsecureTls": True}).allow_insecure_tls,
+            True)
+        # An explicit null is the absent case, which SEC-005 makes `false`.
+        self.assertIs(
+            self.parse({"apiRoot": "https://h/p", "allowInsecureTls": None}).allow_insecure_tls,
+            False)
+
+    def test_an_unknown_key_is_named_rather_than_ignored(self):
+        # A typo means the setting the user believes they set is not in force.
+        with self.assertRaises(errors.ConfigError) as caught:
+            self.parse({"apiRoot": "https://h/p", "allowInsecureTLS": True})
+        self.assertIn("allowInsecureTLS", caught.exception.message)
+
+    def test_an_unusable_site_id_or_ca_path_is_refused(self):
+        for body in ({"apiRoot": "https://h/p", "siteId": ""},
+                     {"apiRoot": "https://h/p", "siteId": 7},
+                     {"apiRoot": "https://h/p", "customCaPath": ""},
+                     {"apiRoot": "https://h/p", "customCaPath": 7},
+                     {"apiRoot": "https://h/p",
+                      "customCaPath": "/" + "a" * config_module.CA_PATH_MAX_CHARS}):
+            with self.subTest(body=body):
+                with self.assertRaises(errors.ConfigError):
+                    self.parse(body)
+
+    def test_unparseable_bytes_are_unconfigured_and_name_the_file(self):
+        for raw in (b"", b"not json", b"[]", b'"string"', b"\xff\xfe"):
+            with self.subTest(raw=raw):
+                with self.assertRaises(errors.ConfigError) as caught:
+                    config_module.parse(raw)
+                self.assertIn("config.json", caught.exception.message)
+
+    def test_no_message_quotes_a_value_back(self):
+        # config.json sits beside the api-key, and a file somebody pasted into
+        # the wrong place could hold anything. No rejection message repeats a
+        # VALUE — the unknown-key message names a key, which is the one thing
+        # the user needs in order to fix the typo.
+        token = Sanitization.FAKE_TOKEN
+        rejections = [
+            {"apiRoot": "https://h/p", "allowInsecureTls": token},
+            {"apiRoot": "https://h/p", "siteId": 7, "customCaPath": token},
+            {"apiRoot": token.encode("ascii").decode("ascii") * 0 or None},
+        ]
+        for body in rejections:
+            with self.subTest(body=body):
+                with self.assertRaises(errors.ConfigError) as caught:
+                    self.parse(body)
+                self.assertNotIn(token, caught.exception.message)
+        with self.assertRaises(errors.ConfigError) as caught:
+            config_module.parse(token.encode("utf-8"))
+        self.assertNotIn(token, caught.exception.message)
+
+    def test_userinfo_in_the_api_root_is_left_to_the_route_builder(self):
+        # Deliberately NOT rejected here: `paths.py` answers "may this be read",
+        # this module answers "is it usable", and `routes.parse_api_root`
+        # answers "is this a legal URL" — at every assembly, not once at load.
+        # Duplicating the check here would make the weaker copy the one people
+        # maintain.
+        parsed = self.parse({"apiRoot": "https://user:secret@h/p"})
+        with self.assertRaises(errors.ConfigError):
+            routes.build(parsed.api_root, "info")
+
+
+class CollectionPolicy(unittest.TestCase):
+    """BIZ-004, BIZ-006 and DATA-012, driven with no socket anywhere."""
+
+    SITE = normalize_inputs.uid(1)
+
+    def setUp(self):
+        self.warnings = warn.Warnings()
+        self.config = config_module.Config(
+            "https://192.0.2.9/proxy/network/integration", None, None, False)
+
+    def responder(self, overrides=None, sites=1):
+        """A `get_json` double that answers by route name."""
+        overrides = overrides or {}
+        site_records = [{"id": normalize_inputs.uid(1 + i), "name": "Site %d" % i}
+                        for i in range(sites)]
+        devices = normalize_inputs.cases()["success_healthy"]["devices"]
+
+        def page(records):
+            return {"offset": 0, "limit": 200, "count": len(records),
+                    "totalCount": len(records), "data": records}
+
+        bodies = {
+            "info": {"applicationVersion": "9.1.0"},
+            "sites": page(site_records),
+            "devices": page(devices),
+            "clients": page([{"id": normalize_inputs.uid(500 + i)}
+                             for i in range(42)]),
+            "wans": page([{"id": normalize_inputs.uid(900), "name": "Internet 1"}]),
+            "device_statistics": normalize_inputs.stats(864000, 12000000, 3000000),
+        }
+        self.calls = []
+
+        def get_json(request, credential, context, deadline, warnings=None):
+            self.calls.append(request.route)
+            if request.route in overrides:
+                raise overrides[request.route]
+            body = bodies[request.route]
+            return body, len(json.dumps(body))
+
+        return get_json
+
+    def run_batch(self, **kwargs):
+        return collect.run(self.config, _StubCredential(), None,
+                           deadline.Deadline(), self.warnings,
+                           get_json=self.responder(**kwargs))
+
+    def test_a_complete_batch_produces_the_data_object(self):
+        batch = self.run_batch()
+        self.assertEqual(batch.data["counts"]["clients"], 42)
+        self.assertEqual(batch.data["counts"]["devicesTotal"], 5)
+        self.assertEqual(batch.site_id, self.SITE)
+
+    def test_the_six_routes_and_no_others_are_requested(self):
+        self.run_batch()
+        self.assertEqual(set(self.calls), set(routes.ROUTE_NAMES))
+
+    def test_a_required_collection_failure_keeps_its_own_kind(self):
+        # BIZ-004 says the batch fails; it does not say it becomes
+        # `partial_response`. A network failure on /devices is a network
+        # failure, and reporting it as a completeness problem would send the
+        # user looking at their controller's data instead of their link.
+        for route in ("info", "sites", "devices"):
+            with self.subTest(route=route):
+                with self.assertRaises(errors.NetworkError):
+                    self.run_batch(overrides={route: errors.NetworkError("x")})
+
+    def test_an_optional_collection_failure_yields_a_successful_batch(self):
+        batch = self.run_batch(overrides={"clients": errors.NetworkError("x")})
+        self.assertIsNone(batch.data["counts"]["clients"])
+        self.assertIn("clients_unavailable", self.warnings.codes())
+        # The device health the panel actually needs is unaffected.
+        self.assertEqual(batch.data["counts"]["devicesTotal"], 5)
+
+    def test_an_optional_failure_never_reports_zero_for_unknown(self):
+        # BIZ-002/BIZ-003. Zero is what an empty site reports, and confusing
+        # the two turns "we could not read it" into "there is nobody here".
+        batch = self.run_batch(overrides={"clients": errors.NetworkError("x")})
+        self.assertIsNone(batch.data["counts"]["clients"])
+        self.assertNotEqual(batch.data["counts"]["clients"], 0)
+
+    def test_a_statistics_failure_costs_only_that_gateway(self):
+        batch = self.run_batch(
+            overrides={"device_statistics": errors.NetworkError("x")})
+        self.assertIsNone(batch.data["gateways"][0]["uptimeSec"])
+        self.assertIsNone(batch.data["wan"]["uptimeSec"])
+        self.assertIn("statistics_unavailable", self.warnings.codes())
+        self.assertEqual(batch.data["counts"]["devicesTotal"], 5)
+
+    def test_a_wans_failure_warns_and_nothing_more(self):
+        batch = self.run_batch(overrides={"wans": errors.NetworkError("x")})
+        self.assertIn("wans_unavailable", self.warnings.codes())
+        self.assertEqual(batch.data["counts"]["devicesTotal"], 5)
+
+    def test_an_incomplete_required_collection_is_partial_response(self):
+        # The other half: an INVARIANT failure, where the transport worked and
+        # the data cannot be proven complete, is what BIZ-002 calls partial.
+        def get_json(request, credential, context, deadline, warnings=None):
+            if request.route == "devices":
+                body = {"offset": 0, "limit": 200, "count": 2, "totalCount": 5,
+                        "data": [{"id": normalize_inputs.uid(1)},
+                                 {"id": normalize_inputs.uid(2)}]}
+                return body, 10
+            return self.responder()(request, credential, context, deadline)
+
+        with self.assertRaises(errors.PartialResponseError):
+            collect.run(self.config, _StubCredential(), None,
+                        deadline.Deadline(), self.warnings, get_json=get_json)
+
+    def test_data_012_one_site_auto_selects_with_a_warning(self):
+        self.run_batch(sites=1)
+        self.assertIn("site_auto_selected", self.warnings.codes())
+
+    def test_data_012_several_sites_suspend_and_carry_the_pairs(self):
+        with self.assertRaises(errors.SiteUnselectedError) as caught:
+            self.run_batch(sites=3)
+        self.assertEqual(caught.exception.kind, "site_unselected")
+        self.assertFalse(errors.retryable_for("site_unselected"))
+        detail = [entry for entry in self.warnings.to_list()
+                  if entry["code"] == "sites_discovered"][0]["detail"]
+        self.assertEqual(len(detail["sites"]), 3)
+        self.assertEqual(sorted(detail["sites"][0]), ["id", "name"])
+
+    def test_data_012_zero_sites_is_unsupported(self):
+        with self.assertRaises(errors.UnsupportedError):
+            self.run_batch(sites=0)
+
+    def test_a_committed_site_that_does_not_exist_suspends_rather_than_retries(self):
+        self.config = config_module.Config(
+            "https://192.0.2.9/proxy/network/integration",
+            normalize_inputs.uid(777), None, False)
+        with self.assertRaises(errors.SiteUnselectedError):
+            self.run_batch(sites=3)
+        self.assertIn("sites_discovered", self.warnings.codes())
+
+    def test_a_committed_site_is_selected_out_of_several(self):
+        self.config = config_module.Config(
+            "https://192.0.2.9/proxy/network/integration",
+            normalize_inputs.uid(2), None, False)
+        batch = self.run_batch(sites=3)
+        self.assertEqual(batch.site_id, normalize_inputs.uid(2))
+        self.assertNotIn("site_auto_selected", self.warnings.codes())
+
+    def test_the_version_gate_runs_before_anything_else_is_requested(self):
+        def get_json(request, credential, context, deadline, warnings=None):
+            self.calls.append(request.route)
+            body = {"applicationVersion": "10.4.57"}
+            return body, len(json.dumps(body))
+
+        self.calls = []
+        with self.assertRaises(errors.UnsupportedError):
+            collect.run(self.config, _StubCredential(), None,
+                        deadline.Deadline(), self.warnings, get_json=get_json)
+        self.assertEqual(self.calls, ["info"])
+
+    def test_statistics_stop_at_four_gateways(self):
+        devices = [normalize_inputs.device(10 + i, "ONLINE", ["gateway"])
+                   for i in range(6)]
+
+        def get_json(request, credential, context, deadline, warnings=None):
+            self.calls.append(request.route)
+            if request.route == "devices":
+                body = {"offset": 0, "limit": 200, "count": 6, "totalCount": 6,
+                        "data": devices}
+            elif request.route == "sites":
+                body = {"offset": 0, "limit": 200, "count": 1, "totalCount": 1,
+                        "data": [{"id": self.SITE, "name": "S"}]}
+            elif request.route == "info":
+                body = {"applicationVersion": "9.1.0"}
+            elif request.route == "device_statistics":
+                body = normalize_inputs.stats(1, 2, 3)
+            else:
+                body = {"offset": 0, "limit": 200, "count": 0, "totalCount": 0,
+                        "data": []}
+            return body, len(json.dumps(body))
+
+        self.calls = []
+        batch = collect.run(self.config, _StubCredential(), None,
+                            deadline.Deadline(), self.warnings,
+                            get_json=get_json)
+        self.assertEqual(self.calls.count("device_statistics"), 4)
+        self.assertEqual(len(batch.data["gateways"]), 6)
+        detail = [entry for entry in self.warnings.to_list()
+                  if entry["code"] == "gateway_statistics_truncated"][0]["detail"]
+        self.assertEqual(detail, {"fetched": 4, "total": 6})
+
+
+class EnvelopeShape(unittest.TestCase):
+    """DATA-005 / DATA-006a, producer side."""
+
+    NONCE = "b7c1d4e9f2a68035"
+    ATTEMPTED = "2026-01-15T12:00:00Z"
+
+    def test_both_shapes_carry_the_same_nine_keys(self):
+        success = envelope.success(self.NONCE, self.ATTEMPTED,
+                                   "2026-01-15T12:00:02Z", envelope.meta(),
+                                   {}, None)
+        failure = envelope.failure(self.NONCE, self.ATTEMPTED, envelope.meta(),
+                                   errors.to_error_object(errors.NetworkError("x")),
+                                   None)
+        self.assertEqual(sorted(success), sorted(envelope.KEYS))
+        self.assertEqual(sorted(failure), sorted(envelope.KEYS))
+
+    def test_exit_status_is_derived_from_the_shape(self):
+        # Exit status is part of the protocol: the service rejects `ok: true`
+        # with a non-zero exit, so it is returned from here rather than chosen
+        # at a call site that could get it wrong.
+        _text, status = envelope.encode(
+            envelope.success(self.NONCE, self.ATTEMPTED, self.ATTEMPTED,
+                             envelope.meta(), {}, None))
+        self.assertEqual(status, 0)
+        _text, status = envelope.encode(
+            envelope.failure(self.NONCE, self.ATTEMPTED, envelope.meta(),
+                             errors.to_error_object(errors.NetworkError("x")), None))
+        self.assertNotEqual(status, 0)
+
+    def test_meta_is_always_an_object_with_a_helper_version(self):
+        blank = envelope.meta()
+        self.assertEqual(blank["helperVersion"], unifi.HELPER_VERSION)
+        for field in ("commitGeneration", "apiRootHost", "siteId",
+                      "allowInsecureTls", "customCaInUse"):
+            self.assertIsNone(blank[field], field)
+
+    def test_meta_carries_the_host_only_and_never_the_url(self):
+        parsed = config_module.parse(
+            b'{"apiRoot":"https://192.168.1.1:8443/proxy/network/integration"}')
+        built = envelope.meta(parsed)
+        self.assertEqual(built["apiRootHost"], "192.168.1.1:8443")
+        self.assertNotIn("proxy", json.dumps(built))
+        self.assertFalse(built["allowInsecureTls"])
+        self.assertFalse(built["customCaInUse"])
+
+    def test_an_oversized_envelope_is_replaced_and_never_truncated(self):
+        # Truncating produces half a JSON object, which the service reports as
+        # `malformed_response` — pointing at the wire for what is a size
+        # problem here.
+        huge = envelope.success(self.NONCE, self.ATTEMPTED, self.ATTEMPTED,
+                                envelope.meta(),
+                                {"padding": "a" * (envelope.STDOUT_MAX_BYTES + 1)},
+                                None)
+        text, status = envelope.encode(huge)
+        self.assertLess(len(text.encode("utf-8")), envelope.STDOUT_MAX_BYTES)
+        self.assertNotEqual(status, 0)
+        replacement = json.loads(text)
+        self.assertEqual(replacement["error"]["kind"], "oversized_response")
+        self.assertEqual(replacement["nonce"], self.NONCE)
+
+    def test_the_stdout_bound_is_the_protocol_number(self):
+        self.assertEqual(envelope.STDOUT_MAX_BYTES, 256 * 1024)
+        self.assertEqual(envelope.STDERR_MAX_BYTES, 4 * 1024)
+
+    def test_the_stderr_bound_caps_and_reports_that_it_capped(self):
+        # AC-049's producer half. DATA-005b bounds BOTH sides: the helper at
+        # 4 KiB (here) and the service at 8 KiB (tests/model/protocol.test.js).
+        # The service WAITS for this stream (REQ-017b), so an unbounded one is a
+        # hang as well as a disclosure.
+        text, exceeded = envelope.bounded_stderr("x" * 64 * 1024)
+        self.assertLessEqual(len(text.encode("utf-8")), envelope.STDERR_MAX_BYTES)
+        self.assertTrue(exceeded)
+        text, exceeded = envelope.bounded_stderr("short")
+        self.assertEqual(text, "short")
+        self.assertFalse(exceeded)
+
+
+class EntryPoint(unittest.TestCase):
+    """The one rule this layer owns: every exit path writes exactly one envelope."""
+
+    def test_the_timestamp_is_rfc_3339_utc_with_a_z_suffix(self):
+        # `datetime.now(timezone.utc).isoformat()` emits +00:00, which DATA-008
+        # rejects — the service would then discard a batch that worked.
+        stamp = unifi_status.utc_now()
+        self.assertRegex(stamp, r"\A\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z\Z")
+        self.assertLessEqual(len(stamp), 64)
+
+    def test_argv_parsing_accepts_only_what_the_service_sends(self):
+        self.assertEqual(unifi_status.parse_args(["--nonce", "abc"])[0], "abc")
+        self.assertEqual(unifi_status.parse_args(["--nonce=abc"])[0], "abc")
+        self.assertEqual(
+            unifi_status.parse_args(["--nonce", "abc", "--config-dir", "/tmp/x"])[1],
+            "/tmp/x")
+        for argv in ([], ["--nonce"], ["-n", "abc"], ["--nonce", "abc", "extra"],
+                     ["--nonce", ""], ["--nonce", "x" * 129]):
+            with self.subTest(argv=argv):
+                with self.assertRaises(errors.InternalError):
+                    unifi_status.parse_args(argv)
+
+    def test_the_config_directory_is_an_argument_not_an_environment_variable(self):
+        # An env var is ambient: every child of a shell somebody has touched
+        # inherits it silently, which is the property SEC-007a spends -E, -s
+        # and the TLS scrub removing from a process that reads an API key.
+        source = _read_source(os.path.join(_REPO, "helper", "unifi_status.py"))
+        self.assertNotIn("os.environ.get", source)
+        self.assertIn("--config-dir", source)
+
+    def test_run_never_raises_and_always_returns_an_envelope(self):
+        for directory in ("/nonexistent-config-dir", _REPO, "/dev/null"):
+            with self.subTest(directory=directory):
+                built = unifi_status.run("abc", directory, "2026-01-15T12:00:00Z")
+                self.assertEqual(sorted(built), sorted(envelope.KEYS))
+                self.assertIs(built["ok"], False)
+                self.assertIsNotNone(built["error"])
+                self.assertIsInstance(built["meta"], dict)
+
+    def test_an_unexpected_exception_becomes_internal_and_not_a_traceback(self):
+        with _patched(unifi_status.paths, "open_config_dir",
+                      lambda path: 1 / 0):
+            built = unifi_status.run("abc", "/tmp", "2026-01-15T12:00:00Z")
+        self.assertEqual(built["error"]["kind"], "internal")
+        self.assertNotIn("ZeroDivision", json.dumps(built))
+
+    def test_a_missing_nonce_still_produces_a_well_formed_envelope(self):
+        # It will be discarded on the nonce check (DATA-005a), which is correct.
+        # Emitting nothing would leave the service waiting on a stream that
+        # never carries a value.
+        stream = io.StringIO()
+        with _patched(sys, "stdout", stream):
+            status = unifi_status.main([])
+        self.assertNotEqual(status, 0)
+        built = json.loads(stream.getvalue())
+        self.assertEqual(sorted(built), sorted(envelope.KEYS))
+        self.assertEqual(built["error"]["kind"], "internal")
+
+    def test_the_helper_writes_one_json_value_and_nothing_else(self):
+        stream = io.StringIO()
+        with _patched(sys, "stdout", stream):
+            unifi_status.main(["--nonce", "abc", "--config-dir", "/nonexistent"])
+        text = stream.getvalue()
+        self.assertEqual(text.strip(), text)
+        json.loads(text)
+
+    def test_the_launch_flags_in_the_docstring_are_the_documented_ones(self):
+        # HC-14 and HC-15 in one line each. `-I` would strip the script's own
+        # directory from sys.path on 3.11+ and the package would not import.
+        source = _read_source(os.path.join(_REPO, "helper", "unifi_status.py"))
+        self.assertIn("python3 -B -E -s", source)
+        self.assertIn("sys.path.insert", source)
 
 
 # --- helpers ----------------------------------------------------------------

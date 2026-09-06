@@ -50,6 +50,13 @@
     "offlineDevices": [
       {
         "class": "down",
+        "id": "00000000-0000-5000-9000-00000000000a",
+        "model": "UDM-Pro",
+        "name": "UDM Pro",
+        "state": "OFFLINE"
+      },
+      {
+        "class": "down",
         "id": "00000000-0000-5000-9000-000000000064",
         "model": "USW-Lite-8-PoE",
         "name": "Bulk Switch 000",
@@ -109,13 +116,6 @@
         "id": "00000000-0000-5000-9000-00000000006c",
         "model": "USW-Lite-8-PoE",
         "name": "Bulk Switch 008",
-        "state": "OFFLINE"
-      },
-      {
-        "class": "down",
-        "id": "00000000-0000-5000-9000-00000000006d",
-        "model": "USW-Lite-8-PoE",
-        "name": "Bulk Switch 009",
         "state": "OFFLINE"
       }
     ],

@@ -441,9 +441,15 @@ def accept_success():
                     counts(0, 500, 500,
                            cls(down=500),
                            cls(down=1), cls(down=499), zero()),
-                    [offline_device(100 + i, "Bulk Switch %03d" % i,
-                                    "USW-Lite-8-PoE", "OFFLINE", "down")
-                     for i in range(10)],
+                    # The GATEWAY is down too, and its id sorts first, so it
+                    # heads the list. An earlier version listed ten bulk
+                    # switches and silently dropped it — which would have made
+                    # the one device whose failure decides REQ-002 rule 3 the
+                    # one device the panel never shows.
+                    [offline_device(10, "UDM Pro", "UDM-Pro", "OFFLINE", "down")]
+                    + [offline_device(100 + i, "Bulk Switch %03d" % i,
+                                      "USW-Lite-8-PoE", "OFFLINE", "down")
+                       for i in range(9)],
                 ),
                 [warning("offline_list_truncated",
                          "Showing 10 of 500 offline devices.",
@@ -485,9 +491,11 @@ def accept_success():
                            cls(online=5), cls(online=5), cls(online=1)),
                     [],
                 ),
+                # `total` is the GATEWAY count, not devicesTotal. This case
+                # has five gateways among six devices, and said "4 of 6".
                 [warning("gateway_statistics_truncated",
-                         "Statistics fetched for 4 of 6 gateways.",
-                         {"fetched": 4, "total": 6})])))
+                         "Statistics fetched for 4 of 5 gateways.",
+                         {"fetched": 4, "total": 5})])))
 
     out.append(("success_insecure_tls",
                 "allowInsecureTls in force. UX-009 needs this to reach the panel, "

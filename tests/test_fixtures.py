@@ -244,6 +244,43 @@ class AcceptCorpusShape(unittest.TestCase):
                              counts["offlineTotal"],
                              "%s: byClass.down+impaired != offlineTotal" % name)
 
+    def test_the_success_corpus_is_internally_ordered_and_consistent(self):
+        # Cross-checks the corpus against itself, because the envelopes are
+        # hand-authored and `normalize.py` must reproduce them byte for byte.
+        # Both of these fired when the check was first written: one case listed
+        # ten bulk switches and dropped the down GATEWAY whose id sorts first —
+        # the one device REQ-002 rule 3 turns on — and another reported
+        # "4 of 6 gateways" for a site with five, having taken `total` from
+        # devicesTotal.
+        for path in corpus_files():
+            if "envelopes/accept/success" not in path.replace(os.sep, "/"):
+                continue
+            envelope = json.loads(read(path))
+            data = envelope["data"]
+            name = os.path.basename(path)
+            offline = data["offlineDevices"]
+            ids = [entry["id"] for entry in offline]
+            self.assertEqual(ids, sorted(ids), "%s: offlineDevices not ascending by id" % name)
+            gateway_ids = [entry["id"] for entry in data["gateways"]]
+            self.assertEqual(gateway_ids, sorted(gateway_ids),
+                             "%s: gateways not ascending by id" % name)
+            for entry in data["gateways"]:
+                if entry["class"] not in ("down", "impaired"):
+                    continue
+                if entry["id"] in ids:
+                    continue
+                self.assertEqual(len(offline), 10,
+                                 "%s: a down gateway is missing from an unbounded list" % name)
+                self.assertGreater(entry["id"], max(ids),
+                                   "%s: a down gateway sorts before the truncation cut" % name)
+            for entry in envelope["warnings"]:
+                if entry["code"] == "gateway_statistics_truncated":
+                    self.assertEqual(entry["detail"]["total"], len(data["gateways"]),
+                                     "%s: truncation total is not the gateway count" % name)
+                if entry["code"] == "offline_list_truncated":
+                    self.assertEqual(entry["detail"]["total"], data["counts"]["offlineTotal"], name)
+                    self.assertEqual(entry["detail"]["listed"], len(offline), name)
+
     def test_offline_list_never_exceeds_its_bound_or_its_total(self):
         for name, envelope in self.accepts():
             if not envelope["ok"]:

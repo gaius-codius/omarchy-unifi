@@ -87,7 +87,13 @@ step "omarchy plugin validate" omarchy plugin validate "$REPO"
 
 # --- AUTO: model layer -----------------------------------------------------
 shopt -s nullglob
+# test_end_to_end.js is named without the `.test.js` suffix and is listed
+# explicitly, because it is not a model test: it SPAWNS the real helper against
+# a local TLS stub. It is still AUTO — no Wayland, no staging, no controller —
+# but it costs seconds rather than milliseconds and it is worth being able to
+# see that in the list.
 model_tests=(tests/*.test.js tests/model/*.test.js tests/test_suite_integrity.js)
+[[ -f tests/test_end_to_end.js ]] && model_tests+=(tests/test_end_to_end.js)
 shopt -u nullglob
 if (( ${#model_tests[@]} )); then
   step "node --test (pure model layer)" node --test "${model_tests[@]}"
