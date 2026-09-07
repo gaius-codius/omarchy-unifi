@@ -197,10 +197,12 @@ Column {
           delegate: Text {
             required property var modelData
             text: modelData.value + " " + modelData.label
-            // A zero class is dimmed rather than dropped. REQ-009 asks for
-            // counts in each of the five classes, and a row whose columns
-            // move as devices change state is unreadable at a glance.
-            color: modelData.value > 0 ? root.foreground : root.dim
+            // SPEC-AMD-3: every cell that reaches here is non-zero, because
+            // `countRows` drops the empty classes. The colour is unconditional
+            // for that reason and not because the distinction stopped
+            // mattering — a zero cell arriving here would be a defect in
+            // ViewModel.js, and dimming it would hide that.
+            color: root.foreground
             font.family: root.fontFamily
             font.pixelSize: Style.font.caption
             textFormat: Text.PlainText

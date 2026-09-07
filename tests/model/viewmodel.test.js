@@ -632,18 +632,37 @@ test("REQ-008a: each gateway is listed, and 'not fetched' is not 'unknown'", () 
   assert.strictEqual(ViewModel.gatewayRows("nonsense").length, 0)
 })
 
-test("REQ-009: role rows carry all five classes in a fixed order", () => {
+test("REQ-009: role rows carry their non-empty classes in a fixed order", () => {
   const rows = ViewModel.countRows(HEALTHY.counts)
   assert.deepStrictEqual(rows.map((r) => r.key),
     ["gateways", "switches", "accessPoints"])
   for (const row of rows) {
-    // Fixed, and fixed deliberately: `for (key in obj)` is not required to
-    // agree between V4 and V8, and a row whose columns move between renders is
-    // unreadable.
-    assert.deepStrictEqual(row.cells.map((c) => c.key), ViewModel.CLASS_ORDER)
-    assert.strictEqual(row.cells.length, 5)
+    // SPEC-AMD-3 drops the empty classes; it does not reorder the survivors.
+    // The order is fixed deliberately, because `for (key in obj)` is not
+    // required to agree between V4 and V8 and a row whose columns move between
+    // renders is unreadable.
+    const order = row.cells.map((c) => c.key)
+    const expected = ViewModel.CLASS_ORDER.filter((k) => order.indexOf(k) !== -1)
+    assert.deepStrictEqual(order, expected)
+    // And nothing that survived is zero.
+    for (const cell of row.cells) assert.ok(cell.value > 0)
   }
   assert.strictEqual(rows[2].total, 2)
+
+  // SPEC-AMD-3's two boundaries. `total` is summed over all five classes
+  // BEFORE the filter, so it keeps meaning "devices in this role" and AC-025's
+  // not-a-partition arithmetic is unaffected by what is displayed.
+  const oneDown = ViewModel.countRows({
+    gateways: { online: 0, transitional: 0, down: 2, impaired: 0, unknown: 0 },
+    switches: { online: 0, transitional: 0, down: 0, impaired: 0, unknown: 0 }
+  })
+  assert.strictEqual(oneDown.length, 1, "a role with no devices contributes no row")
+  assert.strictEqual(oneDown[0].key, "gateways")
+  assert.deepStrictEqual(oneDown[0].cells.map((c) => c.value), [2])
+  assert.strictEqual(oneDown[0].cells[0].key, "down")
+  // The one thing the filter must never do: hide a device that is not well.
+  assert.strictEqual(oneDown[0].total, 2)
+
   // A missing bucket is skipped rather than rendered as five zeros, which
   // would claim the controller reported something it did not.
   assert.strictEqual(ViewModel.countRows({ gateways: null }).length, 0)
@@ -799,6 +818,13 @@ test("the hero headline states the level in words on both paths", () => {
   assert.ok(ViewModel.headline("green", true, "2m ago").indexOf("2m ago") !== -1)
   assert.ok(ViewModel.forNullService().headline.length > 0)
   assert.ok(build().headline.indexOf("Healthy") === 0)
+  // The INPUT KEY is part of the contract with Service.qml, which is a
+  // different file in a different language and gets no error at all for
+  // passing a property that does not exist. Reading the wrong name shipped a
+  // panel that displayed live device counts under the words "never updated".
+  assert.strictEqual(build({ lastSuccessAt: 1767225580 }).lastUpdateText, "20s ago")
+  assert.ok(build({ lastSuccessAt: 1767225580 }).headline.indexOf("20s ago") !== -1)
+  assert.strictEqual(build({ lastSuccessAt: null }).lastUpdateText, "never")
 })
 
 test("build's error message is a string on every path", () => {

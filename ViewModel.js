@@ -349,8 +349,19 @@ function countRows(counts) {
       const key = CLASS_ORDER[j]
       const value = typeof bucket[key] === "number" ? bucket[key] : 0
       total += value
+      // SPEC-AMD-3: a class with no devices in it is DROPPED, not dimmed. On a
+      // healthy site twelve of the fifteen cells read zero, and fifteen numbers
+      // of which twelve are noise is harder to read than three. What is never
+      // dropped is a non-zero count, and `total` is summed over all five
+      // classes before the filter, so the AC-025 not-a-partition arithmetic is
+      // unaffected by what is displayed.
+      if (value === 0) continue
       cells.push({ key: key, label: CLASS_WORD[key], value: value })
     }
+    // A role with no devices at all contributes an empty row. "Gateways" with
+    // nothing after it is a question the panel cannot answer, so the row goes
+    // too — the absence of the row is the same statement, with less ink.
+    if (total === 0) continue
     rows.push({ key: roles[i].key, label: roles[i].label, total: total, cells: cells })
   }
   return rows

@@ -893,6 +893,55 @@ ShellRoot {
       }
     })
 
+    // REQ-004: "updated" is the freshness half of the two facts the widget owes
+    // the user, and it is the half no other case looked at with a REAL service
+    // behind it. `viewmodel.test.js` supplies `lastSuccessAt` itself and so can
+    // only ever prove the formatter; the wiring from the scheduler's field to
+    // that argument lives in Service.qml, in another language, where a
+    // misspelled property is `undefined` rather than an error. It was
+    // misspelled, and the panel spent Phase 12 telling the truth about the site
+    // under the words "never updated".
+    //
+    // Asserted on the RENDERED STRING as well as the model, because the
+    // headline is what the user reads and it is composed, not bound.
+    pending.push({
+      name: "REQ-004: a successful batch is reported as recently updated",
+      waitMs: 4000,
+      prepare: function () { writeScenario({ mode: "success" }) },
+      setup: function () {
+        resetService(30)
+        service.requestRefresh()
+      },
+      assert: function () {
+        var vm = service.viewModel
+        check("the batch succeeded", true, service._status().hasSnapshot)
+        if (vm.lastUpdateText === "never") {
+          bad("the last-update text is a time, not \"never\"", vm.lastUpdateText)
+        } else {
+          ok("the last-update text is \"" + vm.lastUpdateText + "\"")
+        }
+        if (vm.headline.indexOf("never") !== -1) {
+          bad("the headline does not say never", vm.headline)
+        } else {
+          ok("the headline reads \"" + vm.headline + "\"")
+        }
+        if (vm.tooltip.indexOf("Last update: never") !== -1) {
+          bad("the tooltip does not say never", vm.tooltip)
+        } else {
+          ok("the tooltip states a real last-update time")
+        }
+        // The panel, not just the model. A binding that dropped the headline
+        // would leave every assertion above green.
+        //
+        // Upper-cased because `PanelHero` is Omarchy's, and it upcases its
+        // `meta` line — the model's "just now" reaches the screen as
+        // "JUST NOW". Matched on the host's rendering rather than worked
+        // around, because the string the user reads is the subject here.
+        checkPanelText("the panel shows the update time",
+                       vm.lastUpdateText.toUpperCase())
+      }
+    })
+
     // --- REQ-010 / REQ-013a / UX-009 / AC-025 / AC-063 ----------------------
     //
     // Against the healthy snapshot, `DeviceList` and `WarningList` render

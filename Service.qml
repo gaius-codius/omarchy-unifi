@@ -755,7 +755,14 @@ Item {
       settings: _settings,
       pollingSuspended: pollingSuspended,
       nextAttemptAt: _schedule.nextAttemptAt,
-      lastSuccessAt: _schedule.lastSuccessAtWall,
+      // `lastSuccessAt`, not `lastSuccessAtWall`. The scheduler names its two
+      // wall-clock fields inconsistently — `lastCompletionAtWall` carries the
+      // suffix and `lastSuccessAt` does not — and reading the suffixed name
+      // here returned `undefined`, which `relativePast` renders as "never". A
+      // panel showing live device counts under the words "never updated" is
+      // the failure mode; JS gives no error for the wrong property name, so
+      // the guard is the CP-live assertion in runner.qml, not this comment.
+      lastSuccessAt: _schedule.lastSuccessAt,
       staleAt: Schedule.staleAt(_schedule),
       now: clocks.now(),
       nowWall: nowWall

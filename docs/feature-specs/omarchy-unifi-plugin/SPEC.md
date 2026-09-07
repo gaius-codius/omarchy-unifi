@@ -239,10 +239,16 @@ listed without metrics and raise a warning. This bounds route 4's contribution
 to the REQ-017 time budget.
 
 REQ-009: The panel shows the connected client count and, per role
-(`gateway`, `switching`, `accessPoint`), counts in each of the five classes from
+(`gateway`, `switching`, `accessPoint`), counts in the five classes from
 REQ-000. A device holding several roles is counted in **each** role it reports;
 the panel labels these as role counts and separately shows the unique device
 total, so the role rows are not expected to sum to it.
+
+**SPEC-AMD-3 (2026-09-07):** only the classes with a non-zero count are
+displayed, and a role with no devices at all is omitted entirely. Every non-zero
+count is always shown. The model still computes all five classes and each row's
+total is still summed over all five before the filter, so this changes what is
+drawn and nothing that is decided.
 
 REQ-010: The panel lists devices that are `down` or `impaired`, by name and
 model, bounded to a maximum of 10 entries. The "and N more" line is computed
