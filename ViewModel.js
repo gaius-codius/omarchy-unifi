@@ -169,14 +169,21 @@ function wordFor(healthLevel) {
 }
 
 function classWord(deviceClass) {
-  const known = CLASS_WORD[deviceClass]
+  // `own`, not `CLASS_WORD[deviceClass]`. A class of "valueOf" returned a
+  // FUNCTION, and `known === undefined` was then false — so the fallback did
+  // not fire. On its own that rendered engine internals; once `browseDeviceRow`
+  // began passing the result through `wordCase`, it THREW, and a throw inside
+  // `build` costs the whole model rather than one word. `class` is validated by
+  // `checkDeviceRecord`, so this is a backstop and not a live defect — but it
+  // is a backstop that had stopped working.
+  const known = own(CLASS_WORD, deviceClass)
   // REQ-003: an unrecognised state is reported as unknown, never dropped and
   // never silently rendered as the empty string, which would read as "fine".
   return known === undefined ? CLASS_WORD.unknown : known
 }
 
 function wanStatusWord(status) {
-  const known = WAN_STATUS_WORD[status]
+  const known = own(WAN_STATUS_WORD, status)
   return known === undefined ? WAN_STATUS_WORD.unknown : known
 }
 
@@ -362,7 +369,11 @@ function countRows(counts) {
     // nothing after it is a question the panel cannot answer, so the row goes
     // too — the absence of the row is the same statement, with less ink.
     if (total === 0) continue
-    rows.push({ key: roles[i].key, label: roles[i].label, total: total, cells: cells })
+    // REQ-B10a. The row is an entry point: activating it opens Devices filtered
+    // to this role, so it carries the role value `devices[].roles` uses rather
+    // than leaving the view to translate the counter's plural noun into it.
+    rows.push({ key: roles[i].key, role: ROLE_FOR_COUNT_KEY[roles[i].key],
+      label: roles[i].label, total: total, cells: cells })
   }
   return rows
 }
@@ -470,6 +481,677 @@ function sitesFromWarnings(warnings) {
     }
   }
   return sites
+}
+
+// --- v1.1: the browse lists (REQ-B11 … REQ-B17) --------------------------
+//
+// Everything the Devices and Clients pages render. It lives in this file rather
+// than in a sixth dual-use module because HC-16 forbids these files importing
+// one another: a `Browse.js` would have to carry its own copies of
+// `formatOptional`, `formatUptime`, `relativePast`, `classWord` and
+// `displayName`, and the entire reason those are single functions is that
+// BIZ-003's null-is-not-zero rule must not be able to be right in one file and
+// wrong in another.
+
+// REQ-B11's class ranking, duplicated from `normalize.py`'s
+// `_BROWSE_CLASS_RANK`. `tests/model/consistency.test.js` and
+// `tests/test_unifi_status.py` both parse the order out of the REQ-B11 sentence
+// in SPEC-v1.1-browse.md, so the two copies are held to one authority rather
+// than to each other.
+//
+// It is NOT used to sort. REQ-B01 puts the ordering in the helper so that every
+// consumer sees one order, and sorting again here would make a helper that
+// ordered wrongly indistinguishable from one that ordered rightly — REQ-B01's
+// guarantee would still be false and nothing would ever say so. So this ranking
+// CHECKS, via `firstBrowseOrderViolation`, and the check is what AC-B07 asserts.
+const BROWSE_CLASS_RANK = {
+  down: 0,
+  impaired: 1,
+  unknown: 2,
+  transitional: 3,
+  online: 4
+}
+
+// REQ-B10a. Overview's count rows are entry points into a filtered Devices
+// list, so each row must carry the role value `devices[].roles` actually uses.
+// The two vocabularies differ — the counter's buckets are plural nouns and the
+// device's roles are the API's feature names — and a view left to map between
+// them would be computing (REQ-014), in the one place a typo produces an
+// always-empty list rather than an error.
+const ROLE_FOR_COUNT_KEY = {
+  gateways: "gateway",
+  switches: "switching",
+  accessPoints: "accessPoint"
+}
+
+const ROLE_PLURAL = {
+  gateway: "gateways",
+  switching: "switches",
+  accessPoint: "access points"
+}
+
+// The observed values are WIRED and WIRELESS; the published schema also lists
+// VPN and TELEPORT. An unrecognised type renders AS ITSELF and never as
+// "unknown", because — unlike a device `state`, which decides a health class —
+// a client type decides nothing, and printing "unknown" over a value the
+// controller stated plainly would be the panel losing information it has.
+const CLIENT_TYPE_WORD = {
+  WIRED: "Wired",
+  WIRELESS: "Wireless",
+  VPN: "VPN",
+  TELEPORT: "Teleport"
+}
+
+const BROWSE_VIEWS = ["overview", "devices", "clients"]
+
+// AC-B09's whole point. This sentence and an empty port table are different
+// claims: this one says the helper never asked, and an empty table says the
+// controller answered and there are no ports. Rendering the second for the
+// first would assert, on a 48-port switch whose detail was dropped by
+// DATA-B04's budget, that the switch has no ports.
+const DETAIL_NOT_FETCHED = "Details not fetched for this device."
+
+// --- REQ-B11 / REQ-B12: the order, as a check ----------------------------
+
+// A lookup that cannot fall through to `Object.prototype`.
+//
+// Three of the maps below are indexed by strings that come from the controller
+// and are NOT validated against a closed set: `clients[].type` (protocol-v1.md
+// says so explicitly), `devices[].id` and `uplinkDeviceId`. `map[key]` for
+// "valueOf" returns a FUNCTION, and `clientTypeWord("valueOf")` rendered
+// `function valueOf() { [native code] }` into the client row. Not a security
+// hole — everything here is display-only — but a row of engine internals where
+// a word should be, from one word in one API response.
+function own(map, key) {
+  return Object.prototype.hasOwnProperty.call(map, key) ? map[key] : undefined
+}
+
+function browseOrderKey(device) {
+  const entry = device || {}
+  const klass = typeof entry.class === "string" ? entry.class : ""
+  const rank = own(BROWSE_CLASS_RANK, klass) === undefined
+    ? CLASS_ORDER.length : BROWSE_CLASS_RANK[klass]
+  return {
+    rank: rank,
+    // `is_gateway(device)` in the helper is `"gateway" in roles_of(device)`,
+    // and `roles` is emitted from that same set — so the emitted record is
+    // enough to reproduce the helper's key. If the two ever part company this
+    // reproduction stops being valid, which is why it is asserted over the
+    // whole accept corpus rather than over a hand-written device.
+    gateway: hasRole(entry.roles, "gateway") ? 0 : 1,
+    name: lowerOf(entry.name),
+    id: typeof entry.id === "string" ? entry.id : ""
+  }
+}
+
+function compareBrowseOrder(a, b) {
+  const left = browseOrderKey(a)
+  const right = browseOrderKey(b)
+  if (left.rank !== right.rank) return left.rank < right.rank ? -1 : 1
+  if (left.gateway !== right.gateway) return left.gateway < right.gateway ? -1 : 1
+  if (left.name !== right.name) return left.name < right.name ? -1 : 1
+  if (left.id !== right.id) return left.id < right.id ? -1 : 1
+  return 0
+}
+
+// REQ-B12. Clients are ordered by name, case-insensitively, then by id — with
+// the SAME fallback chain the row renders, so the list is sorted by the string
+// the user is actually looking at. Sorting by the raw `name` would scatter every
+// unnamed client to the front under the empty string while the panel showed
+// them by IP address, and the order would look arbitrary.
+function clientOrderKey(client) {
+  const entry = client || {}
+  return {
+    name: lowerOf(clientDisplayName(entry)),
+    id: typeof entry.id === "string" ? entry.id : ""
+  }
+}
+
+function compareClientOrder(a, b) {
+  const left = clientOrderKey(a)
+  const right = clientOrderKey(b)
+  if (left.name !== right.name) return left.name < right.name ? -1 : 1
+  if (left.id !== right.id) return left.id < right.id ? -1 : 1
+  return 0
+}
+
+// The index of the first entry that is out of order, or -1. An index rather
+// than a boolean: when this fires in a corpus of two hundred devices, "not
+// ordered" is not a usable failure message and "entry 137 sorts before entry
+// 136" is.
+function firstOutOfOrder(entries, compare) {
+  const list = entries || []
+  for (let i = 1; i < list.length; i++) {
+    if (compare(list[i - 1], list[i]) > 0) return i
+  }
+  return -1
+}
+
+function firstBrowseOrderViolation(devices) {
+  return firstOutOfOrder(devices, compareBrowseOrder)
+}
+
+function firstClientOrderViolation(clients) {
+  return firstOutOfOrder(clients, compareClientOrder)
+}
+
+function hasRole(roles, role) {
+  const list = roles || []
+  for (let i = 0; i < list.length; i++) {
+    if (list[i] === role) return true
+  }
+  return false
+}
+
+// --- REQ-B13: search -----------------------------------------------------
+//
+// Substring, case-insensitive, and deliberately not fuzzy: a user must be able
+// to say why a row matched. `indexOf` is the whole algorithm, and that is the
+// requirement rather than a shortcut.
+
+function lowerOf(value) {
+  return typeof value === "string" ? value.toLowerCase() : ""
+}
+
+function matchesSearch(haystack, term) {
+  if (term === "") return true
+  return haystack.indexOf(term) !== -1
+}
+
+// Fields are joined with a newline the search term can never contain — the
+// field is single-line and the term is trimmed — so "co\nmodel" cannot match
+// across the seam between two fields and produce a row the user cannot explain.
+function haystackOf(fields) {
+  const parts = []
+  for (let i = 0; i < fields.length; i++) {
+    const value = fields[i]
+    if (typeof value === "string" && value !== "") parts.push(value.toLowerCase())
+  }
+  return parts.join("\n")
+}
+
+// --- REQ-B14: the rows ---------------------------------------------------
+
+// The device name a row prints, resolved once so the sort key, the search
+// haystack and the label can never be three different strings.
+function browseDeviceRow(device) {
+  const entry = device || {}
+  const metrics = entry.metrics || null
+  const nameText = displayName(entry)
+  const ip = typeof entry.ipAddress === "string" && entry.ipAddress !== ""
+    ? entry.ipAddress : ""
+  const uptime = metrics ? metrics.uptimeSec : null
+  const uptimeKnown = typeof uptime === "number" && isFinite(uptime) && uptime >= 0
+  const segments = [wordCase(classWord(entry.class))]
+  segments.push(ip !== "" ? ip : "IP unknown")
+  // "uptime when known" (REQ-B14). Omitted rather than printed as "unknown",
+  // because the row's job is a glance and a third of the line saying nothing is
+  // worse than a shorter line. The value is still on the row object as
+  // `uptimeText`, where BIZ-003's "unknown" is what it says.
+  if (uptimeKnown) segments.push("up " + formatUptime(uptime))
+  return {
+    id: typeof entry.id === "string" ? entry.id : "",
+    name: entry.name,
+    model: entry.model,
+    state: entry.state,
+    class: entry.class,
+    roles: entry.roles || [],
+    nameText: nameText,
+    modelText: typeof entry.model === "string" && entry.model !== ""
+      ? entry.model : "unknown model",
+    classText: wordCase(classWord(entry.class)),
+    ipText: formatOptional(ip === "" ? null : ip),
+    uptimeText: formatUptime(uptime),
+    metaText: segments.join("  ·  "),
+    // REQ-B21: the MAC is not on the row, only in the detail. It is in the
+    // search haystack, which renders nothing.
+    searchText: haystackOf([nameText, entry.model, entry.ipAddress,
+      entry.macAddress]),
+    // AC-B09's discriminator, as a boolean rather than a `detail !== null` in
+    // the view: `null` and `{ports: []}` must reach different renderings, and a
+    // truthiness test in QML would collapse them the moment `detail` were `{}`.
+    detailFetched: entry.detail !== null && entry.detail !== undefined,
+    // `firmwareUpdatable` is nullable, so `=== true` and not truthiness: `null`
+    // is "the controller did not say", and marking a device as updatable on
+    // that basis would be inventing the fact.
+    updateAvailable: entry.firmwareUpdatable === true
+  }
+}
+
+// AC-B11. A client with no name renders its IP; with neither, its id; never the
+// empty string, which would be an unclickable blank row in a list whose whole
+// purpose is finding one machine.
+function clientDisplayName(entry) {
+  if (typeof entry.name === "string" && entry.name !== "") return entry.name
+  if (typeof entry.ipAddress === "string" && entry.ipAddress !== "") return entry.ipAddress
+  if (typeof entry.id === "string" && entry.id !== "") return entry.id
+  return "unnamed client"
+}
+
+function clientTypeWord(type) {
+  if (typeof type !== "string" || type === "") return "unknown"
+  const known = own(CLIENT_TYPE_WORD, type)
+  return known === undefined ? type : known
+}
+
+function browseClientRow(client, uplinkName, nowWall) {
+  const entry = client || {}
+  const nameText = clientDisplayName(entry)
+  const ip = typeof entry.ipAddress === "string" && entry.ipAddress !== ""
+    ? entry.ipAddress : ""
+  // Not repeated when the name already IS the IP address (AC-B11's fallback),
+  // which would print the same string twice on one row.
+  const ipText = ip !== "" && ip !== nameText ? ip : ""
+  const connected = connectedText(entry.connectedAt, nowWall)
+  const segments = [clientTypeWord(entry.type)]
+  if (uplinkName !== "") segments.push("via " + uplinkName)
+  if (connected !== "") segments.push("connected " + connected)
+  return {
+    id: typeof entry.id === "string" ? entry.id : "",
+    name: entry.name,
+    type: entry.type,
+    nameText: nameText,
+    ipText: ipText,
+    typeText: clientTypeWord(entry.type),
+    uplinkText: uplinkName,
+    connectedText: connected,
+    metaText: segments.join("  ·  "),
+    searchText: haystackOf([nameText, entry.ipAddress, entry.macAddress,
+      entry.type, uplinkName])
+  }
+}
+
+// REQ-B14's "via <uplink device name>", and REQ-B13's client search field of
+// the same name. Both need the device list to resolve an id, so it is resolved
+// once per build and not once per row.
+//
+// The unresolved case is real and is not an error: `devices[]` is bounded at
+// DEVICES_LISTED_MAX and by DATA-B04's byte budget, so on a large site a client
+// can legitimately be uplinked to a device that was not listed. It says so,
+// rather than printing a bare uuid the user cannot act on or dropping the
+// segment, which would read as "connected to nothing".
+function uplinkNameFor(names, id) {
+  if (typeof id !== "string" || id === "") return ""
+  const known = own(names, id)
+  return known === undefined ? "an unlisted device" : known
+}
+
+function uplinkNames(devices) {
+  const names = {}
+  const list = devices || []
+  for (let i = 0; i < list.length; i++) {
+    const entry = list[i] || {}
+    if (typeof entry.id === "string" && entry.id !== "") {
+      names[entry.id] = displayName(entry)
+    }
+  }
+  return names
+}
+
+// --- REQ-B14: the detail blocks ------------------------------------------
+
+function deviceDetail(device, names) {
+  const entry = device || {}
+  const detail = entry.detail === undefined ? null : entry.detail
+  const metrics = entry.metrics || null
+  // `!== null` rather than truthiness, and here — unlike `firmwareUpdatable`
+  // below — the two are equivalent: `checkDeviceRecord` rejects a `detail` that
+  // is neither an object nor an explicit null, so no falsy non-null value
+  // reaches this line. Recorded because the mutation survives and a later
+  // reader would otherwise spend the same twenty minutes finding out why.
+  const fetched = detail !== null
+  const ports = fetched ? (detail.ports || []) : []
+  const radios = fetched ? (detail.radios || []) : []
+  return {
+    id: typeof entry.id === "string" ? entry.id : "",
+    nameText: displayName(entry),
+    fetched: fetched,
+    // Non-empty exactly when `fetched` is false. AC-B09 asserts both halves,
+    // because a sentence that is always present and a sentence that is never
+    // present both pass a test that only looks at one device.
+    unavailableText: fetched ? "" : DETAIL_NOT_FETCHED,
+    updateAvailable: entry.firmwareUpdatable === true,
+    updateText: entry.firmwareUpdatable === true ? "update available" : "",
+    rows: [
+      { key: "firmware", label: "Firmware", value: formatOptional(entry.firmwareVersion) },
+      { key: "mac", label: "MAC", value: formatOptional(entry.macAddress) },
+      { key: "uplink", label: "Uplink", value: uplinkLabel(names, entry.uplinkDeviceId) },
+      { key: "cpu", label: "CPU", value: formatPct(metrics ? metrics.cpuUtilizationPct : null) },
+      { key: "memory", label: "Memory", value: formatPct(metrics ? metrics.memoryUtilizationPct : null) },
+      { key: "download", label: "Download", value: formatBps(metrics ? metrics.downloadBps : null) },
+      { key: "upload", label: "Upload", value: formatBps(metrics ? metrics.uploadBps : null) }
+    ],
+    ports: mapRows(ports, portRow),
+    radios: mapRows(radios, radioRow),
+    // "The controller answered and there are none" — only ever said when the
+    // detail was actually fetched.
+    portsEmptyText: fetched && ports.length === 0 ? "No ports reported." : "",
+    radiosEmptyText: fetched && radios.length === 0 ? "No radios reported." : ""
+  }
+}
+
+// `uplinkDeviceId` is null whenever `detail` is (it is read from route 6's
+// body), so "unknown" here means either "this device has no uplink" or "we did
+// not fetch its detail" — and the detail block says which, two lines up.
+function uplinkLabel(names, id) {
+  if (typeof id !== "string" || id === "") return "unknown"
+  return uplinkNameFor(names, id)
+}
+
+function clientDetail(client, uplinkName) {
+  const entry = client || {}
+  return {
+    id: typeof entry.id === "string" ? entry.id : "",
+    nameText: clientDisplayName(entry),
+    rows: [
+      // REQ-B21 / D3: this is the only place a client MAC address is rendered,
+      // and it is rendered only because the user expanded the row.
+      { key: "mac", label: "MAC", value: formatOptional(entry.macAddress) },
+      { key: "access", label: "Access", value: formatOptional(entry.accessType) },
+      { key: "uplink", label: "Uplink", value: uplinkName === "" ? "unknown" : uplinkName },
+      { key: "connected", label: "Connected", value: formatInstant(entry.connectedAt) }
+    ]
+  }
+}
+
+function mapRows(entries, builder) {
+  const rows = []
+  for (let i = 0; i < entries.length; i++) rows.push(builder(entries[i]))
+  return rows
+}
+
+function portRow(port) {
+  const entry = port || {}
+  return {
+    idx: entry.idx,
+    idxText: typeof entry.idx === "number" ? String(entry.idx) : "?",
+    connectorText: formatOptional(entry.connector),
+    stateText: formatOptional(entry.state),
+    speedText: formatSpeedMbps(entry.maxSpeedMbps),
+    poeText: poeText(entry.poe),
+    isUp: entry.state === "UP"
+  }
+}
+
+// A port with `poe: null` reports no PoE at all; a port with `enabled: false`
+// has PoE and it is switched off. These are a property of the hardware and a
+// setting respectively, and someone working out why a camera has no power needs
+// to be able to tell them apart — so the first renders nothing and the second
+// says so.
+function poeText(poe) {
+  if (poe === null || poe === undefined) return ""
+  if (poe.enabled !== true) return "PoE off"
+  const parts = ["PoE"]
+  if (typeof poe.standard === "string" && poe.standard !== "") parts.push(poe.standard)
+  if (typeof poe.state === "string" && poe.state !== "") parts.push(poe.state)
+  return parts.join(" ")
+}
+
+function radioRow(radio) {
+  const entry = radio || {}
+  const frequency = entry.frequencyGHz
+  return {
+    frequencyText: typeof frequency === "number" && isFinite(frequency)
+      ? round1(frequency) + " GHz" : "unknown",
+    retriesText: formatPct(entry.txRetriesPct)
+  }
+}
+
+// AC-B10. `null` is unknown, never 0 — the same rule `formatOptional` and
+// `formatBps` apply, extended to the two utilisation percentages, which are the
+// fields most likely to be absent because `statistics/latest` is the collection
+// DATA-B04's budget drops first.
+function formatPct(value) {
+  if (value === null || value === undefined) return "unknown"
+  if (typeof value !== "number" || !isFinite(value)) return "unknown"
+  return round1(value) + "%"
+}
+
+function formatSpeedMbps(value) {
+  if (value === null || value === undefined) return "unknown"
+  if (typeof value !== "number" || !isFinite(value) || value < 0) return "unknown"
+  if (value < 1000) return value + " Mbps"
+  return round1(value / 1000) + " Gbps"
+}
+
+// --- REQ-B17: the two time renderings ------------------------------------
+//
+// `connectedAt` is an RFC 3339 string and the panel needs both a relative form
+// for the row and an absolute one for the detail. Both are built by hand:
+// `toLocaleString` is banned (V4 and V8 do not ship the same ICU data) and
+// `Date.parse` has implementation-defined behaviour outside the ISO grammar,
+// so the grammar is matched explicitly and `Date.UTC` — which is fully
+// specified — does the arithmetic.
+const RFC3339 = /^(\d{4})-(\d{2})-(\d{2})[Tt ](\d{2}):(\d{2}):(\d{2})(?:\.\d+)?(?:([Zz])|([+-])(\d{2}):(\d{2}))$/
+
+function parseRfc3339(value) {
+  if (typeof value !== "string") return null
+  const m = RFC3339.exec(value)
+  if (!m) return null
+  const year = Number(m[1])
+  const month = Number(m[2])
+  const day = Number(m[3])
+  const hour = Number(m[4])
+  const minute = Number(m[5])
+  const second = Number(m[6])
+  const ms = Date.UTC(year, month - 1, day, hour, minute, second)
+  if (!isFinite(ms)) return null
+  // `Date.UTC` ROLLS OVER rather than failing: month 13 becomes the following
+  // January, 30 February becomes 2 March, hour 25 becomes tomorrow. So
+  // "2026-13-99T09:14:00Z" produced "2027-04-09 09:14 UTC" — a plausible
+  // instant, confidently wrong, which is worse than "unknown" precisely because
+  // it looks right. The grammar above accepts two digits; only this rejects a
+  // date that does not exist. A round trip rather than six range checks,
+  // because it also catches 30 February, which no range check does.
+  const back = new Date(ms)
+  if (back.getUTCFullYear() !== year || back.getUTCMonth() + 1 !== month
+      || back.getUTCDate() !== day || back.getUTCHours() !== hour
+      || back.getUTCMinutes() !== minute || back.getUTCSeconds() !== second) {
+    return null
+  }
+  const offset = m[7] ? 0 : (Number(m[9]) * 3600 + Number(m[10]) * 60)
+    * (m[8] === "-" ? -1 : 1)
+  return ms / 1000 - offset
+}
+
+// The absolute instant, in UTC and labelled as such.
+//
+// Local time would read better and is deliberately not used: it would make a
+// pure module's output depend on the process time zone, which is the same class
+// of hidden environmental input the `Intl` ban exists to prevent, and would
+// make every assertion over this string depend on where the test ran. The row
+// already carries the relative form, which is what a glance needs; this is the
+// exact instant, for the reader who wants to line it up against something else.
+function formatInstant(value) {
+  const seconds = parseRfc3339(value)
+  if (seconds === null) return "unknown"
+  const at = new Date(seconds * 1000)
+  return at.getUTCFullYear()
+    + "-" + pad2(at.getUTCMonth() + 1)
+    + "-" + pad2(at.getUTCDate())
+    + " " + pad2(at.getUTCHours())
+    + ":" + pad2(at.getUTCMinutes())
+    + " UTC"
+}
+
+function pad2(value) {
+  return value < 10 ? "0" + value : String(value)
+}
+
+// "3d ago", recomputed on the service's existing freshness tick because
+// `nowWall` is an input (REQ-014, UX-011: no widget owns a timer). The empty
+// string, not "never": a client whose `connectedAt` the controller omitted has
+// no connection time to report, and "connected never" beside a client that is
+// plainly connected is a contradiction the panel would be printing itself.
+function connectedText(value, nowWall) {
+  if (typeof nowWall !== "number" || !isFinite(nowWall)) return ""
+  const seconds = parseRfc3339(value)
+  if (seconds === null) return ""
+  return relativePast(nowWall - seconds)
+}
+
+// --- REQ-B16: the lists, with their empty and truncated states -----------
+
+function deviceListModel(snapshot, ui) {
+  const data = snapshot || {}
+  const counts = data.counts || {}
+  const options = ui || {}
+  const listed = data.devices || []
+  const total = typeof counts.devicesTotal === "number"
+    ? counts.devicesTotal : listed.length
+  const term = searchTerm(options.search)
+  const role = typeof options.role === "string" ? options.role : ""
+  const names = uplinkNames(listed)
+  const rows = []
+  for (let i = 0; i < listed.length; i++) {
+    const row = browseDeviceRow(listed[i])
+    if (role !== "" && !hasRole(row.roles, role)) continue
+    if (!matchesSearch(row.searchText, term)) continue
+    rows.push(row)
+  }
+  const plural = role === "" ? undefined : own(ROLE_PLURAL, role)
+  const noun = plural === undefined ? "devices" : plural
+  return {
+    rows: rows,
+    listed: listed.length,
+    total: total,
+    matched: rows.length,
+    searchText: term,
+    role: role,
+    truncated: total > listed.length,
+    truncationText: truncationText(listed.length, total, "device"),
+    emptyText: rows.length === 0
+      ? emptyText(noun, term, listed.length, total) : "",
+    expandedId: expandedIdIn(rows, options.expandedId),
+    expandedDetail: detailFor(rows, listed, options.expandedId, function (device) {
+      return deviceDetail(device, names)
+    })
+  }
+}
+
+function clientListModel(snapshot, ui) {
+  const data = snapshot || {}
+  const counts = data.counts || {}
+  const options = ui || {}
+  const listed = data.clients || []
+  const total = typeof counts.clients === "number" ? counts.clients : listed.length
+  const term = searchTerm(options.search)
+  const nowWall = typeof options.nowWall === "number" ? options.nowWall : null
+  const names = uplinkNames(data.devices || [])
+  const rows = []
+  for (let i = 0; i < listed.length; i++) {
+    const uplink = uplinkNameFor(names, (listed[i] || {}).uplinkDeviceId)
+    const row = browseClientRow(listed[i], uplink, nowWall)
+    if (!matchesSearch(row.searchText, term)) continue
+    rows.push(row)
+  }
+  return {
+    rows: rows,
+    listed: listed.length,
+    total: total,
+    matched: rows.length,
+    searchText: term,
+    role: "",
+    truncated: total > listed.length,
+    truncationText: truncationText(listed.length, total, "client"),
+    emptyText: rows.length === 0
+      ? emptyText("clients", term, listed.length, total) : "",
+    expandedId: expandedIdIn(rows, options.expandedId),
+    expandedDetail: detailFor(rows, listed, options.expandedId, function (client) {
+      return clientDetail(client, uplinkNameFor(names, client.uplinkDeviceId))
+    })
+  }
+}
+
+function searchTerm(value) {
+  if (typeof value !== "string") return ""
+  return value.trim().toLowerCase()
+}
+
+// REQ-B16, and the REQ-010/AC-063 rule applied a third time: the total comes
+// from `counts`, an independently carried integer, and NEVER from the array's
+// length. A site of 412 devices whose list was bounded at 200 must not be able
+// to say "showing 200 of 200".
+function truncationText(listedCount, total, noun) {
+  if (total <= listedCount) return ""
+  return "showing " + listedCount + " of " + total + " "
+    + noun + (total === 1 ? "" : "s")
+}
+
+// The four things an empty list can mean, kept apart because they lead to
+// different actions.
+//
+// The truncated-and-filtered case is the one worth the extra clause: on a site
+// whose list was bounded, "no devices match" is not true — the device may exist
+// and simply not be listed — and a panel that answers a search with a confident
+// wrong "no" is worse than one that admits the bound.
+function emptyText(noun, term, listedCount, total) {
+  // DATA-B04's boundary case: the budget admitted nothing, so the array is
+  // empty while the total is not. "No devices" beside "showing 0 of 300
+  // devices" is the panel contradicting itself in two adjacent lines, and it is
+  // the wrong one of the two that the user would read first.
+  const bound = total > listedCount
+    ? " among the " + listedCount + " listed of " + total : ""
+  if (term === "") {
+    if (bound === "") return "No " + noun + " to show."
+    return "No " + noun + bound + "."
+  }
+  return "No " + noun + " match \"" + term + "\"" + bound + "."
+}
+
+// REQ-B14: one row expanded at a time, and only ever a row that is on screen.
+// A row filtered out by a search must not keep its detail block open — the
+// panel would be showing a detail for a row the user cannot see.
+function expandedIdIn(rows, id) {
+  if (typeof id !== "string" || id === "") return ""
+  for (let i = 0; i < rows.length; i++) {
+    if (rows[i].id === id) return id
+  }
+  return ""
+}
+
+// The detail is built for the ONE expanded row, not for every row. Two hundred
+// device details rebuilt on every keystroke would be the model doing the work
+// the search is meant to avoid — and building it here rather than exposing a
+// function for QML to call is what keeps AC-B15's "the view computes nothing"
+// literally true.
+function detailFor(rows, entries, id, builder) {
+  if (expandedIdIn(rows, id) === "") return null
+  for (let i = 0; i < entries.length; i++) {
+    const entry = entries[i] || {}
+    if (entry.id === id) return builder(entry)
+  }
+  return null
+}
+
+// The value of `deviceList` and `clientList` when there is nothing to show.
+// A FUNCTION returning a fresh object, not a shared constant: `EMPTY_MODEL` uses
+// it for both keys, and one object behind both would make a mutation through
+// either visible through the other.
+function emptyBrowseList() {
+  return {
+    rows: [],
+    listed: 0,
+    total: 0,
+    matched: 0,
+    searchText: "",
+    role: "",
+    truncated: false,
+    truncationText: "",
+    emptyText: "",
+    expandedId: "",
+    expandedDetail: null
+  }
+}
+
+// REQ-B10. The panel's current page, defaulting to Overview — which is also
+// where it returns when it closes, because the widget's job is health and
+// reopening it should answer that question rather than resume a browse.
+function browseView(value) {
+  for (let i = 0; i < BROWSE_VIEWS.length; i++) {
+    if (BROWSE_VIEWS[i] === value) return value
+  }
+  return "overview"
 }
 
 // --- AC-011 / SEC-009 / UX-010 -------------------------------------------
@@ -675,7 +1357,15 @@ const EMPTY_MODEL = {
   meta: null,
   metaRows: [],
   insecureTls: false,
-  customCaInUse: false
+  customCaInUse: false,
+  // REQ-B10's three pages. `deviceList` and `clientList` rather than `devices`
+  // and `clients`, because the snapshot already has fields by those names
+  // holding the RAW arrays — and a widget binding to the wrong one of the two
+  // would get an array of records where it expected a list model, which reads
+  // as an empty page rather than as an error.
+  view: "overview",
+  deviceList: emptyBrowseList(),
+  clientList: emptyBrowseList()
 }
 
 function complete(partial) {
@@ -734,6 +1424,11 @@ function build(input) {
   // REQ-011: the Refresh button is disabled, with an explanatory label,
   // whenever polling is suspended (REQ-018a). "Suspended is not idle."
   const suspended = state.pollingSuspended === true
+  // REQ-B10's UI state: which page, what is typed into each search field, which
+  // row is expanded. It is passed IN rather than held here, because this module
+  // is a function and holding it would make the panel's contents depend on how
+  // many times the function had been called.
+  const browse = state.browse || {}
   const warnings = state.warnings || []
   const error = state.error || null
   return complete({
@@ -782,7 +1477,22 @@ function build(input) {
     // property with no `&&` in it, so there is no arrangement of a null `meta`
     // in which the row quietly becomes undefined instead of false.
     insecureTls: meta ? meta.allowInsecureTls === true : false,
-    customCaInUse: meta ? meta.customCaInUse === true : false
+    customCaInUse: meta ? meta.customCaInUse === true : false,
+    view: browseView(browse.view),
+    deviceList: deviceListModel(snapshot, {
+      search: browse.deviceSearch,
+      role: browse.role,
+      expandedId: browse.expandedDeviceId
+    }),
+    // REQ-B17: `nowWall` is an INPUT, so "connected 3d ago" recomputes on the
+    // service's existing freshness tick and no widget owns a timer (REQ-014,
+    // UX-011). It is the same clock `lastUpdateText` reads, which is what makes
+    // AC-071's guarantee cover the new strings without a second mechanism.
+    clientList: clientListModel(snapshot, {
+      search: browse.clientSearch,
+      expandedId: browse.expandedClientId,
+      nowWall: nowWall
+    })
   })
 }
 
@@ -911,5 +1621,42 @@ if (typeof module !== "undefined") module.exports = {
   nextAttemptText: nextAttemptText,
   compactText: compactText,
   panelState: panelState,
-  isConfigFaultKind: isConfigFaultKind
+  isConfigFaultKind: isConfigFaultKind,
+  BROWSE_CLASS_RANK: BROWSE_CLASS_RANK,
+  BROWSE_VIEWS: BROWSE_VIEWS,
+  ROLE_FOR_COUNT_KEY: ROLE_FOR_COUNT_KEY,
+  ROLE_PLURAL: ROLE_PLURAL,
+  CLIENT_TYPE_WORD: CLIENT_TYPE_WORD,
+  DETAIL_NOT_FETCHED: DETAIL_NOT_FETCHED,
+  browseOrderKey: browseOrderKey,
+  compareBrowseOrder: compareBrowseOrder,
+  clientOrderKey: clientOrderKey,
+  compareClientOrder: compareClientOrder,
+  firstBrowseOrderViolation: firstBrowseOrderViolation,
+  firstClientOrderViolation: firstClientOrderViolation,
+  hasRole: hasRole,
+  matchesSearch: matchesSearch,
+  haystackOf: haystackOf,
+  browseDeviceRow: browseDeviceRow,
+  browseClientRow: browseClientRow,
+  clientDisplayName: clientDisplayName,
+  clientTypeWord: clientTypeWord,
+  uplinkNames: uplinkNames,
+  uplinkNameFor: uplinkNameFor,
+  deviceDetail: deviceDetail,
+  clientDetail: clientDetail,
+  portRow: portRow,
+  poeText: poeText,
+  radioRow: radioRow,
+  formatPct: formatPct,
+  formatSpeedMbps: formatSpeedMbps,
+  parseRfc3339: parseRfc3339,
+  formatInstant: formatInstant,
+  connectedText: connectedText,
+  deviceListModel: deviceListModel,
+  clientListModel: clientListModel,
+  truncationText: truncationText,
+  emptyText: emptyText,
+  emptyBrowseList: emptyBrowseList,
+  browseView: browseView
 }

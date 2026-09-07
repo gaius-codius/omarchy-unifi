@@ -501,3 +501,40 @@ test("the helper's route allowlist is the six in api-contract.md", () => {
     assert.strictEqual(spec[1] === "True", paginated, route + " pagination")
   }
 })
+
+// --- SPEC-v1.1-browse.md -------------------------------------------------
+
+test("the browse ranking covers exactly the five REQ-000 classes", () => {
+  // A rank table missing a class is not a crash: `browseOrderKey` falls back to
+  // a rank past the end, so the class sorts LAST — an `impaired` device filed
+  // below every healthy one, in the list whose whole purpose is surfacing what
+  // is wrong. Held to `Health.CLASSES`, which is itself held to SPEC.md's table
+  // above.
+  assert.deepStrictEqual(Object.keys(ViewModel.BROWSE_CLASS_RANK).sort(),
+    Health.CLASSES.slice().sort())
+  const ranks = Health.CLASSES.map((c) => ViewModel.BROWSE_CLASS_RANK[c]).sort()
+  assert.deepStrictEqual(ranks, [0, 1, 2, 3, 4], "the ranks must be a permutation")
+})
+
+test("REQ-B10a's count-key mapping lands on the roles the protocol defines", () => {
+  // `Protocol.ROLES` is what `checkDeviceRecord` validates `devices[].roles`
+  // against. A mapping that produced anything else would filter the Devices
+  // page to nothing, silently, for a role the Overview page shows a count for.
+  const roles = Object.keys(ViewModel.ROLE_FOR_COUNT_KEY)
+    .map((key) => ViewModel.ROLE_FOR_COUNT_KEY[key])
+  assert.deepStrictEqual(roles.slice().sort(), Protocol.ROLES.slice().sort())
+  for (const role of Protocol.ROLES) {
+    assert.ok(ViewModel.ROLE_PLURAL[role], role + " has no plural for the empty state")
+  }
+})
+
+test("the client type words do not claim to be a closed set", () => {
+  // protocol-v1.md: `type` is the raw API value and is NOT mapped to a closed
+  // set. The mapping is a nicety over four known values, and anything else
+  // renders as itself — asserted here because a future `|| "unknown"` in
+  // `clientTypeWord` would look like a tidy-up and would lose information the
+  // controller stated plainly.
+  const documented = /`type` is the raw API value and is \*\*not\*\* mapped to a closed/
+  assert.ok(documented.test(PROTOCOL), "protocol-v1.md changed its mind about `type`")
+  assert.strictEqual(ViewModel.clientTypeWord("SOMETHING_NEW"), "SOMETHING_NEW")
+})

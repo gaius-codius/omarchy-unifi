@@ -432,6 +432,93 @@ ShellRoot {
     })
 
     pending.push({
+      name: "SPEC-v1.1-browse.md: the browse model builds the same under V4",
+      waitMs: 0,
+      assert: function () {
+        // `build` reaches most of the browse code on every path, so the ordinary
+        // cases below already drive it under V4. The DETAIL builders do not:
+        // they run only for an expanded row, so `deviceDetail`, `clientDetail`,
+        // `portRow`, `radioRow`, `formatPct`, `formatSpeedMbps`, `poeText` and
+        // `formatInstant` would have had 400-odd V8 assertions and no V4
+        // execution at all until Phase B3 drew them.
+        //
+        // HC-16's whole premise is that these modules run UNCHANGED under both
+        // engines. A module half of which has never been executed by one of them
+        // is not evidence for that.
+        var data = readJson(repoRoot
+          + "/tests/fixtures/envelopes/accept/success_browse_full.json")
+        if (data === null) { bad("the browse fixture loads"); return }
+        var snapshot = data.data
+
+        var withDetail = null
+        for (var i = 0; i < snapshot.devices.length; i++) {
+          if (snapshot.devices[i].detail !== null) {
+            withDetail = snapshot.devices[i]
+            break
+          }
+        }
+        if (withDetail === null) { bad("the fixture carries a fetched detail"); return }
+
+        var model = ViewModel.build({
+          snapshot: snapshot, level: { level: "amber", rule: 3 },
+          settings: {}, warnings: [], nowWall: 1768209240,
+          browse: {
+            view: "devices",
+            expandedDeviceId: withDetail.id,
+            expandedClientId: snapshot.clients[0].id
+          }
+        })
+
+        check("the view is the one asked for", "devices", model.view)
+        check("REQ-B11: the helper's order survives the model",
+              -1, ViewModel.firstBrowseOrderViolation(snapshot.devices))
+        check("REQ-B12: the client order survives too",
+              -1, ViewModel.firstClientOrderViolation(snapshot.clients))
+        check("every listed device became a row",
+              snapshot.devices.length, model.deviceList.rows.length)
+        check("every listed client became a row",
+              snapshot.clients.length, model.clientList.rows.length)
+
+        // The detail path, which is the point of this case.
+        var detail = model.deviceList.expandedDetail
+        if (detail === null) { bad("the expanded device has a detail"); return }
+        check("AC-B09: a fetched detail states no truncation", "", detail.unavailableText)
+        check("the port table rendered", withDetail.detail.ports.length,
+              detail.ports.length)
+        var strings = 0
+        for (var p = 0; p < detail.ports.length; p++) {
+          var port = detail.ports[p]
+          if (typeof port.speedText === "string" && typeof port.poeText === "string"
+              && typeof port.stateText === "string") strings++
+        }
+        check("every port cell is a string", detail.ports.length, strings)
+        for (var r = 0; r < detail.rows.length; r++) {
+          if (typeof detail.rows[r].value !== "string") {
+            bad("every detail row is a string", detail.rows[r].key); return
+          }
+        }
+        ok("every device detail row is a string under V4")
+
+        // `formatInstant` and `parseRfc3339` are hand-written against the RFC
+        // 3339 grammar precisely because `Date.parse` is implementation-defined
+        // outside ISO 8601 — so the two engines agreeing on this literal is the
+        // assertion, not a formality.
+        check("REQ-B17: V4 renders the same instant", "2026-01-12 09:14 UTC",
+              ViewModel.formatInstant("2026-01-12T09:14:00Z"))
+        check("REQ-B17: V4 rejects a date that does not exist", "unknown",
+              ViewModel.formatInstant("2026-02-30T00:00:00Z"))
+        check("V4 formats a gigabit port the same", "1 Gbps",
+              ViewModel.formatSpeedMbps(1000))
+        check("BIZ-003 holds under V4", "unknown", ViewModel.formatPct(null))
+        check("and a real zero survives it", "0%", ViewModel.formatPct(0))
+
+        var clientDetail = model.clientList.expandedDetail
+        if (clientDetail === null) { bad("the expanded client has a detail"); return }
+        check("REQ-B21: the client detail carries four rows", 4, clientDetail.rows.length)
+      }
+    })
+
+    pending.push({
       name: "the published model has the same shape whether or not a service exists",
       waitMs: 0,
       assert: function () {

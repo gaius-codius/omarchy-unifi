@@ -1,6 +1,6 @@
 # Spec addendum v1.1 — Devices and Clients
 
-**Status: CONFIRMED 2026-09-07. Phase B0 complete; B1 in progress.** Sections
+**Status: CONFIRMED 2026-09-07. Phases B0, B1 and B2 complete.** Sections
 marked "*Corrected during Phase B0*" record where implementation contradicted
 what was confirmed — each is a change to this document, made deliberately and
 with its reason stated. `SPEC.md` (spec-v1, frozen 2026-09-05) is unchanged by this
@@ -266,6 +266,19 @@ to surface what is wrong; alphabetical-only buries it.
 **REQ-B12 — client ordering.** By name case-insensitively, then by `id`. A
 client with no name falls back to its IP address, then its id — never to the
 empty string, which would render as an unclickable blank row.
+
+*Corrected during Phase B2.* This is applied **by the helper**, as REQ-B11 is,
+and the requirement should have said so. It does not merely order the rendered
+list: `CLIENTS_LISTED_MAX` and DATA-B04's byte budget take the *head* of the
+client list, so with no order applied before the cut, which 500 of 900 clients
+survive is whichever ones the controller paginated first — a set that can differ
+between two polls with nothing on the network having changed. `ViewModel.js`
+asserts the order rather than re-applying it, for the reason REQ-B01 gives.
+
+The sort key is the name the **row renders**, not the raw `name` field. Sorting
+by the raw field gathers every unnamed client at the front under the empty
+string while the panel shows them by address, so the visible order looks
+arbitrary.
 
 **REQ-B13 — search.** A single field per list. Case-insensitive **substring**,
 never fuzzy: a user must be able to explain why a row matched. Devices match on

@@ -5,13 +5,13 @@
     "clients": [
       {
         "accessType": "DEFAULT",
-        "connectedAt": "2026-01-12T09:14:00Z",
-        "id": "00000000-0000-5000-9000-000000000028",
-        "ipAddress": "192.168.20.40",
-        "macAddress": "02:00:00:00:01:28",
-        "name": "workshop-pi",
-        "type": "WIRED",
-        "uplinkDeviceId": "00000000-0000-5000-9000-00000000001f"
+        "connectedAt": null,
+        "id": "00000000-0000-5000-9000-00000000002a",
+        "ipAddress": null,
+        "macAddress": null,
+        "name": null,
+        "type": "WIRELESS",
+        "uplinkDeviceId": "00000000-0000-5000-9000-000000000020"
       },
       {
         "accessType": "DEFAULT",
@@ -25,16 +25,6 @@
       },
       {
         "accessType": "DEFAULT",
-        "connectedAt": null,
-        "id": "00000000-0000-5000-9000-00000000002a",
-        "ipAddress": null,
-        "macAddress": null,
-        "name": null,
-        "type": "WIRELESS",
-        "uplinkDeviceId": "00000000-0000-5000-9000-000000000020"
-      },
-      {
-        "accessType": "DEFAULT",
         "connectedAt": "2026-01-12T09:14:00Z",
         "id": "00000000-0000-5000-9000-00000000002b",
         "ipAddress": "192.168.20.43",
@@ -42,6 +32,16 @@
         "name": "road-laptop",
         "type": "TELEPORT",
         "uplinkDeviceId": null
+      },
+      {
+        "accessType": "DEFAULT",
+        "connectedAt": "2026-01-12T09:14:00Z",
+        "id": "00000000-0000-5000-9000-000000000028",
+        "ipAddress": "192.168.20.40",
+        "macAddress": "02:00:00:00:01:28",
+        "name": "workshop-pi",
+        "type": "WIRED",
+        "uplinkDeviceId": "00000000-0000-5000-9000-00000000001f"
       }
     ],
     "counts": {

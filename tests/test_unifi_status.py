@@ -19,6 +19,7 @@ import io
 import inspect
 import json
 import os
+import re
 import shutil
 import socket
 import ssl
@@ -1205,6 +1206,18 @@ class BrowseRecords(unittest.TestCase):
                                "9.1.0", warn.Warnings(),
                                listed_devices=devices, **kwargs)
 
+    def _clients(self, records, total):
+        """`build` with a client COUNT, which `_built` pins to None.
+
+        The count and the records are separate arguments because they come from
+        different places — `totalCount` off the terminal page, and the
+        accumulated pages — and the clamp between them is REQ-B03's, so a helper
+        that took the count from the list would test nothing here.
+        """
+        return normalize.build({"id": normalize_inputs.uid(1), "name": "Home"},
+                               [], total, {}, "9.1.0", warn.Warnings(),
+                               listed_devices=[], client_records=records)
+
     def test_a_port_table_past_the_bound_is_truncated_not_rejected(self):
         # The corpus has no device with more than 64 ports, so removing this
         # truncation changed no fixture and the mutation survived. A 96-port
@@ -1353,6 +1366,96 @@ class BrowseRecords(unittest.TestCase):
         self.assertEqual(
             [d["id"] for d in normalize.browse_order(list(reversed(devices)))],
             [normalize_inputs.uid(80), normalize_inputs.uid(81)])
+
+    def test_the_class_ranking_matches_the_spec_sentence(self):
+        """REQ-B11's five classes, parsed rather than copied.
+
+        `normalize.py` and `ViewModel.js` each hold a copy of this ranking —
+        HC-16 forbids them sharing one — and both are pinned to this sentence
+        rather than to each other. Two copies drifting TOGETHER past the
+        requirement is otherwise a way for every test on both sides to pass.
+        """
+        text = io.open(os.path.join(
+            _REPO, "docs/feature-specs/omarchy-unifi-plugin",
+            "SPEC-v1.1-browse.md"), encoding="utf-8").read()
+        rule = re.search(
+            r"\*\*REQ-B11 — device ordering\.\*\*.*?applied by the helper:"
+            r"(.*?);", text, re.S)
+        self.assertIsNotNone(rule, "could not locate REQ-B11's order")
+        classes = re.findall(r"`([a-z]+)`", rule.group(1))
+        self.assertEqual(classes,
+                         ["down", "impaired", "unknown", "transitional", "online"])
+        for rank, name in enumerate(classes):
+            self.assertEqual(normalize._BROWSE_CLASS_RANK[name], rank, name)
+        self.assertEqual(len(normalize._BROWSE_CLASS_RANK), len(classes))
+
+    def test_clients_are_ordered_by_the_name_the_panel_renders(self):
+        """REQ-B12, applied by the helper and not only by the panel.
+
+        REQ-B12 does not say "by the helper" the way REQ-B11 does, so sorting
+        only in `ViewModel.js` would satisfy a reading of it — and would leave
+        `CLIENTS_LISTED_MAX` taking an arbitrary head. That is the part that
+        matters; `test_the_client_bound_takes_the_head_of_that_order` is where
+        it is asserted.
+        """
+        records = [normalize_inputs.client(120, "Zebra", "WIRED"),
+                   normalize_inputs.client(121, "apple", "WIRED"),
+                   normalize_inputs.client(122, "Mango", "WIRED")]
+        data = self._clients(records, 3)
+        # Case-insensitive: byte order would put Mango and Zebra before apple.
+        self.assertEqual([c["name"] for c in data["clients"]],
+                         ["apple", "Mango", "Zebra"])
+
+    def test_an_unnamed_client_sorts_by_its_address_not_the_empty_string(self):
+        # The fallback chain the ROW renders, used as the sort key. Sorting by
+        # the raw `name` gathers every unnamed client at the front under the
+        # empty string while the panel shows them by address, and the visible
+        # order looks arbitrary.
+        records = [normalize_inputs.client(130, "beta", "WIRED"),
+                   normalize_inputs.client(131, None, "WIRED", ip="192.0.2.7"),
+                   normalize_inputs.client(132, None, "WIRED", ip="zulu.local")]
+        data = self._clients(records, 3)
+        self.assertEqual([c["name"] or c["ipAddress"] for c in data["clients"]],
+                         ["192.0.2.7", "beta", "zulu.local"])
+
+    def test_the_client_bound_takes_the_head_of_that_order(self):
+        """Why the order has to be applied here rather than in the consumer.
+
+        `counts.clients` is `totalCount` off the terminal page and the records
+        accumulate across pages, so the list is clamped to the total. Without an
+        order, WHICH clients survive is whichever ones the controller happened
+        to paginate first — a set that can differ between two polls with nothing
+        on the network having changed, so a row appears and vanishes on a
+        30-second cycle and reads as a fault.
+
+        The assertion is that a reversed input produces the same surviving set,
+        which is false for any order-free implementation.
+        """
+        records = [normalize_inputs.client(140 + i, "c%03d" % i, "WIRED")
+                   for i in range(10)]
+        forward = self._clients(records, 4)
+        backward = self._clients(list(reversed(records)), 4)
+        self.assertEqual([c["name"] for c in forward["clients"]],
+                         ["c000", "c001", "c002", "c003"])
+        self.assertEqual([c["name"] for c in backward["clients"]],
+                         [c["name"] for c in forward["clients"]])
+
+    def test_a_non_string_client_name_does_not_crash_the_sort(self):
+        # The defect `browse_order` had: `(name or "").lower()` raised
+        # AttributeError on a numeric name, and a crash in the helper is a
+        # 30-second watchdog timeout with nothing in any log. `_client_order`
+        # is safe by a different route — `sanitize.clean` coerces every
+        # non-string to `str` before it gets here — and "safe because something
+        # else is careful" is exactly the kind of claim that stops being true
+        # quietly, so it is pinned rather than reasoned about.
+        records = [{"id": normalize_inputs.uid(150), "name": 5, "type": "WIRED"},
+                   {"id": normalize_inputs.uid(151), "name": {"a": 1},
+                    "type": "WIRED"},
+                   normalize_inputs.client(152, "ok", "WIRED")]
+        data = self._clients(records, 3)
+        self.assertEqual(len(data["clients"]), 3)
+        for entry in data["clients"]:
+            self.assertIsInstance(entry["name"], str)
 
     def test_unknown_sorts_above_transitional(self):
         """The judgement REQ-B11 spends a paragraph on, and nothing pinned.
@@ -3463,7 +3566,13 @@ class BrowseCollection(unittest.TestCase):
                    "02:00:00:00:07:07"]
         clients = [normalize_inputs.client(4000, secrets[0], "WIRELESS",
                                            ip=secrets[1], mac=secrets[2])]
-        clients += [normalize_inputs.client(4001 + i, "c%d" % i, "WIRED")
+        # `z`, not `c`, and the letter is load-bearing. REQ-B12's order is now
+        # applied by the helper, so it decides WHICH clients survive the cap —
+        # and with `c`-named filler the canary sorted past 500 and was dropped,
+        # leaving this test asserting a leak check over a client that was not
+        # there. The filler still exceeds the cap, so the truncation warning
+        # this test relies on still fires.
+        clients += [normalize_inputs.client(4001 + i, "z%d" % i, "WIRED")
                     for i in range(bounds.CLIENTS_LISTED_MAX + 5)]
         devices = self.site_of(60, [(59, "OFFLINE")])
         data = self.run_batch(devices, clients, detail_ports=52).data

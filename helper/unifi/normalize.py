@@ -483,9 +483,32 @@ def _client_list(records, total):
         if not entry["id"] or not entry["type"]:
             continue
         out.append(entry)
+    out.sort(key=_client_order)
     if isinstance(total, int) and len(out) > total:
         return out[:max(0, total)]
     return out
+
+
+def _client_order(entry):
+    """REQ-B12's order, applied by the HELPER and not only by the panel.
+
+    REQ-B12 does not say "by the helper" the way REQ-B11 does, and sorting only
+    in `ViewModel.js` would satisfy a reading of it. It would also leave the
+    BOUND arbitrary, and that is the part that matters: `CLIENTS_LISTED_MAX` and
+    DATA-B04's byte budget take the HEAD of this list, so without an order here
+    the 500 clients that survive on a 900-client site are whichever ones the
+    controller's pagination happened to return first. That set can differ
+    between two polls with nothing on the network having changed, and a row
+    appearing and vanishing on a 30-second cycle reads as a fault.
+
+    The key is the same fallback chain the row renders — name, then IP, then id
+    — and not the raw `name`. Sorting by the raw name would gather every unnamed
+    client at the front under the empty string while the panel showed them by
+    address, so the visible order would look arbitrary. `id` breaks the tie and
+    is non-empty for every entry that reaches here, so the order is total.
+    """
+    name = entry.get("name") or entry.get("ipAddress") or entry.get("id") or ""
+    return (name.lower(), entry.get("id") or "")
 
 
 def _client_entry(record):

@@ -917,3 +917,993 @@ test("a warning with its own panel row is not repeated in the warning list", () 
   // And the raw list is untouched, because the service and `status` use it.
   assert.strictEqual(model.warnings.length, 4)
 })
+
+// =========================================================================
+// Phase B2 — SPEC-v1.1-browse.md
+// AC-B07, AC-B08, AC-B09, AC-B10, AC-B11, plus the REQ-B11 … REQ-B17 strings.
+// =========================================================================
+
+const BROWSE_SPEC = fs.readFileSync(path.resolve(__dirname,
+  "../../docs/feature-specs/omarchy-unifi-plugin/SPEC-v1.1-browse.md"), "utf8")
+
+// Every accept envelope carrying a `devices` array. Read off disk rather than
+// listed here, so a fixture added in a later phase is covered by the corpus
+// assertions the moment it exists rather than when somebody remembers.
+function acceptSnapshots() {
+  return fs.readdirSync(ACCEPT)
+    .filter((name) => name.endsWith(".json"))
+    .map((name) => ({
+      name: name.replace(/\.json$/, ""),
+      data: JSON.parse(fs.readFileSync(path.join(ACCEPT, name), "utf8")).data
+    }))
+    .filter((entry) => entry.data !== null && entry.data !== undefined)
+}
+
+function device(fields) {
+  const base = {
+    id: "00000000-0000-5000-9000-000000000001",
+    name: null, model: null, state: "ONLINE", class: "online", roles: [],
+    ipAddress: null, macAddress: null, firmwareVersion: null,
+    firmwareUpdatable: null, uplinkDeviceId: null, detail: null, metrics: null
+  }
+  for (const key in fields) base[key] = fields[key]
+  return base
+}
+
+function client(fields) {
+  const base = {
+    id: "00000000-0000-5000-9000-000000000101",
+    name: null, type: "WIRED", accessType: null, ipAddress: null,
+    macAddress: null, uplinkDeviceId: null, connectedAt: null
+  }
+  for (const key in fields) base[key] = fields[key]
+  return base
+}
+
+function snapshotWith(devices, clients, counts) {
+  return {
+    site: { id: "s", name: "Home" },
+    wan: null,
+    gateways: [],
+    offlineDevices: [],
+    counts: counts || { devicesTotal: devices.length, clients: clients.length,
+      offlineTotal: 0 },
+    devices: devices,
+    clients: clients
+  }
+}
+
+// --- AC-B07: the REQ-B11 total order -------------------------------------
+
+test("AC-B07: REQ-B11's five classes rank in the order the spec states", () => {
+  // Parsed out of SPEC-v1.1-browse.md, not copied. `ViewModel.js` and
+  // `normalize.py` each hold a copy of this ranking — HC-16 forbids them
+  // sharing one — and both are pinned to this sentence rather than to each
+  // other, so two copies drifting together past the requirement is not a way
+  // for this to pass.
+  const rule = /\*\*REQ-B11 — device ordering\.\*\*[\s\S]*?applied by the helper:\s*([\s\S]*?);/
+    .exec(BROWSE_SPEC)
+  assert.ok(rule, "SPEC-v1.1-browse.md: could not locate REQ-B11's order")
+  const classes = [...rule[1].matchAll(/`([a-z]+)`/g)].map((m) => m[1])
+  assert.deepStrictEqual(classes,
+    ["down", "impaired", "unknown", "transitional", "online"])
+
+  for (let i = 0; i < classes.length; i++) {
+    assert.strictEqual(ViewModel.BROWSE_CLASS_RANK[classes[i]], i, classes[i])
+  }
+  assert.strictEqual(Object.keys(ViewModel.BROWSE_CLASS_RANK).length,
+    classes.length)
+})
+
+test("AC-B07: unknown outranks transitional, which is the non-obvious half", () => {
+  // The pair the ordering exists for. A device in a state this build does not
+  // recognise is a thing to look at; an UPDATING one is not, and an
+  // alphabetical or an accidental insertion order would put them the other way
+  // round. Asserted as a comparison, not as two integers, because a rank table
+  // that is right and a comparator that ignores it both pass the test above.
+  const a = device({ class: "unknown", id: "a" })
+  const b = device({ class: "transitional", id: "b" })
+  assert.ok(ViewModel.compareBrowseOrder(a, b) < 0)
+  assert.ok(ViewModel.compareBrowseOrder(b, a) > 0)
+})
+
+test("AC-B07: gateways sort first within their class, not across classes", () => {
+  // Both halves. A comparator that put gateways first GLOBALLY would pass any
+  // test built from one class, and would bury a down switch under a healthy
+  // gateway — the exact outcome REQ-B11 exists to prevent.
+  const downSwitch = device({ class: "down", roles: ["switching"], name: "zzz", id: "1" })
+  const onlineGateway = device({ class: "online", roles: ["gateway"], name: "aaa", id: "2" })
+  assert.ok(ViewModel.compareBrowseOrder(downSwitch, onlineGateway) < 0,
+    "a down switch must precede an online gateway")
+
+  const onlineSwitch = device({ class: "online", roles: ["switching"], name: "aaa", id: "3" })
+  assert.ok(ViewModel.compareBrowseOrder(onlineGateway, onlineSwitch) < 0,
+    "within one class the gateway leads")
+})
+
+test("AC-B07: names compare case-insensitively", () => {
+  // "Zebra" and "apple", not "Apple" and "zebra". The second pair sorts the
+  // same way under both rules — uppercase A is 0x41 and lowercase z is 0x7a —
+  // so it cannot tell a case-insensitive comparison from a case-sensitive one.
+  // This pair inverts: 'Z' is 0x5a and 'a' is 0x61, so a byte comparison puts
+  // Zebra first and the requirement puts apple first.
+  const zebra = device({ class: "online", name: "Zebra", id: "1" })
+  const apple = device({ class: "online", name: "apple", id: "2" })
+  assert.ok(ViewModel.compareBrowseOrder(apple, zebra) < 0)
+  assert.ok(ViewModel.compareBrowseOrder(zebra, apple) > 0)
+})
+
+test("AC-B07: two devices differing only in id sort stably by id", () => {
+  const first = device({ class: "online", name: "same", id: "aaa" })
+  const second = device({ class: "online", name: "same", id: "bbb" })
+  assert.ok(ViewModel.compareBrowseOrder(first, second) < 0)
+  assert.ok(ViewModel.compareBrowseOrder(second, first) > 0)
+  // Total: identical inputs tie, and nothing else in the corpus can.
+  assert.strictEqual(ViewModel.compareBrowseOrder(first, first), 0)
+})
+
+test("AC-B07: a corpus of every class and a multi-role device sorts as specified", () => {
+  const built = [
+    device({ id: "6", class: "online", name: "alpha", roles: ["switching"] }),
+    device({ id: "5", class: "online", name: "Beta", roles: ["gateway", "switching"] }),
+    device({ id: "4", class: "transitional", name: "gamma", roles: ["accessPoint"] }),
+    device({ id: "3", class: "unknown", name: "delta", roles: [] }),
+    device({ id: "2", class: "impaired", name: "epsilon", roles: ["accessPoint"] }),
+    device({ id: "1", class: "down", name: "zeta", roles: ["switching"] })
+  ]
+  const sorted = built.slice().sort(ViewModel.compareBrowseOrder)
+  assert.deepStrictEqual(sorted.map((d) => d.id),
+    ["1", "2", "3", "4", "5", "6"])
+  assert.strictEqual(ViewModel.firstBrowseOrderViolation(sorted), -1)
+  // The multi-role device is a gateway AND a switch, and it is its gateway
+  // role that lifts it above the plain switch despite "Beta" > "alpha".
+  assert.strictEqual(ViewModel.firstBrowseOrderViolation(built), 1)
+})
+
+test("AC-B07: every accept envelope's device list is already in REQ-B11's order", () => {
+  // REQ-B01 puts the ordering in the HELPER so every consumer sees one order.
+  // This is the assertion that keeps that true, over the corpus that is itself
+  // asserted to be `normalize.py`'s byte-for-byte output.
+  let checked = 0
+  for (const entry of acceptSnapshots()) {
+    const devices = entry.data.devices
+    if (!Array.isArray(devices) || devices.length < 2) continue
+    checked++
+    assert.strictEqual(ViewModel.firstBrowseOrderViolation(devices), -1,
+      entry.name + ": device " + ViewModel.firstBrowseOrderViolation(devices)
+        + " is out of REQ-B11 order")
+  }
+  assert.ok(checked > 0, "no accept envelope carried a device list to check")
+})
+
+test("AC-B07: the order key is reproducible from the emitted record alone", () => {
+  // `normalize.py` sorts by `is_gateway(raw_device)`, which is
+  // `"gateway" in roles_of(raw_device)`; `ViewModel.js` sorts by whether the
+  // EMITTED `roles` array contains "gateway". The two agree only because
+  // `roles` is emitted from that same set. If they ever part company, the
+  // corpus assertion above stops meaning what it says — so the link is checked
+  // here rather than assumed.
+  for (const entry of acceptSnapshots()) {
+    for (const record of entry.data.devices || []) {
+      const inGateways = (entry.data.gateways || [])
+        .some((g) => g.id === record.id)
+      if (!inGateways) continue
+      assert.ok(ViewModel.hasRole(record.roles, "gateway"),
+        entry.name + ": " + record.id + " is in gateways[] without the role")
+    }
+  }
+})
+
+// --- REQ-B12: client order -----------------------------------------------
+
+test("REQ-B12: clients sort by the name the panel renders, then by id", () => {
+  // The pair has to INVERT between the two rules, or it proves nothing. An
+  // unnamed client beside a "Zebra" sorts first either way — by its address
+  // under the requirement, and by the empty string under the mutation — so a
+  // first version of this test passed while `name: lowerOf(entry.name)`
+  // survived. "111-printer" sorts BEFORE "192.0.2.9" and AFTER "": the
+  // requirement puts the named client first and the raw-name rule puts it last.
+  const named = client({ id: "2", name: "111-printer" })
+  const byIp = client({ id: "1", name: null, ipAddress: "192.0.2.9" })
+  assert.ok(ViewModel.compareClientOrder(named, byIp) < 0)
+  assert.ok(ViewModel.compareClientOrder(byIp, named) > 0)
+  assert.ok(ViewModel.compareClientOrder(
+    byIp, client({ id: "3", name: "Zebra" })) < 0)
+  const same = [client({ id: "b", name: "same" }), client({ id: "a", name: "same" })]
+  assert.deepStrictEqual(same.slice().sort(ViewModel.compareClientOrder)
+    .map((c) => c.id), ["a", "b"])
+})
+
+test("REQ-B12: every accept envelope's client list is already in that order", () => {
+  // The helper applies this too, and it must: `CLIENTS_LISTED_MAX` takes the
+  // HEAD of the list, so without a producer-side order the 500 clients that
+  // survive on a 900-client site are whichever the controller paginated first
+  // — a set that can differ between two polls with nothing having changed.
+  let checked = 0
+  for (const entry of acceptSnapshots()) {
+    const clients = entry.data.clients
+    if (!Array.isArray(clients) || clients.length < 2) continue
+    checked++
+    assert.strictEqual(ViewModel.firstClientOrderViolation(clients), -1,
+      entry.name + ": client " + ViewModel.firstClientOrderViolation(clients)
+        + " is out of REQ-B12 order")
+  }
+  assert.ok(checked > 0, "no accept envelope carried a client list to check")
+})
+
+// --- AC-B08: search ------------------------------------------------------
+
+test("AC-B08: a device matches on its name, case-insensitively", () => {
+  const list = ViewModel.deviceListModel(
+    snapshotWith([device({ id: "1", name: "Attic AP" }),
+      device({ id: "2", name: "Garage Switch" })], []),
+    { search: "aTTiC" })
+  assert.deepStrictEqual(list.rows.map((r) => r.id), ["1"])
+})
+
+test("AC-B08: a device matches on its model", () => {
+  const list = ViewModel.deviceListModel(
+    snapshotWith([device({ id: "1", name: "one", model: "U6-Pro" }),
+      device({ id: "2", name: "two", model: "USW-Lite-8-PoE" })], []),
+    { search: "usw" })
+  assert.deepStrictEqual(list.rows.map((r) => r.id), ["2"])
+})
+
+test("AC-B08: a device matches on its IP address", () => {
+  const list = ViewModel.deviceListModel(
+    snapshotWith([device({ id: "1", name: "one", ipAddress: "192.0.2.31" }),
+      device({ id: "2", name: "two", ipAddress: "192.0.2.44" })], []),
+    { search: ".44" })
+  assert.deepStrictEqual(list.rows.map((r) => r.id), ["2"])
+})
+
+test("AC-B08: a device matches on its MAC address, which the row never prints", () => {
+  // REQ-B21 keeps the MAC out of the row and REQ-B13 puts it in the search.
+  // Both, at once: the haystack is not what is rendered.
+  const target = device({ id: "1", name: "one", macAddress: "02:00:00:00:00:1f" })
+  const list = ViewModel.deviceListModel(
+    snapshotWith([target, device({ id: "2", name: "two" })], []),
+    { search: "00:1F" })
+  assert.deepStrictEqual(list.rows.map((r) => r.id), ["1"])
+  assert.strictEqual(ViewModel.browseDeviceRow(target).metaText
+    .indexOf("02:00:00"), -1, "the MAC reached the row")
+})
+
+test("AC-B08: a device does NOT match on a field REQ-B13 does not name", () => {
+  // `id` and the raw `state` are on the record and are not searchable. A
+  // haystack built by joining every field would pass every test above and
+  // would match rows for reasons a user cannot see, which is the one thing
+  // REQ-B13's "never fuzzy" is protecting.
+  const list = ViewModel.deviceListModel(
+    snapshotWith([device({ id: "abc123", name: "one", state: "PENDING" })], []),
+    { search: "abc123" })
+  assert.deepStrictEqual(list.rows, [])
+  const byState = ViewModel.deviceListModel(
+    snapshotWith([device({ id: "abc123", name: "one", state: "PENDING" })], []),
+    { search: "pending" })
+  assert.deepStrictEqual(byState.rows, [])
+})
+
+test("AC-B08: an UNNAMED device is findable by the id its row shows", () => {
+  // The counterpart to the test above, and the reason it says "a field REQ-B13
+  // does not name" rather than "the id". `displayName` falls back to the id, so
+  // an unnamed device's id IS what the row prints — and what the panel shows
+  // must be searchable, or the fallback produces a row nobody can find.
+  const list = ViewModel.deviceListModel(
+    snapshotWith([device({ id: "abc123", name: null })], []),
+    { search: "abc123" })
+  assert.deepStrictEqual(list.rows.map((r) => r.id), ["abc123"])
+})
+
+test("AC-B08: a client matches on name, IP, MAC, type and uplink device name", async (t) => {
+  const uplink = device({ id: "up", name: "Garage Switch" })
+  const target = client({ id: "1", name: "workshop-pi", ipAddress: "192.0.2.40",
+    macAddress: "02:00:00:00:01:28", type: "WIRED", uplinkDeviceId: "up" })
+  const other = client({ id: "2", name: "phone", type: "WIRELESS" })
+  const cases = [
+    ["name", "WORKSHOP"],
+    ["IP", "2.40"],
+    ["MAC", "01:28"],
+    ["type", "wired"],
+    ["uplink device name", "garage"]
+  ]
+  for (const [field, term] of cases) {
+    await t.test(field, () => {
+      const list = ViewModel.clientListModel(
+        snapshotWith([uplink], [target, other]), { search: term })
+      assert.deepStrictEqual(list.rows.map((r) => r.id), ["1"])
+    })
+  }
+})
+
+test("AC-B08: a term matching nothing yields the empty list, not the unfiltered one", () => {
+  // The mutation this exists for is `if (rows.length === 0) return all`, which
+  // is a plausible "don't show an empty page" reflex and would answer a search
+  // with every row on the site.
+  const snapshot = snapshotWith(
+    [device({ id: "1", name: "one" }), device({ id: "2", name: "two" })], [])
+  const list = ViewModel.deviceListModel(snapshot, { search: "nothingmatches" })
+  assert.deepStrictEqual(list.rows, [])
+  assert.strictEqual(list.matched, 0)
+  assert.strictEqual(list.listed, 2, "the unfiltered count is still reported")
+  assert.ok(list.emptyText.indexOf("nothingmatches") !== -1,
+    "REQ-B16: the empty state names the term")
+})
+
+test("AC-B08: an empty or whitespace-only term filters nothing", () => {
+  const snapshot = snapshotWith(
+    [device({ id: "1", name: "one" }), device({ id: "2", name: "two" })], [])
+  for (const term of ["", "   ", undefined, null, 7]) {
+    const list = ViewModel.deviceListModel(snapshot, { search: term })
+    assert.strictEqual(list.rows.length, 2, JSON.stringify(term))
+    assert.strictEqual(list.emptyText, "")
+  }
+})
+
+test("AC-B08: search is substring and never fuzzy", () => {
+  // "atc" is "attic" with a letter removed. A fuzzy or subsequence match finds
+  // it; a substring match does not, and REQ-B13 requires a user to be able to
+  // say why a row matched.
+  const list = ViewModel.deviceListModel(
+    snapshotWith([device({ id: "1", name: "Attic AP" })], []), { search: "atc" })
+  assert.deepStrictEqual(list.rows, [])
+})
+
+test("REQ-B10a: a role filter narrows the list to devices holding that role", () => {
+  const snapshot = snapshotWith([
+    device({ id: "1", name: "gw", roles: ["gateway", "switching"] }),
+    device({ id: "2", name: "sw", roles: ["switching"] }),
+    device({ id: "3", name: "ap", roles: ["accessPoint"] })
+  ], [])
+  assert.deepStrictEqual(
+    ViewModel.deviceListModel(snapshot, { role: "gateway" }).rows.map((r) => r.id),
+    ["1"])
+  // The multi-role device appears under BOTH its roles (REQ-009's rule, which
+  // is why the counts are not a partition).
+  assert.deepStrictEqual(
+    ViewModel.deviceListModel(snapshot, { role: "switching" }).rows.map((r) => r.id),
+    ["1", "2"])
+  assert.deepStrictEqual(
+    ViewModel.deviceListModel(snapshot, { role: "accessPoint" }).rows.map((r) => r.id),
+    ["3"])
+})
+
+test("REQ-B10a: every count row carries a role value devices actually use", () => {
+  // The count buckets are plural nouns and `devices[].roles` holds the API's
+  // feature names. A typo in the mapping produces an always-empty Devices page
+  // rather than an error, so the two vocabularies are pinned to each other over
+  // the corpus.
+  const seen = {}
+  for (const entry of acceptSnapshots()) {
+    for (const record of entry.data.devices || []) {
+      for (const role of record.roles || []) seen[role] = true
+    }
+  }
+  const mapped = ViewModel.ROLE_FOR_COUNT_KEY
+  assert.deepStrictEqual(Object.keys(mapped).sort(),
+    ["accessPoints", "gateways", "switches"])
+  for (const key in mapped) {
+    assert.ok(seen[mapped[key]], key + " maps to " + mapped[key]
+      + ", which no device in the corpus reports")
+    assert.ok(ViewModel.ROLE_PLURAL[mapped[key]], mapped[key] + " has no plural")
+  }
+  const rows = ViewModel.countRows({ devicesTotal: 2,
+    gateways: { online: 1 }, switches: { online: 1 }, accessPoints: null })
+  assert.deepStrictEqual(rows.map((r) => r.role), ["gateway", "switching"])
+})
+
+// --- AC-B09: `detail: null` and `detail.ports: []` -----------------------
+
+test("AC-B09: a device with detail null renders the truncation sentence", () => {
+  const detail = ViewModel.deviceDetail(device({ id: "1", detail: null }), {})
+  assert.strictEqual(detail.fetched, false)
+  assert.strictEqual(detail.unavailableText, ViewModel.DETAIL_NOT_FETCHED)
+  assert.deepStrictEqual(detail.ports, [])
+  // And says NOTHING about ports, because it does not know.
+  assert.strictEqual(detail.portsEmptyText, "")
+  assert.strictEqual(detail.radiosEmptyText, "")
+})
+
+test("AC-B09: a device with detail.ports [] renders an empty port table", () => {
+  const detail = ViewModel.deviceDetail(
+    device({ id: "1", detail: { provisionedAt: null, ports: [], radios: [] } }), {})
+  assert.strictEqual(detail.fetched, true)
+  assert.strictEqual(detail.unavailableText, "")
+  assert.deepStrictEqual(detail.ports, [])
+  assert.strictEqual(detail.portsEmptyText, "No ports reported.")
+})
+
+test("AC-B09: the two are distinguishable in one envelope", () => {
+  // `success_browse_full` carries both on purpose. A corpus where every device
+  // is alike lets a consumer conflate them and still pass.
+  const data = snapshotOf("success_browse_full")
+  const withDetail = data.devices.filter((d) => d.detail !== null)
+  const without = data.devices.filter((d) => d.detail === null)
+  assert.ok(withDetail.length > 0 && without.length > 0,
+    "the fixture must carry both, or this asserts nothing")
+  for (const record of withDetail) {
+    assert.strictEqual(ViewModel.deviceDetail(record, {}).unavailableText, "")
+    assert.strictEqual(ViewModel.browseDeviceRow(record).detailFetched, true)
+  }
+  for (const record of without) {
+    assert.strictEqual(ViewModel.deviceDetail(record, {}).unavailableText,
+      ViewModel.DETAIL_NOT_FETCHED)
+    assert.strictEqual(ViewModel.browseDeviceRow(record).detailFetched, false)
+  }
+})
+
+test("AC-B09: a device with ports renders no empty-table sentence", () => {
+  // The third case, and the one that catches a `portsEmptyText` that is always
+  // present. Two of the three states pass a test written over the other two.
+  const detail = ViewModel.deviceDetail(device({
+    id: "1",
+    detail: { provisionedAt: null, radios: [],
+      ports: [{ idx: 1, connector: "RJ45", state: "UP", maxSpeedMbps: 1000, poe: null }] }
+  }), {})
+  assert.strictEqual(detail.portsEmptyText, "")
+  assert.strictEqual(detail.ports.length, 1)
+  assert.strictEqual(detail.radiosEmptyText, "No radios reported.")
+})
+
+test("REQ-B14: a port reporting no PoE and a port with PoE switched off differ", () => {
+  // A property of the hardware and a setting. Someone working out why a camera
+  // has no power needs to tell them apart, and both would render as "off" under
+  // a truthiness test on `poe`.
+  assert.strictEqual(ViewModel.poeText(null), "")
+  assert.strictEqual(ViewModel.poeText(undefined), "")
+  assert.strictEqual(ViewModel.poeText({ enabled: false, standard: "802.3at", state: "OFF" }),
+    "PoE off")
+  assert.strictEqual(ViewModel.poeText({ enabled: true, standard: "802.3at", state: "GOOD" }),
+    "PoE 802.3at GOOD")
+  assert.strictEqual(ViewModel.poeText({ enabled: true, standard: null, state: null }), "PoE")
+})
+
+// --- AC-B10: null is unknown, never zero ---------------------------------
+
+test("AC-B10: a null utilisation is unknown and a zero one is 0%", () => {
+  // BIZ-003, on the two fields most likely to be absent: `statistics/latest` is
+  // the collection DATA-B04's budget drops first, so `metrics: null` is the
+  // ordinary case on a large site rather than an error.
+  assert.strictEqual(ViewModel.formatPct(null), "unknown")
+  assert.strictEqual(ViewModel.formatPct(undefined), "unknown")
+  assert.strictEqual(ViewModel.formatPct(0), "0%")
+  assert.strictEqual(ViewModel.formatPct(4.15), "4.2%")
+  assert.strictEqual(ViewModel.formatPct(NaN), "unknown")
+  assert.strictEqual(ViewModel.formatPct("38"), "unknown")
+})
+
+test("AC-B10: a device with metrics null shows unknown in every metric row", () => {
+  const detail = ViewModel.deviceDetail(device({ id: "1", metrics: null }), {})
+  const values = {}
+  for (const row of detail.rows) values[row.key] = row.value
+  for (const key of ["cpu", "memory", "download", "upload"]) {
+    assert.strictEqual(values[key], "unknown", key)
+  }
+  // And never renders as a zero anywhere in the block.
+  assert.strictEqual(JSON.stringify(detail.rows).indexOf('"0'), -1)
+})
+
+test("AC-B10: a device reporting zero throughput says 0, not unknown", () => {
+  // The negative control for the test above. A `formatBps` that returned
+  // "unknown" for everything falsy would pass it, and would hide a WAN link
+  // that is up and carrying nothing — which is a fact worth showing.
+  const detail = ViewModel.deviceDetail(device({
+    id: "1",
+    metrics: { uptimeSec: 0, cpuUtilizationPct: 0, memoryUtilizationPct: 0,
+      downloadBps: 0, uploadBps: 0 }
+  }), {})
+  const values = {}
+  for (const row of detail.rows) values[row.key] = row.value
+  assert.strictEqual(values.cpu, "0%")
+  assert.strictEqual(values.memory, "0%")
+  assert.strictEqual(values.download, "0 bps")
+  assert.strictEqual(values.upload, "0 bps")
+})
+
+test("AC-B10: a null radio retry rate is unknown and a zero one is 0%", () => {
+  assert.deepStrictEqual(ViewModel.radioRow({ frequencyGHz: 5, txRetriesPct: 0 }),
+    { frequencyText: "5 GHz", retriesText: "0%" })
+  assert.deepStrictEqual(ViewModel.radioRow({ frequencyGHz: null, txRetriesPct: null }),
+    { frequencyText: "unknown", retriesText: "unknown" })
+})
+
+test("AC-B10: a null port speed is unknown and a zero one is 0 Mbps", () => {
+  assert.strictEqual(ViewModel.formatSpeedMbps(null), "unknown")
+  assert.strictEqual(ViewModel.formatSpeedMbps(0), "0 Mbps")
+  assert.strictEqual(ViewModel.formatSpeedMbps(100), "100 Mbps")
+  assert.strictEqual(ViewModel.formatSpeedMbps(1000), "1 Gbps")
+  assert.strictEqual(ViewModel.formatSpeedMbps(2500), "2.5 Gbps")
+  assert.strictEqual(ViewModel.formatSpeedMbps(-1), "unknown")
+})
+
+test("AC-B10: an unknown uptime is dropped from the row and unknown on the field", () => {
+  // REQ-B14 says "uptime when known", and BIZ-003 says an absent optional is
+  // never a zero. Both: the glance line omits it, the field says "unknown", and
+  // neither says "0m".
+  const row = ViewModel.browseDeviceRow(device({ id: "1", name: "n", metrics: null }))
+  assert.strictEqual(row.uptimeText, "unknown")
+  assert.strictEqual(row.metaText.indexOf("up "), -1)
+  assert.strictEqual(row.metaText.indexOf("0m"), -1)
+
+  const up = ViewModel.browseDeviceRow(device({
+    id: "1", name: "n", metrics: { uptimeSec: 864000 } }))
+  assert.strictEqual(up.uptimeText, "10d 0h")
+  assert.ok(up.metaText.indexOf("up 10d 0h") !== -1)
+})
+
+test("AC-B10: a non-boolean firmwareUpdatable does not claim an update", () => {
+  // `=== true` rather than truthiness, and this is the test that makes the
+  // difference visible. Over the three values DATA-B01 allows — true, false,
+  // null — the two rules agree exactly, so a `!!` mutation survives every test
+  // written from the contract.
+  //
+  // It is reachable. `Protocol.js`'s `checkDeviceRecord` validates `id`,
+  // `class`, `roles`, `detail` and `metrics` and does NOT validate
+  // `firmwareUpdatable`, so a producer that sent the string "false" would have
+  // it accepted — and `!!"false"` is true, which is the panel telling a user
+  // there is a firmware update on the strength of a word.
+  for (const value of ["yes", "false", 1, {}, []]) {
+    assert.strictEqual(
+      ViewModel.browseDeviceRow(device({ firmwareUpdatable: value })).updateAvailable,
+      false, JSON.stringify(value))
+    const detail = ViewModel.deviceDetail(device({ firmwareUpdatable: value }), {})
+    // Both, because they are two fields and a test naming one leaves the other
+    // free: `updateText` and `updateAvailable` are separate expressions and the
+    // mutation survived a version of this test that only checked the sentence.
+    assert.strictEqual(detail.updateText, "", JSON.stringify(value))
+    assert.strictEqual(detail.updateAvailable, false, JSON.stringify(value))
+  }
+})
+
+test("AC-B10: firmwareUpdatable null does not claim an update is available", () => {
+  // Nullable, so `=== true` and not truthiness: `null` is "the controller did
+  // not say", and a mark on that basis invents the fact.
+  assert.strictEqual(ViewModel.browseDeviceRow(device({ firmwareUpdatable: null }))
+    .updateAvailable, false)
+  assert.strictEqual(ViewModel.browseDeviceRow(device({ firmwareUpdatable: false }))
+    .updateAvailable, false)
+  assert.strictEqual(ViewModel.browseDeviceRow(device({ firmwareUpdatable: true }))
+    .updateAvailable, true)
+  assert.strictEqual(ViewModel.deviceDetail(device({ firmwareUpdatable: null }), {})
+    .updateText, "")
+  assert.strictEqual(ViewModel.deviceDetail(device({ firmwareUpdatable: true }), {})
+    .updateText, "update available")
+})
+
+// --- AC-B11: the client name fallback ------------------------------------
+
+test("AC-B11: a client with no name renders its IP, then its id, never blank", async (t) => {
+  const cases = [
+    ["a name", client({ name: "workshop-pi", ipAddress: "192.0.2.40", id: "x" }), "workshop-pi"],
+    ["no name, an IP", client({ name: null, ipAddress: "192.0.2.40", id: "x" }), "192.0.2.40"],
+    ["neither, an id", client({ name: null, ipAddress: null, id: "x" }), "x"],
+    ["an empty name", client({ name: "", ipAddress: "192.0.2.40", id: "x" }), "192.0.2.40"],
+    ["nothing at all", client({ name: null, ipAddress: null, id: "" }), "unnamed client"]
+  ]
+  for (const [label, record, expected] of cases) {
+    await t.test(label, () => {
+      assert.strictEqual(ViewModel.clientDisplayName(record), expected)
+      assert.notStrictEqual(ViewModel.browseClientRow(record, "", null).nameText, "")
+    })
+  }
+})
+
+test("AC-B11: no client row in the corpus renders a blank name", () => {
+  for (const entry of acceptSnapshots()) {
+    for (const record of entry.data.clients || []) {
+      const row = ViewModel.browseClientRow(record, "", 1767225600)
+      assert.notStrictEqual(row.nameText, "", entry.name + ": " + record.id)
+    }
+  }
+})
+
+test("AC-B11: the IP is not printed twice when the name fell back to it", () => {
+  const row = ViewModel.browseClientRow(
+    client({ name: null, ipAddress: "192.0.2.40", id: "x" }), "", null)
+  assert.strictEqual(row.nameText, "192.0.2.40")
+  assert.strictEqual(row.ipText, "")
+  const named = ViewModel.browseClientRow(
+    client({ name: "pi", ipAddress: "192.0.2.40", id: "x" }), "", null)
+  assert.strictEqual(named.ipText, "192.0.2.40")
+})
+
+test("REQ-B14: an unrecognised client type renders as itself, not as unknown", () => {
+  assert.strictEqual(ViewModel.clientTypeWord("WIRED"), "Wired")
+  assert.strictEqual(ViewModel.clientTypeWord("WIRELESS"), "Wireless")
+  assert.strictEqual(ViewModel.clientTypeWord("TELEPORT"), "Teleport")
+  assert.strictEqual(ViewModel.clientTypeWord("VPN"), "VPN")
+  // The point of the rule: a type this build has not seen decides nothing, so
+  // printing "unknown" over a value the controller stated plainly would be the
+  // panel losing information it has.
+  assert.strictEqual(ViewModel.clientTypeWord("SATELLITE_UPLINK"), "SATELLITE_UPLINK")
+  assert.strictEqual(ViewModel.clientTypeWord(null), "unknown")
+})
+
+test("REQ-B21: a client MAC address appears only in the expanded detail", () => {
+  const record = client({ id: "1", name: "pi", ipAddress: "192.0.2.40",
+    macAddress: "02:00:00:00:01:28", uplinkDeviceId: null })
+  const row = ViewModel.browseClientRow(record, "", 1767225600)
+  assert.strictEqual(row.metaText.indexOf("02:00:00"), -1)
+  assert.strictEqual(row.nameText.indexOf("02:00:00"), -1)
+  assert.strictEqual(row.ipText.indexOf("02:00:00"), -1)
+  const detail = ViewModel.clientDetail(record, "")
+  const mac = detail.rows.filter((r) => r.key === "mac")[0]
+  assert.strictEqual(mac.value, "02:00:00:00:01:28")
+})
+
+// --- REQ-B14: the uplink name --------------------------------------------
+
+test("REQ-B14: an uplink id resolves to the device name, and says so when it cannot", () => {
+  const names = ViewModel.uplinkNames([
+    device({ id: "up", name: "Garage Switch" }),
+    device({ id: "noname", name: null })
+  ])
+  assert.strictEqual(ViewModel.uplinkNameFor(names, "up"), "Garage Switch")
+  // An unnamed uplink resolves to whatever ITS row shows, not to the empty
+  // string — the same fallback, one level down.
+  assert.strictEqual(ViewModel.uplinkNameFor(names, "noname"), "noname")
+  // Not an error: `devices[]` is bounded, so on a large site a client can
+  // legitimately uplink to a device that was not listed. Rendering a bare uuid
+  // would give the user something they cannot act on; dropping the segment
+  // would read as "connected to nothing".
+  assert.strictEqual(ViewModel.uplinkNameFor(names, "missing"), "an unlisted device")
+  assert.strictEqual(ViewModel.uplinkNameFor(names, null), "")
+  assert.strictEqual(ViewModel.uplinkNameFor(names, ""), "")
+})
+
+test("REQ-B14: a client with no uplink omits the via segment entirely", () => {
+  const row = ViewModel.browseClientRow(
+    client({ id: "1", name: "pi", type: "WIRED", uplinkDeviceId: null }), "", null)
+  assert.strictEqual(row.metaText.indexOf("via"), -1)
+  assert.strictEqual(row.uplinkText, "")
+})
+
+// --- REQ-B16: the empty and truncated states -----------------------------
+
+test("AC-B06/REQ-B16: the truncation line comes from counts, never from the array", () => {
+  // The REQ-010/AC-063 rule applied a third time. Shortening the array must not
+  // change either number — a consumer computing the total from `devices.length`
+  // reports 200 devices on a site of 412 and calls it complete.
+  const devices = [device({ id: "1", name: "a" }), device({ id: "2", name: "b" })]
+  const list = ViewModel.deviceListModel(
+    snapshotWith(devices, [], { devicesTotal: 412, clients: 0, offlineTotal: 0 }), {})
+  assert.strictEqual(list.truncated, true)
+  assert.strictEqual(list.total, 412)
+  assert.strictEqual(list.listed, 2)
+  assert.strictEqual(list.truncationText, "showing 2 of 412 devices")
+
+  const shorter = ViewModel.deviceListModel(
+    snapshotWith([devices[0]], [], { devicesTotal: 412, clients: 0, offlineTotal: 0 }), {})
+  assert.strictEqual(shorter.total, 412, "the total moved with the array")
+})
+
+test("REQ-B16: an untruncated list says nothing about truncation", () => {
+  const list = ViewModel.deviceListModel(
+    snapshotWith([device({ id: "1", name: "a" })], [],
+      { devicesTotal: 1, clients: 0, offlineTotal: 0 }), {})
+  assert.strictEqual(list.truncated, false)
+  assert.strictEqual(list.truncationText, "")
+})
+
+test("REQ-B16: the truncation line is singular for a site of one", () => {
+  assert.strictEqual(ViewModel.truncationText(0, 1, "device"), "showing 0 of 1 device")
+  assert.strictEqual(ViewModel.truncationText(0, 2, "device"), "showing 0 of 2 devices")
+})
+
+test("REQ-B16: an empty array over a non-zero total never says 'no devices'", () => {
+  // DATA-B04's boundary: the budget admitted nothing. "No devices to show."
+  // beside "showing 0 of 300 devices" is the panel contradicting itself in two
+  // adjacent lines, and the wrong one is the one the user reads first.
+  const data = snapshotOf("success_browse_empty_lists")
+  const list = ViewModel.deviceListModel(data, {})
+  assert.deepStrictEqual(list.rows, [])
+  assert.strictEqual(list.truncationText, "showing 0 of 300 devices")
+  assert.notStrictEqual(list.emptyText, "No devices to show.")
+  assert.ok(list.emptyText.indexOf("300") !== -1,
+    "the empty state must acknowledge the bound: " + list.emptyText)
+})
+
+test("REQ-B16: a search over a truncated list admits the bound", () => {
+  // "No devices match" is not TRUE on a bounded list — the device may exist and
+  // simply not be listed. A panel that answers a search with a confident wrong
+  // "no" is worse than one that admits what it did not look at.
+  const list = ViewModel.deviceListModel(
+    snapshotWith([device({ id: "1", name: "a" })], [],
+      { devicesTotal: 412, clients: 0, offlineTotal: 0 }), { search: "garage" })
+  assert.ok(list.emptyText.indexOf("garage") !== -1)
+  assert.ok(list.emptyText.indexOf("412") !== -1, list.emptyText)
+})
+
+test("REQ-B16: a role-filtered empty list names the role", () => {
+  const snapshot = snapshotWith([device({ id: "1", name: "a", roles: ["switching"] })], [],
+    { devicesTotal: 1, clients: 0, offlineTotal: 0 })
+  assert.strictEqual(
+    ViewModel.deviceListModel(snapshot, { role: "gateway" }).emptyText,
+    "No gateways to show.")
+  assert.strictEqual(
+    ViewModel.deviceListModel(snapshot, { role: "accessPoint" }).emptyText,
+    "No access points to show.")
+})
+
+test("REQ-B16: the client list carries its own totals and empty state", () => {
+  const list = ViewModel.clientListModel(
+    snapshotWith([], [client({ id: "1", name: "pi" })],
+      { devicesTotal: 0, clients: 900, offlineTotal: 0 }), {})
+  assert.strictEqual(list.truncationText, "showing 1 of 900 clients")
+  const none = ViewModel.clientListModel(
+    snapshotWith([], [], { devicesTotal: 0, clients: 0, offlineTotal: 0 }), {})
+  assert.strictEqual(none.emptyText, "No clients to show.")
+  assert.strictEqual(none.truncationText, "")
+})
+
+test("REQ-B16: a truncated corpus envelope renders both lines from its counts", () => {
+  const data = snapshotOf("success_browse_truncated")
+  assert.strictEqual(ViewModel.deviceListModel(data, {}).truncationText,
+    "showing 2 of 300 devices")
+  assert.strictEqual(ViewModel.clientListModel(data, {}).truncationText,
+    "showing 1 of 900 clients")
+})
+
+// --- REQ-B14: one row expanded at a time ---------------------------------
+
+test("REQ-B14: the detail is built for the expanded row and for no other", () => {
+  const snapshot = snapshotWith([
+    device({ id: "1", name: "one", firmwareVersion: "9.1.0" }),
+    device({ id: "2", name: "two", firmwareVersion: "9.2.0" })
+  ], [])
+  const list = ViewModel.deviceListModel(snapshot, { expandedId: "2" })
+  assert.strictEqual(list.expandedId, "2")
+  assert.strictEqual(list.expandedDetail.id, "2")
+  const firmware = list.expandedDetail.rows.filter((r) => r.key === "firmware")[0]
+  assert.strictEqual(firmware.value, "9.2.0")
+})
+
+test("REQ-B14: a row filtered out by a search takes its detail with it", () => {
+  // Otherwise the panel shows a detail block for a row the user cannot see —
+  // and the block carries the MAC address REQ-B21 keeps hidden until a
+  // deliberate expansion.
+  const snapshot = snapshotWith([
+    device({ id: "1", name: "one" }), device({ id: "2", name: "two" })], [])
+  const list = ViewModel.deviceListModel(snapshot,
+    { expandedId: "2", search: "one" })
+  assert.strictEqual(list.expandedId, "")
+  assert.strictEqual(list.expandedDetail, null)
+})
+
+test("REQ-B14: expanding an id that is not in the list yields no detail", () => {
+  const list = ViewModel.deviceListModel(
+    snapshotWith([device({ id: "1", name: "one" })], []), { expandedId: "nope" })
+  assert.strictEqual(list.expandedId, "")
+  assert.strictEqual(list.expandedDetail, null)
+})
+
+test("REQ-B14: a client detail carries the MAC, access type and absolute instant", () => {
+  const snapshot = snapshotWith([device({ id: "up", name: "Garage Switch" })],
+    [client({ id: "1", name: "pi", macAddress: "02:00:00:00:01:28",
+      accessType: "DEFAULT", uplinkDeviceId: "up",
+      connectedAt: "2026-01-12T09:14:00Z" })])
+  const list = ViewModel.clientListModel(snapshot, { expandedId: "1" })
+  const values = {}
+  for (const row of list.expandedDetail.rows) values[row.key] = row.value
+  assert.strictEqual(values.mac, "02:00:00:00:01:28")
+  assert.strictEqual(values.access, "DEFAULT")
+  assert.strictEqual(values.uplink, "Garage Switch")
+  assert.strictEqual(values.connected, "2026-01-12 09:14 UTC")
+})
+
+// --- REQ-B17: the time strings -------------------------------------------
+
+test("REQ-B17: an RFC 3339 instant parses to the same epoch in both engines", async (t) => {
+  // Hand-matched against the grammar and computed with `Date.UTC`, which is
+  // fully specified. `Date.parse` is implementation-defined outside ISO 8601
+  // and `toLocaleString` is banned outright — V4 and V8 do not ship the same
+  // ICU data, and this corpus runs under both.
+  const cases = [
+    ["Z", "2026-01-12T09:14:00Z", 1768209240],
+    ["lowercase z", "2026-01-12t09:14:00z", 1768209240],
+    ["fractional seconds", "2026-01-12T09:14:00.123Z", 1768209240],
+    ["a positive offset", "2026-01-12T11:14:00+02:00", 1768209240],
+    ["a negative offset", "2026-01-12T04:14:00-05:00", 1768209240]
+  ]
+  for (const [label, text, expected] of cases) {
+    await t.test(label, () => {
+      assert.strictEqual(ViewModel.parseRfc3339(text), expected)
+    })
+  }
+})
+
+test("REQ-B17: anything that is not an instant parses to null", () => {
+  for (const value of [null, undefined, "", "yesterday", 1768209240,
+    "2026-01-12", "2026-01-12T09:14Z", "2026-01-12T09:14:00", {},
+    "2026-01-12T09:14:00Z "]) {
+    assert.strictEqual(ViewModel.parseRfc3339(value), null, JSON.stringify(value))
+  }
+})
+
+test("REQ-B17: a date that does not exist is unknown, not a nearby one", () => {
+  // `Date.UTC` rolls over instead of failing, and the grammar only says "two
+  // digits". Before the round-trip check "2026-13-99T09:14:00Z" rendered as
+  // "2027-04-09 09:14 UTC" — a plausible instant, confidently wrong, which is
+  // worse than "unknown" precisely because nothing about it looks wrong.
+  //
+  // The trailing-space case above hid this: the first version of that list used
+  // "2026-13-99T09:14:00Z " and passed on the SPACE, so the impossible date was
+  // never actually tested.
+  for (const value of ["2026-13-99T09:14:00Z", "2026-02-30T00:00:00Z",
+    "2026-01-12T25:70:00Z", "2026-00-01T00:00:00Z", "2025-02-29T00:00:00Z"]) {
+    assert.strictEqual(ViewModel.parseRfc3339(value), null, value)
+    assert.strictEqual(ViewModel.formatInstant(value), "unknown", value)
+  }
+  // And the leap day that DOES exist still parses, or the guard is just a ban
+  // on February.
+  assert.strictEqual(ViewModel.formatInstant("2024-02-29T12:00:00Z"),
+    "2024-02-29 12:00 UTC")
+})
+
+test("REQ-B17: an unparseable connectedAt renders as nothing, never as 'never'", () => {
+  // `relativePast` answers "never" for a missing number, which is right for a
+  // last-successful-poll and wrong here: "connected never" beside a client that
+  // is plainly connected is the panel contradicting itself.
+  assert.strictEqual(ViewModel.connectedText(null, 1768209240), "")
+  assert.strictEqual(ViewModel.connectedText("nonsense", 1768209240), "")
+  assert.strictEqual(ViewModel.connectedText("2026-01-12T09:14:00Z", null), "")
+  const row = ViewModel.browseClientRow(
+    client({ id: "1", name: "pi", connectedAt: null }), "", 1768209240)
+  assert.strictEqual(row.connectedText, "")
+  assert.strictEqual(row.metaText.indexOf("never"), -1)
+  assert.strictEqual(row.metaText.indexOf("connected"), -1)
+})
+
+test("AC-071/REQ-B17: connected-since recomputes from nowWall and owns no clock", () => {
+  // The guarantee AC-071 makes for `lastUpdateText`, extended to the new
+  // strings: `nowWall` is an INPUT, so the existing freshness tick moves them
+  // and no widget owns a timer (REQ-014, UX-011).
+  const record = client({ id: "1", name: "pi", connectedAt: "2026-01-12T09:14:00Z" })
+  const at = ViewModel.parseRfc3339("2026-01-12T09:14:00Z")
+  assert.strictEqual(ViewModel.browseClientRow(record, "", at + 30).connectedText,
+    "30s ago")
+  assert.strictEqual(ViewModel.browseClientRow(record, "", at + 3 * 86400).connectedText,
+    "3d ago")
+  // Same record, same function, two different renderings — which is only
+  // possible because the clock is an argument.
+  assert.notStrictEqual(
+    ViewModel.browseClientRow(record, "", at + 30).metaText,
+    ViewModel.browseClientRow(record, "", at + 3 * 86400).metaText)
+})
+
+test("REQ-B17: the absolute instant is UTC-labelled and locale-free", () => {
+  assert.strictEqual(ViewModel.formatInstant("2026-01-12T09:14:00Z"),
+    "2026-01-12 09:14 UTC")
+  // Zero-padded on both fields, which a naive concatenation gets wrong exactly
+  // once a year and once an hour.
+  assert.strictEqual(ViewModel.formatInstant("2026-03-05T04:07:00Z"),
+    "2026-03-05 04:07 UTC")
+  // An offset is normalised to UTC rather than printed as given, so two
+  // timestamps on one panel are always comparable.
+  assert.strictEqual(ViewModel.formatInstant("2026-01-12T11:14:00+02:00"),
+    "2026-01-12 09:14 UTC")
+  assert.strictEqual(ViewModel.formatInstant(null), "unknown")
+  assert.strictEqual(ViewModel.formatInstant("whenever"), "unknown")
+})
+
+// --- REQ-B10: the three pages --------------------------------------------
+
+test("REQ-B10: the view defaults to Overview and rejects anything else", () => {
+  assert.deepStrictEqual(ViewModel.BROWSE_VIEWS, ["overview", "devices", "clients"])
+  for (const view of ViewModel.BROWSE_VIEWS) {
+    assert.strictEqual(ViewModel.browseView(view), view)
+  }
+  for (const junk of [null, undefined, "", "Devices", "settings", 3, {}]) {
+    assert.strictEqual(ViewModel.browseView(junk), "overview", JSON.stringify(junk))
+  }
+})
+
+test("REQ-B10: build publishes both lists and the current view", () => {
+  const data = snapshotOf("success_browse_full")
+  const model = ViewModel.build({
+    snapshot: data, level: { level: "amber" }, nowWall: 1768209240,
+    browse: { view: "devices", deviceSearch: "ap", expandedDeviceId: null }
+  })
+  assert.strictEqual(model.view, "devices")
+  assert.ok(model.deviceList.rows.length > 0)
+  assert.strictEqual(model.deviceList.searchText, "ap")
+  assert.ok(model.clientList.rows.length > 0)
+  // The raw arrays are NOT what the pages bind to, and the two names differ so
+  // a widget cannot pick up one where it wanted the other.
+  assert.ok(Array.isArray(model.deviceList.rows))
+  assert.strictEqual(model.deviceList.rows, model.deviceList.rows)
+})
+
+test("REQ-B10: a model with no snapshot still has both list shapes", () => {
+  // REQ-013b's rule, extended: a widget binds to one object and cannot have
+  // half its bindings become undefined on the first frame — which is exactly
+  // the frame where `serviceFor()` is null.
+  const keys = Object.keys(ViewModel.emptyBrowseList()).sort()
+  for (const model of [ViewModel.forNullService(), ViewModel.build({})]) {
+    assert.deepStrictEqual(Object.keys(model.deviceList).sort(), keys)
+    assert.deepStrictEqual(Object.keys(model.clientList).sort(), keys)
+    assert.strictEqual(model.view, "overview")
+  }
+  // A fresh object per call: one shared default behind both keys would make a
+  // mutation through either visible through the other.
+  assert.notStrictEqual(ViewModel.build({}).deviceList,
+    ViewModel.build({}).clientList)
+})
+
+test("REQ-B10: the two list models have identical shapes", () => {
+  // They are rendered by the same delegate machinery in Phase B3. A key present
+  // on one and not the other is a binding that silently reads undefined on one
+  // of the two pages.
+  const data = snapshotOf("success_browse_full")
+  const model = ViewModel.build({ snapshot: data, nowWall: 1768209240 })
+  assert.deepStrictEqual(Object.keys(model.deviceList).sort(),
+    Object.keys(model.clientList).sort())
+})
+
+test("REQ-B14: a controller string cannot reach Object.prototype", () => {
+  // `clients[].type` is explicitly NOT a closed set (protocol-v1.md), and
+  // neither `devices[].id` nor `uplinkDeviceId` is validated beyond "a
+  // non-empty string". A plain `map[key]` therefore answers "valueOf" with a
+  // FUNCTION, and `clientTypeWord("valueOf")` rendered
+  // `function valueOf() { [native code] }` into a client row — a line of engine
+  // internals where a word should be, from one word in one API response.
+  const poison = ["constructor", "toString", "valueOf", "hasOwnProperty",
+    "__proto__", "isPrototypeOf"]
+  for (const key of poison) {
+    assert.strictEqual(typeof ViewModel.clientTypeWord(key), "string", key)
+    assert.strictEqual(ViewModel.clientTypeWord(key), key, key)
+
+    const names = ViewModel.uplinkNames([device({ id: "real", name: "Real" })])
+    assert.strictEqual(ViewModel.uplinkNameFor(names, key), "an unlisted device", key)
+
+    const row = ViewModel.browseClientRow(
+      client({ id: "c", name: "x", type: key }), "", null)
+    assert.strictEqual(row.metaText.indexOf("native code"), -1, key)
+
+    // The role filter's noun, and the class ranking, by the same route.
+    const empty = ViewModel.deviceListModel(snapshotWith([], []), { role: key })
+    assert.strictEqual(typeof empty.emptyText, "string", key)
+    assert.strictEqual(empty.emptyText, "No devices to show.", key)
+    assert.strictEqual(typeof ViewModel.browseOrderKey(device({ class: key })).rank,
+      "number", key)
+
+    // `classWord` and `wanStatusWord` predate this and had the same lookup.
+    // They rendered engine internals on their own; once `browseDeviceRow`
+    // passed the result through `wordCase` it THREW, and a throw inside `build`
+    // costs the whole model rather than one word. `class` is validated by
+    // `checkDeviceRecord`, so both are backstops — backstops that had stopped
+    // working.
+    assert.strictEqual(ViewModel.classWord(key), "unknown", key)
+    assert.strictEqual(ViewModel.wanStatusWord(key), "Unknown", key)
+    assert.strictEqual(ViewModel.browseDeviceRow(device({ class: key })).classText,
+      "Unknown", key)
+  }
+})
+
+test("REQ-003: the prototype guard did not break the words it guards", () => {
+  // The other half. A guard that returned the fallback for EVERY key would pass
+  // the test above and would render every device "unknown".
+  const poison = ["constructor", "toString", "valueOf", "hasOwnProperty",
+    "__proto__", "isPrototypeOf"]
+  for (const klass of ["online", "down", "impaired", "unknown", "transitional"]) {
+    assert.strictEqual(ViewModel.classWord(klass), ViewModel.CLASS_WORD[klass], klass)
+  }
+  for (const status of ["up", "down", "degraded", "unknown"]) {
+    assert.strictEqual(ViewModel.wanStatusWord(status),
+      ViewModel.WAN_STATUS_WORD[status], status)
+  }
+  for (const key of poison) {
+    // `CLASS_WORD[key]` is NOT undefined for these — that is the entire defect.
+    // The map has no OWN entry, and the lookup is what has to say so.
+    assert.strictEqual(
+      Object.prototype.hasOwnProperty.call(ViewModel.CLASS_WORD, key), false, key)
+  }
+})
+
+test("REQ-B14: a device named after a prototype member still resolves as an uplink", () => {
+  // The other half: the guard must not make a legitimate name unreachable. A
+  // device whose id happens to be "toString" is absurd but permitted, and it
+  // must resolve to ITS name rather than to the fallback.
+  const names = ViewModel.uplinkNames([device({ id: "toString", name: "Odd Switch" })])
+  assert.strictEqual(ViewModel.uplinkNameFor(names, "toString"), "Odd Switch")
+})

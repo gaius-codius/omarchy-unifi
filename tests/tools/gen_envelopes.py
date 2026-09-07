@@ -679,18 +679,32 @@ def accept_success():
         device_record(500, "AP 000", "U6-Lite", "ONLINE", "online",
                       ["accessPoint"]),
     ]
+    # In REQ-B12's order — by the name the panel RENDERS, case-insensitively,
+    # then by id — because that is the order the helper emits and this array is
+    # asserted as its output byte for byte. The input side
+    # (`tests/tools/normalize_inputs.py`) supplies the same four records in
+    # controller order, so reproducing this file requires the helper to sort;
+    # authoring both sides in the same order would have tested nothing.
+    #
+    # The unnamed client leads, which looks wrong until you see why: its name
+    # falls back to its id, and a synthetic uuid begins with a digit. That is
+    # the fallback chain doing exactly what REQ-B12 asks.
     browse_clients = [
-        client_record(40, "workshop-pi", "WIRED", ip="192.168.20.40",
-                      mac="02:00:00:00:01:28", uplink=uid(31)),
-        client_record(41, "phone", "WIRELESS", ip="192.168.20.41",
-                      mac="02:00:00:00:01:29", uplink=uid(32)),
         # No name, no address: REQ-B12's fallback chain has to have something
         # to fall back FROM, and this is the record that proves it is reachable.
         client_record(42, None, "WIRELESS", uplink=uid(32), connected=None),
+        client_record(41, "phone", "WIRELESS", ip="192.168.20.41",
+                      mac="02:00:00:00:01:29", uplink=uid(32)),
         # A type outside the observed two. Deliberately NOT rejected: unlike a
         # device state it decides nothing, so it renders as itself.
         client_record(43, "road-laptop", "TELEPORT", ip="192.168.20.43"),
+        client_record(40, "workshop-pi", "WIRED", ip="192.168.20.40",
+                      mac="02:00:00:00:01:28", uplink=uid(31)),
     ]
+    # Named rather than sliced off `browse_clients`, which is no longer in
+    # authoring order: a `[:1]` would now take the unnamed client and quietly
+    # disagree with the input side, which slices its own list.
+    truncated_clients = [browse_clients[3]]
     out.append(("success_browse_full",
                 "REQ-B01/B03: every device and client listed. `detail` is present "
                 "on three devices and null on two IN THE SAME ENVELOPE, because "
@@ -730,7 +744,7 @@ def accept_success():
                            cls(online=300),
                            cls(online=1), cls(online=201), cls(online=99)),
                     [],
-                    devices=truncated_devices, clients=browse_clients[:1],
+                    devices=truncated_devices, clients=truncated_clients,
                 ), [warning("devices_truncated",
                             "The device list is truncated; see the total.",
                             {"listed": 2, "total": 300}),

@@ -277,6 +277,13 @@ devices are down.
 Every adopted device, bounded — see Bounds — with `counts.devicesTotal`
 carrying the true total independently. The array's length is never the total.
 
+**Ordered by the helper (REQ-B11):** `down`, `impaired`, `unknown`,
+`transitional`, `online`; within a class, gateways first, then by name
+case-insensitively, then by `id`. A consumer may rely on this and must not
+re-sort — the order is where the truncation bound cuts, so re-deriving it in a
+consumer would make a helper that ordered wrongly indistinguishable from one
+that ordered rightly.
+
 | Field | Type | Nullable | Notes |
 |---|---|---|---|
 | `id` | uuid | no | |
@@ -332,6 +339,13 @@ are not comparable across devices and the panel labels them per device.
 
 Every connected client, bounded — see Bounds — with `counts.clients` carrying
 the true total independently, still read from the terminal page's `totalCount`.
+
+**Ordered by the helper (REQ-B12):** by the name a row renders — `name`, then
+`ipAddress`, then `id` — case-insensitively, then by `id`. Applied *before* the
+bound, and that is why it is applied here at all: the bound takes the head of
+this list, so without an order the 500 clients that survive on a 900-client site
+are whichever ones the controller paginated first, a set that can differ between
+two polls with nothing on the network having changed.
 
 | Field | Type | Nullable |
 |---|---|---|
