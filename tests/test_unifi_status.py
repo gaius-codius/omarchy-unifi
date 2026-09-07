@@ -27,6 +27,7 @@ import sys
 import tempfile
 import time
 import unittest
+import urllib.parse as urllib_parse
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _REPO = os.path.dirname(_HERE)
@@ -1078,11 +1079,37 @@ class Bounds(unittest.TestCase):
         self.assertEqual(bounds.STDOUT_MAX_BYTES, envelope.STDOUT_MAX_BYTES,
                          "bounds.py records a different DATA-005 than envelope.py")
 
-    def test_the_list_budget_leaves_room_for_the_rest_of_the_envelope(self):
-        self.assertGreater(bounds.LIST_BUDGET_BYTES, 0)
-        self.assertEqual(
-            bounds.LIST_BUDGET_BYTES,
-            bounds.ENVELOPE_BUDGET_BYTES - bounds.FIXED_CONTENT_RESERVE_BYTES)
+    def test_the_room_for_lists_is_measured_and_not_reserved(self):
+        """The replacement for a test that could not fail.
+
+        Its predecessor asserted `LIST_BUDGET > 0` and that a subtraction had
+        been performed — a tautology that survived setting the reserve to
+        ZERO, which is how a constant wrong by up to thirty times went
+        unnoticed. These assertions are about the RELATIONSHIP between fixed
+        content and the room left for lists, which is the property that
+        matters.
+        """
+        # Bigger fixed content, strictly less room. Monotone, and the direction
+        # a reserve-based version got wrong by not looking at all.
+        small = bounds.room_for_lists(1024)
+        large = bounds.room_for_lists(64 * 1024)
+        self.assertGreater(small, large)
+        self.assertEqual(small - large, 63 * 1024)
+
+        # The room plus everything it must coexist with never exceeds the
+        # budget, which is the arithmetic the guarantee rests on.
+        for fixed in (0, 1024, 64 * 1024, 150 * 1024):
+            with self.subTest(fixed=fixed):
+                room = bounds.room_for_lists(fixed)
+                self.assertLessEqual(
+                    room + fixed + bounds.WARNINGS_RESERVE_BYTES
+                    + bounds.FRAME_RESERVE_BYTES,
+                    bounds.ENVELOPE_BUDGET_BYTES)
+
+        # Fixed content that fills the envelope leaves no room at all, rather
+        # than a negative number a Budget would treat as unlimited.
+        self.assertEqual(bounds.room_for_lists(bounds.ENVELOPE_BUDGET_BYTES), 0)
+        self.assertEqual(bounds.room_for_lists(10 * 1024 * 1024), 0)
 
     def test_a_record_that_does_not_fit_is_never_added(self):
         # `admits` before `spend`, never spend-then-remove: removing afterwards
@@ -1098,6 +1125,35 @@ class Bounds(unittest.TestCase):
         big = {"id": "y" * 500}
         self.assertFalse(budget.admits(big))
         self.assertEqual(budget.used, size + 1, "a refused record still cost bytes")
+
+    def test_admits_and_spend_agree_on_what_a_record_costs(self):
+        # Dropping the `+ 1` from `admits` while leaving it in `spend` survived
+        # mutation. The comment defends that byte at length — half a kilobyte
+        # across 500 clients — and nothing checked the two functions agreed, so
+        # `admits` could say yes to a record `spend` then over-charged for,
+        # walking `used` past `limit`.
+        budget = bounds.Budget(limit=10 ** 6)
+        record = {"id": "x" * 40, "name": "y" * 40}
+        before = budget.used
+        budget.spend(record)
+        cost = budget.used - before
+
+        probe = bounds.Budget(limit=before + cost)
+        probe.used = before
+        self.assertTrue(probe.admits(record),
+                        "admits refused a record that exactly fits")
+        tight = bounds.Budget(limit=before + cost - 1)
+        tight.used = before
+        self.assertFalse(tight.admits(record),
+                         "admits accepted a record one byte too large")
+
+    def test_a_budget_never_walks_past_its_own_limit(self):
+        budget = bounds.Budget(limit=500)
+        records = [{"id": "device-%03d" % i, "pad": "x" * 20} for i in range(100)]
+        for record in records:
+            if budget.admits(record):
+                budget.spend(record)
+        self.assertLessEqual(budget.used, budget.limit)
 
     def test_the_projection_matches_how_the_envelope_is_actually_written(self):
         # An optimistic projection is worse than none: it would let the cliff be
@@ -1190,6 +1246,53 @@ class BrowseRecords(unittest.TestCase):
         self.assertEqual(metrics["cpuUtilizationPct"], 4.5)
         self.assertEqual(metrics["memoryUtilizationPct"], 38.25)
 
+    def test_a_non_boolean_updatable_flag_is_null_not_passed_through(self):
+        # `_as_bool` reduced to `return value` survived: a controller sending
+        # `firmwareUpdatable: "yes"` would reach the panel as the string, and
+        # `Protocol.js` does not type-check the field either. The panel renders
+        # a truthy string as "update available", so a controller quirk becomes a
+        # claim about the user's firmware.
+        for bogus in ("yes", 1, 0, "", None, [], {}):
+            with self.subTest(value=bogus):
+                device = dict(normalize_inputs.browse_device(
+                    66, "ONLINE", normalize_inputs.SWITCH))
+                device["firmwareUpdatable"] = bogus
+                entry = self._built([device])["devices"][0]
+                self.assertIsNone(entry["firmwareUpdatable"])
+        for real in (True, False):
+            device = dict(normalize_inputs.browse_device(
+                67, "ONLINE", normalize_inputs.SWITCH))
+            device["firmwareUpdatable"] = real
+            self.assertIs(self._built([device])["devices"][0]["firmwareUpdatable"],
+                          real)
+
+    def test_a_detail_body_that_is_not_an_object_is_null_not_a_crash(self):
+        # The `isinstance(detail, dict)` guard weakened to `detail is None`
+        # survived: a list-valued detail would then reach `.get` and raise.
+        for bogus in ([], "string", 42, True):
+            with self.subTest(value=bogus):
+                device = normalize_inputs.browse_device(
+                    68, "ONLINE", normalize_inputs.SWITCH)
+                data = self._built([device],
+                                   details={normalize_inputs.uid(68): bogus})
+                self.assertIsNone(data["devices"][0]["detail"])
+                self.assertIsNone(data["devices"][0]["uplinkDeviceId"])
+
+    def test_client_and_device_identifiers_go_through_the_sanitizer(self):
+        # Dropping `sanitize.clean` from the client id survived. Every string
+        # that reaches the wire is bounded and control-character-stripped by
+        # SEC-008; an id is not exempt just because it is usually a uuid.
+        long_id = "x" * (sanitize.STRING_MAX_CHARS + 50)
+        record = normalize_inputs.client(0, "n", "WIRED")
+        record["id"] = long_id + "\r\n"
+        data = normalize.build({"id": normalize_inputs.uid(1), "name": "Home"},
+                               [], 1, {}, "9.1.0", warn.Warnings(),
+                               client_records=[record])
+        emitted = data["clients"][0]["id"]
+        self.assertLessEqual(len(emitted), sanitize.STRING_MAX_CHARS)
+        self.assertNotIn("\r", emitted)
+        self.assertNotIn("\n", emitted)
+
     def test_a_boolean_is_not_read_as_a_number(self):
         # `True` is an int in Python, so a `firmwareUpdatable` that leaked into
         # a numeric field would arrive as 1. `_number` rejects bools first.
@@ -1219,6 +1322,127 @@ class BrowseRecords(unittest.TestCase):
         self.assertIsNotNone(entry["detail"])
         self.assertEqual(entry["detail"]["ports"], [])
 
+    def test_the_order_is_case_insensitive_on_name(self):
+        # REQ-B11 says "case-insensitively". Removing `.lower()` from the key
+        # changed no test: every corpus name happens to be capitalised the same
+        # way, so ASCII order and case-insensitive order agreed.
+        # The pair has to be one where ASCII order and case-insensitive order
+        # DISAGREE. A first attempt used "Apple" and "zebra", which sort the
+        # same way under both — so the test passed and the mutation removing
+        # `.lower()` survived it. Lowercase 'a' is 0x61 and uppercase 'Z' is
+        # 0x5a, so this pair inverts between the two rules.
+        devices = [normalize_inputs.browse_device(70, "ONLINE",
+                                                  normalize_inputs.SWITCH, "Zebra"),
+                   normalize_inputs.browse_device(71, "ONLINE",
+                                                  normalize_inputs.SWITCH, "apple")]
+        order = [d["name"] for d in normalize.browse_order(devices)]
+        self.assertEqual(order, ["apple", "Zebra"],
+                         "byte order would put Zebra first")
+
+    def test_the_id_is_the_final_tiebreaker(self):
+        # Two devices alike in class, role and name. Without the id key the
+        # order follows the controller's page order, and the list is
+        # byte-truncated — so a tie would decide which of them the user sees.
+        devices = [normalize_inputs.browse_device(81, "ONLINE",
+                                                  normalize_inputs.SWITCH, "twin"),
+                   normalize_inputs.browse_device(80, "ONLINE",
+                                                  normalize_inputs.SWITCH, "twin")]
+        self.assertEqual([d["id"] for d in normalize.browse_order(devices)],
+                         [normalize_inputs.uid(80), normalize_inputs.uid(81)])
+        # And it is stable under a reversed input, which page order can be.
+        self.assertEqual(
+            [d["id"] for d in normalize.browse_order(list(reversed(devices)))],
+            [normalize_inputs.uid(80), normalize_inputs.uid(81)])
+
+    def test_unknown_sorts_above_transitional(self):
+        """The judgement REQ-B11 spends a paragraph on, and nothing pinned.
+
+        A device in a state this build does not recognise is a thing to look at;
+        an UPDATING one is not. It is the same judgement REQ-002 rule 4 makes,
+        which reads `unknown` and does not read `transitional` — so swapping the
+        two ranks would put the panel's list and the bar's colour at odds.
+        """
+        devices = [normalize_inputs.browse_device(90, "UPDATING",
+                                                  normalize_inputs.SWITCH, "a"),
+                   normalize_inputs.browse_device(91, "NO_SUCH_STATE",
+                                                  normalize_inputs.SWITCH, "b"),
+                   normalize_inputs.browse_device(92, "ISOLATED",
+                                                  normalize_inputs.SWITCH, "c"),
+                   normalize_inputs.browse_device(93, "OFFLINE",
+                                                  normalize_inputs.SWITCH, "d"),
+                   normalize_inputs.browse_device(94, "ONLINE",
+                                                  normalize_inputs.SWITCH, "e")]
+        self.assertEqual([d["name"] for d in normalize.browse_order(devices)],
+                         ["d", "c", "b", "a", "e"])
+
+    def test_a_non_string_name_does_not_crash_the_helper(self):
+        # A malformed controller response is a bad reading, not a 30-second
+        # watchdog timeout with nothing in any log.
+        devices = [{"id": normalize_inputs.uid(95), "state": "ONLINE",
+                    "name": 5, "features": []},
+                   {"id": normalize_inputs.uid(96), "state": "ONLINE",
+                    "name": {"nested": "object"}, "features": []},
+                   normalize_inputs.browse_device(97, "ONLINE",
+                                                  normalize_inputs.SWITCH, "ok")]
+        self.assertEqual(len(normalize.browse_order(devices)), 3)
+        data = self._built(devices)
+        self.assertEqual(len(data["devices"]), 3)
+
+    def test_a_device_the_consumer_would_reject_is_dropped_not_shipped(self):
+        # `Protocol.js` refuses a device with no string id, and refusal is
+        # WHOLE-ENVELOPE: the user loses the reading rather than the row.
+        devices = [{"state": "ONLINE", "name": "no id here", "features": []},
+                   normalize_inputs.browse_device(98, "ONLINE",
+                                                  normalize_inputs.SWITCH, "fine")]
+        data = self._built(devices)
+        self.assertEqual([d["name"] for d in data["devices"]], ["fine"])
+        # Still COUNTED, though: the counts come from `devices`, not this list.
+        self.assertEqual(data["counts"]["devicesTotal"], 2)
+
+    def test_a_client_the_consumer_would_reject_is_dropped_not_shipped(self):
+        records = [{"name": "no id", "type": "WIRED"},
+                   {"id": normalize_inputs.uid(99), "name": "no type"},
+                   normalize_inputs.client(100, "fine", "WIRED")]
+        data = normalize.build({"id": normalize_inputs.uid(1), "name": "Home"},
+                               [], 3, {}, "9.1.0", warn.Warnings(),
+                               client_records=records)
+        self.assertEqual([c["name"] for c in data["clients"]], ["fine"])
+        self.assertEqual(data["counts"]["clients"], 3)
+
+    def test_the_client_list_is_clamped_to_its_own_count(self):
+        """`list_exceeds_total` is a rejection class, and it is reachable.
+
+        `counts.clients` is `totalCount` off the terminal page while the records
+        accumulate across pages, so a client connecting mid-pagination produces
+        one more record than the count. Clamping costs that client its row; not
+        clamping costs the user the whole reading.
+        """
+        records = [normalize_inputs.client(200 + i, "c%d" % i, "WIRED")
+                   for i in range(5)]
+        data = normalize.build({"id": normalize_inputs.uid(1), "name": "Home"},
+                               [], 3, {}, "9.1.0", warn.Warnings(),
+                               client_records=records)
+        self.assertEqual(len(data["clients"]), 3)
+        self.assertEqual(data["counts"]["clients"], 3)
+
+    def test_the_gateway_list_is_bounded_by_the_producer(self):
+        """DATA-006's 64 was enforced only by the consumer, which rejects.
+
+        Since SPEC-AMD-1 a device is a gateway if it reports an off-LAN address,
+        so a site behind carrier-grade NAT can present dozens of them — and the
+        failure mode was a grey panel rather than a shortened list.
+        """
+        devices = [normalize_inputs.device(300 + i, "ONLINE", ["gateway"],
+                                           "GW %03d" % i)
+                   for i in range(70)]
+        collector = warn.Warnings()
+        data = normalize.build({"id": normalize_inputs.uid(1), "name": "Home"},
+                               devices, None, {}, "9.1.0", collector)
+        self.assertEqual(len(data["gateways"]), 64)
+        self.assertEqual(data["counts"]["gateways"]["online"], 70,
+                         "the COUNT is the site's, not the list's")
+        self.assertIn("gateway_list_truncated", collector.codes())
+
     def test_the_browse_class_matches_the_class_the_counters_used(self):
         # The two are rendered a few hundred pixels apart. Asserted over every
         # state the API defines, not over a sample.
@@ -1246,6 +1470,7 @@ class WarningCodes(unittest.TestCase):
             # SPEC-v1.1-browse.md §5.
             "device_detail_truncated", "device_detail_unavailable",
             "devices_truncated", "clients_truncated", "envelope_truncated",
+            "gateway_list_truncated",
         ]))
         # DEV-5 retired this one. Asserted by name, because a code deleted from
         # the tuple and left in `MESSAGES` would pass the equality above while
@@ -1306,7 +1531,7 @@ class TimeBudget(unittest.TestCase):
         budget = self.budget()
         self.now[0] = deadline.BUDGET_SEC - deadline.MIN_OPERATION_SEC / 2
         with self.assertRaises(errors.DeadlineError):
-            budget.timeout_for("wans")
+            budget.timeout_for("device")
 
     def test_the_clock_is_monotonic_not_wall(self):
         # An NTP correction mid-batch must neither grant nor revoke time.
@@ -2698,6 +2923,7 @@ class CollectionPolicy(unittest.TestCase):
             "clients": page([{"id": normalize_inputs.uid(500 + i)}
                              for i in range(42)]),
             "device_statistics": normalize_inputs.stats(864000, 12000000, 3000000),
+            "device": normalize_inputs.detail(ports=4),
         }
         self.calls = []
 
@@ -2726,7 +2952,8 @@ class CollectionPolicy(unittest.TestCase):
     # `set(calls) == set(ROUTE_NAMES)` reads as "no others are requested" but
     # actually also asserts "all of them are", so adding an allowlisted route
     # the batch does not yet use fails a test about something else entirely.
-    BATCH_ROUTES = {"info", "sites", "devices", "clients", "device_statistics"}
+    BATCH_ROUTES = {"info", "sites", "devices", "clients", "device_statistics",
+                    "device"}
 
     def test_no_route_outside_the_allowlist_is_requested(self):
         self.run_batch()
@@ -2839,7 +3066,7 @@ class CollectionPolicy(unittest.TestCase):
                         deadline.Deadline(), self.warnings, get_json=get_json)
         self.assertEqual(self.calls, ["info"])
 
-    def test_statistics_stop_at_four_gateways(self):
+    def test_statistics_cover_every_gateway_across_both_tiers(self):
         devices = [normalize_inputs.device(10 + i, "ONLINE", ["gateway"])
                    for i in range(6)]
 
@@ -2864,11 +3091,432 @@ class CollectionPolicy(unittest.TestCase):
         batch = collect.run(self.config, _StubCredential(), None,
                             deadline.Deadline(), self.warnings,
                             get_json=get_json)
-        self.assertEqual(self.calls.count("device_statistics"), 4)
+        # REQ-008a's guarantee is about `wan`'s SOURCE, not about the total
+        # number of statistics requests. Since REQ-B02 the browse tier fetches
+        # statistics too, for the head of REQ-B11's order, so six gateways
+        # produce six calls: four for REQ-008a and two more from the browse
+        # tier that REQ-008a had already covered are skipped, with the other
+        # two picked up.
+        #
+        # Restated as the three things REQ-008a actually promises. The old form
+        # — `calls.count("device_statistics") == 4` — would now fail for a
+        # correct implementation and pass for one that fetched four ARBITRARY
+        # gateways, which is the part that matters.
         self.assertEqual(len(batch.data["gateways"]), 6)
-        detail = [entry for entry in self.warnings.to_list()
-                  if entry["code"] == "gateway_statistics_truncated"][0]["detail"]
-        self.assertEqual(detail, {"fetched": 4, "total": 6})
+        # No truncation warning: REQ-008a's cap fetched four and the browse tier
+        # picked up the other two, so every gateway has metrics and there is
+        # nothing missing to report. The warning now counts what is ABSENT
+        # rather than what the cap declined, which is a smaller and truer claim.
+        self.assertNotIn("gateway_statistics_truncated", self.warnings.codes())
+        self.assertTrue(all(entry["uptimeSec"] is not None
+                            for entry in batch.data["gateways"]))
+
+        # 1. `wan` is populated, so the primary gateway was among those fetched.
+        self.assertIsNotNone(batch.data["wan"]["uptimeSec"])
+        # 2. The first four in PRIMARY order carry metrics.
+        primary_order = [d["id"] for d
+                         in normalize.gateway_order(devices)[:4]]
+        with_metrics = {entry["id"] for entry in batch.data["gateways"]
+                        if entry["uptimeSec"] is not None}
+        self.assertTrue(set(primary_order) <= with_metrics)
+        # 3. No device is asked twice. The browse tier skips what REQ-008a
+        #    already fetched, so the union is what is requested and not the sum.
+        self.assertEqual(self.calls.count("device_statistics"), 6)
+        self.assertLessEqual(self.calls.count("device_statistics"), len(devices))
+
+    def test_the_browse_tier_never_costs_req_008a_its_gateway(self):
+        """REQ-B02's bound must not be able to take `wan`'s metrics away.
+
+        Browse order puts `down` devices first, so on a site with many failed
+        switches and one healthy gateway the gateway sorts past the detail
+        bound. Deriving REQ-008a's four from the browse head — which reads as a
+        tidy simplification — would silently cost the panel its WAN reading
+        exactly when the site is at its worst.
+        """
+        gateway = normalize_inputs.device(10, "ONLINE", ["gateway"], "GW")
+        broken = [normalize_inputs.device(100 + i, "OFFLINE", ["switching"],
+                                          "Broken %03d" % i)
+                  for i in range(bounds.DEVICE_DETAIL_MAX + 10)]
+        devices = broken + [gateway]
+
+        def get_json(request, credential, context, deadline, warnings=None):
+            self.calls.append((request.route, getattr(request, "params", None)))
+            if request.route == "devices":
+                body = {"offset": 0, "limit": 200, "count": len(devices),
+                        "totalCount": len(devices), "data": devices}
+            elif request.route == "sites":
+                body = {"offset": 0, "limit": 200, "count": 1, "totalCount": 1,
+                        "data": [{"id": self.SITE, "name": "S"}]}
+            elif request.route == "info":
+                body = {"applicationVersion": "9.1.0"}
+            elif request.route == "device_statistics":
+                body = normalize_inputs.stats(864000, 12000000, 3000000)
+            elif request.route == "device":
+                body = normalize_inputs.detail(ports=2)
+            else:
+                body = {"offset": 0, "limit": 200, "count": 0, "totalCount": 0,
+                        "data": []}
+            return body, len(json.dumps(body))
+
+        self.calls = []
+        batch = collect.run(self.config, _StubCredential(), None,
+                            deadline.Deadline(), self.warnings,
+                            get_json=get_json)
+        # The gateway is the LAST device in browse order — every other device
+        # is `down` and sorts ahead of it — so it is past the detail bound.
+        ordered = normalize.browse_order(devices)
+        self.assertEqual(ordered[-1]["id"], gateway["id"])
+        self.assertGreater(len(ordered), bounds.DEVICE_DETAIL_MAX)
+        # And `wan` still has its metrics.
+        self.assertEqual(batch.data["wan"]["uptimeSec"], 864000)
+        self.assertEqual(batch.data["gateways"][0]["uptimeSec"], 864000)
+
+
+def _page_of(records, url):
+    """Serve one well-formed page of `records` for the offset in `url`.
+
+    Real pagination rather than one oversized page. DATA-009's invariants
+    include `count <= limit`, so a stub that returned 250 records in a page
+    declaring `limit: 200` is rejected as `partial_response` — which is the
+    collector working correctly and the stub being wrong. The bounds this class
+    exercises only bind above 200, so every one of its sites needs more than
+    one page.
+    """
+    query = urllib_parse.parse_qs(urllib_parse.urlsplit(url).query)
+    offset = int(query.get("offset", ["0"])[0])
+    limit = int(query.get("limit", ["200"])[0])
+    window = list(records)[offset:offset + limit]
+    return {"offset": offset, "limit": limit, "count": len(window),
+            "totalCount": len(records), "data": window}
+
+
+class BrowseCollection(unittest.TestCase):
+    """SPEC-v1.1-browse.md Phase B1: AC-B02 … AC-B06, AC-B12, AC-B13."""
+
+    SITE = normalize_inputs.uid(1)
+
+    def setUp(self):
+        self.warnings = warn.Warnings()
+        self.config = config_module.Config(
+            "https://192.0.2.9/proxy/network/integration", self.SITE, None, False)
+        self.calls = []
+
+    def responder(self, devices, clients=(), fail_detail=None,
+                  detail_ports=2):
+        def get_json(request, credential, context, deadline_, warnings=None):
+            route = request.route
+            self.calls.append((route, request.url))
+            if route == "info":
+                body = {"applicationVersion": "9.1.0"}
+            elif route == "sites":
+                body = {"offset": 0, "limit": 200, "count": 1, "totalCount": 1,
+                        "data": [{"id": self.SITE, "name": "Home"}]}
+            elif route == "devices":
+                body = _page_of(devices, request.url)
+            elif route == "clients":
+                body = _page_of(clients, request.url)
+            elif route == "device_statistics":
+                body = normalize_inputs.stats(864000, 12000000, 3000000,
+                                              cpu=4.0, memory=30.0)
+            elif route == "device":
+                if fail_detail is not None and fail_detail in request.url:
+                    raise errors.NetworkError("detail unreachable")
+                body = normalize_inputs.detail(ports=detail_ports)
+            else:
+                raise AssertionError("unexpected route %r" % route)
+            return body, len(json.dumps(body))
+        return get_json
+
+    def run_batch(self, devices, clients=(), budget_sec=None, **kwargs):
+        limit = deadline.Deadline() if budget_sec is None else deadline.Deadline(budget_sec)
+        return collect.run(self.config, _StubCredential(), None, limit,
+                           self.warnings,
+                           get_json=self.responder(devices, clients, **kwargs))
+
+    def detail_of(self, code):
+        for entry in self.warnings.to_list():
+            if entry["code"] == code:
+                return entry["detail"]
+        return None
+
+    @staticmethod
+    def site_of(size, broken_at=()):
+        """`size` devices, with `broken_at` indices given a not-well state.
+
+        The broken ones are placed LATE on purpose — indices near the end — so
+        that a selection which simply took the first N would miss them. That is
+        the whole of REQ-B02a and it cannot be shown by a corpus whose broken
+        devices happen to sort first anyway.
+        """
+        states = {}
+        for index, state in broken_at:
+            states[index] = state
+        return [normalize_inputs.browse_device(
+                    1000 + i, states.get(i, "ONLINE"),
+                    normalize_inputs.SWITCH, "Device %04d" % i)
+                for i in range(size)]
+
+    # --- AC-B02 -----------------------------------------------------------
+
+    def test_detail_stops_at_the_bound_and_takes_the_broken_ones_first(self):
+        size = 200
+        broken = [(190, "OFFLINE"), (191, "ISOLATED"), (192, "NO_SUCH_STATE")]
+        devices = self.site_of(size, broken)
+        data = self.run_batch(devices).data
+
+        asked = [url for route, url in self.calls if route == "device"]
+        self.assertEqual(len(asked), bounds.DEVICE_DETAIL_MAX)
+
+        with_detail = {entry["id"] for entry in data["devices"]
+                       if entry["detail"] is not None}
+        self.assertEqual(len(with_detail), bounds.DEVICE_DETAIL_MAX)
+
+        # REQ-B02a: every device that is not well got detail, despite sitting
+        # at indices 190-192 of a 200-device list.
+        for index, _state in broken:
+            self.assertIn(normalize_inputs.uid(1000 + index), with_detail,
+                          "a broken device was passed over for a healthy one")
+
+        self.assertEqual(self.detail_of("device_detail_truncated"),
+                         {"fetched": bounds.DEVICE_DETAIL_MAX, "total": size})
+
+    def test_a_small_site_is_fetched_whole_and_warns_about_nothing(self):
+        # The bound must not fire on an ordinary site. A truncation warning
+        # nobody can act on is noise, and a test suite that only ever exercises
+        # the truncated path would not notice it had become permanent.
+        data = self.run_batch(self.site_of(9)).data
+        self.assertEqual(len([e for e in data["devices"]
+                              if e["detail"] is not None]), 9)
+        self.assertNotIn("device_detail_truncated", self.warnings.codes())
+        self.assertNotIn("devices_truncated", self.warnings.codes())
+
+    # --- AC-B03 -----------------------------------------------------------
+
+    def test_a_deadline_below_the_reserve_costs_detail_and_nothing_else(self):
+        # REQ-B02b. The batch SUCCEEDS, the inventory is complete, and the
+        # health reading is intact — only the browser loses. A device browser
+        # must never be able to break the health indicator.
+        devices = self.site_of(12, [(11, "OFFLINE")])
+        data = self.run_batch(devices,
+                              budget_sec=bounds.DETAIL_RESERVE_SEC).data
+        self.assertEqual(len(data["devices"]), 12)
+        self.assertEqual(data["counts"]["devicesTotal"], 12)
+        self.assertEqual(data["counts"]["offlineTotal"], 1)
+        self.assertTrue(all(entry["detail"] is None for entry in data["devices"]))
+        self.assertEqual([route for route, _ in self.calls].count("device"), 0)
+        self.assertEqual(self.detail_of("device_detail_truncated"),
+                         {"fetched": 0, "total": 12})
+
+    # --- AC-B04 -----------------------------------------------------------
+
+    def test_one_failing_detail_request_costs_only_that_device(self):
+        devices = self.site_of(6)
+        target = normalize_inputs.uid(1000 + 3)
+        data = self.run_batch(devices, fail_detail=target).data
+
+        by_id = {entry["id"]: entry for entry in data["devices"]}
+        self.assertIsNone(by_id[target]["detail"])
+        others = [entry for identifier, entry in by_id.items()
+                  if identifier != target]
+        self.assertEqual(len(others), 5)
+        self.assertTrue(all(entry["detail"] is not None for entry in others),
+                        "one device's failure cost another device its detail")
+        self.assertEqual(self.detail_of("device_detail_unavailable"),
+                         {"deviceId": target})
+        # And the batch is a success with a complete inventory.
+        self.assertEqual(data["counts"]["devicesTotal"], 6)
+
+    # --- AC-B05 -----------------------------------------------------------
+
+    def test_the_browse_list_agrees_with_the_lists_it_duplicates(self):
+        """`devices[]` alongside `gateways[]`/`offlineDevices[]` is duplication.
+
+        Duplication drifts, and these two are rendered a few hundred pixels
+        apart. Checked over every accept fixture rather than over one, because
+        a disagreement will appear first on the fixture nobody looked at.
+        """
+        directory = os.path.join(_REPO, "tests", "fixtures", "envelopes",
+                                 "accept")
+        checked = 0
+        for name in sorted(os.listdir(directory)):
+            if not name.startswith("success_"):
+                continue
+            with io.open(os.path.join(directory, name), encoding="utf-8") as fh:
+                data = json.load(fh)["data"]
+            listed = {entry["id"]: entry for entry in data["devices"]}
+            for other in ("gateways", "offlineDevices"):
+                for entry in data[other]:
+                    if entry["id"] not in listed:
+                        continue          # bounded out of the browse list
+                    twin = listed[entry["id"]]
+                    with self.subTest(fixture=name, id=entry["id"], list=other):
+                        self.assertEqual(entry["class"], twin["class"])
+                        self.assertEqual(entry["state"], twin["state"])
+                        self.assertEqual(entry["name"], twin["name"])
+                        self.assertEqual(entry["model"], twin["model"])
+                        checked += 1
+        self.assertGreater(checked, 0, "no fixture had a device in both lists")
+
+    # --- AC-B06 -----------------------------------------------------------
+
+    def test_a_bounded_list_never_understates_the_site(self):
+        devices = self.site_of(bounds.DEVICES_LISTED_MAX + 50)
+        clients = [normalize_inputs.client(2000 + i, "c%d" % i, "WIRED")
+                   for i in range(bounds.CLIENTS_LISTED_MAX + 20)]
+        data = self.run_batch(devices, clients).data
+
+        self.assertLessEqual(len(data["devices"]), bounds.DEVICES_LISTED_MAX)
+        self.assertLessEqual(len(data["clients"]), bounds.CLIENTS_LISTED_MAX)
+        # The totals are the site's, not the arrays'.
+        self.assertEqual(data["counts"]["devicesTotal"],
+                         bounds.DEVICES_LISTED_MAX + 50)
+        self.assertEqual(data["counts"]["clients"],
+                         bounds.CLIENTS_LISTED_MAX + 20)
+        self.assertLess(len(data["devices"]), data["counts"]["devicesTotal"])
+        self.assertLess(len(data["clients"]), data["counts"]["clients"])
+        self.assertEqual(self.detail_of("devices_truncated")["total"],
+                         bounds.DEVICES_LISTED_MAX + 50)
+        self.assertEqual(self.detail_of("clients_truncated")["total"],
+                         bounds.CLIENTS_LISTED_MAX + 20)
+
+    # --- AC-B12 -----------------------------------------------------------
+
+    def test_the_assembled_envelope_never_reaches_the_replacement_path(self):
+        """The whole point of DATA-B04.
+
+        `envelope.encode` replaces an over-sized envelope with an
+        `oversized_response` FAILURE — the panel greys and the user gets no
+        reading at all. This drives the largest site the bounds permit through
+        the real encoder and asserts the replacement did not happen.
+        """
+        devices = self.site_of(400)
+        clients = [normalize_inputs.client(
+                       3000 + i, "client-with-a-fairly-long-name-%04d" % i,
+                       "WIRELESS", ip="192.168.20.%d" % (i % 254),
+                       mac="02:00:00:00:%02x:%02x" % (i // 256, i % 256))
+                   for i in range(700)]
+        # 52 ports each, which is the largest switch UniFi ships.
+        data = self.run_batch(devices, clients, detail_ports=52).data
+
+        body = envelope.success("b7c1d4e9f2a68035", "2026-01-15T12:00:00Z",
+                                "2026-01-15T12:00:02Z", envelope.meta(),
+                                data, self.warnings.to_list())
+        text, exit_status = envelope.encode(body)
+        self.assertEqual(exit_status, envelope.EXIT_SUCCESS,
+                         "the envelope was replaced by an oversized failure")
+        encoded = json.loads(text)
+        self.assertTrue(encoded["ok"])
+        self.assertIsNotNone(encoded["data"])
+        self.assertLess(len(text.encode("utf-8")), envelope.STDOUT_MAX_BYTES)
+        # And it says what it dropped, in ASSEMBLY_ORDER.
+        self.assertIn("envelope_truncated", self.warnings.codes())
+        self.assertIn(self.detail_of("envelope_truncated")["dropped"],
+                      ("devices", "clients", "detail"))
+
+    def test_the_budget_binds_on_detail_rather_than_on_the_base_lists(self):
+        """A measurement, recorded as a test because the design turns on it.
+
+        `devices[]` and `clients[]` at their full caps come to roughly 150 KiB
+        against a ~192 KiB list budget, so the base records always fit and it is
+        detail the budget actually constrains. An earlier version of
+        `envelope_truncated` watched only the two base lists and was therefore
+        unreachable. If a future field makes a base record much larger this
+        fails, which is the point — the caps and the budget would then need
+        rebalancing rather than silently starting to drop devices.
+        """
+        devices = self.site_of(bounds.DEVICES_LISTED_MAX + 20)
+        clients = [normalize_inputs.client(3000 + i, "client-%04d" % i,
+                                           "WIRELESS",
+                                           ip="192.168.20.%d" % (i % 254),
+                                           mac="02:00:00:00:%02x:%02x"
+                                               % (i // 256, i % 256))
+                   for i in range(bounds.CLIENTS_LISTED_MAX + 20)]
+        data = self.run_batch(devices, clients, detail_ports=52).data
+        self.assertEqual(len(data["devices"]), bounds.DEVICES_LISTED_MAX)
+        self.assertEqual(len(data["clients"]), bounds.CLIENTS_LISTED_MAX)
+        self.assertEqual(self.detail_of("envelope_truncated")["dropped"], "detail")
+
+    def test_the_health_reading_survives_a_site_that_does_not_fit(self):
+        # DATA-B04's assembly order, stated as its consequence: what a squeeze
+        # costs is browsing, never the answer to "is my network fine?".
+        devices = self.site_of(400, [(399, "OFFLINE")])
+        clients = [normalize_inputs.client(3000 + i, "c" * 60, "WIRED")
+                   for i in range(700)]
+        data = self.run_batch(devices, clients, detail_ports=52).data
+        self.assertEqual(data["counts"]["devicesTotal"], 400)
+        self.assertEqual(data["counts"]["offlineTotal"], 1)
+        self.assertEqual(data["wan"]["status"], "unknown")   # no gateway here
+        self.assertEqual(len(data["offlineDevices"]), 1)
+        self.assertIsNotNone(data["site"]["name"])
+
+    # --- AC-B13 -----------------------------------------------------------
+
+    def test_no_client_identifier_reaches_any_diagnostic_output(self):
+        """REQ-B20. Client names, addresses and MACs render, and go nowhere else.
+
+        The realistic failure is not a deliberate leak — it is a future warning
+        message interpolating a client name and nobody noticing. So this
+        asserts over the diagnostic output AS A WHOLE rather than over the
+        specific messages that exist today.
+        """
+        secrets = ["kitchen-tablet-of-alice", "192.168.20.77",
+                   "02:00:00:00:07:07"]
+        clients = [normalize_inputs.client(4000, secrets[0], "WIRELESS",
+                                           ip=secrets[1], mac=secrets[2])]
+        clients += [normalize_inputs.client(4001 + i, "c%d" % i, "WIRED")
+                    for i in range(bounds.CLIENTS_LISTED_MAX + 5)]
+        devices = self.site_of(60, [(59, "OFFLINE")])
+        data = self.run_batch(devices, clients, detail_ports=52).data
+
+        # The client IS in the model — otherwise this test would pass against a
+        # helper that simply dropped it.
+        rendered = json.dumps(data["clients"])
+        for secret in secrets:
+            self.assertIn(secret, rendered, "the fixture client never arrived")
+
+        diagnostics = json.dumps(self.warnings.to_list())
+        for secret in secrets:
+            self.assertNotIn(secret, diagnostics,
+                             "a client identifier reached a warning")
+
+        # Warnings did fire — otherwise the assertion above is vacuous.
+        self.assertGreater(len(self.warnings.to_list()), 0)
+
+    def test_a_client_identifier_appears_nowhere_but_the_client_list(self):
+        """REQ-B20, over the WHOLE envelope rather than over the warnings.
+
+        The first version of this asserted that a failing batch's error object
+        carried no client data — and it could not fail, because there is no
+        batch that fails after the client collection: every REQUIRED collection
+        precedes it, and every later failure is optional and warns instead. A
+        test that cannot fail is worse than none.
+
+        So the check is the reachable one: encode the whole envelope, remove
+        `data.clients` — the one place these values are allowed — and assert
+        they appear nowhere in what is left. That covers `meta`, every warning,
+        every device record and any field a future change adds, which is where
+        the leak would actually come from.
+        """
+        secrets = ["kitchen-tablet-of-alice", "192.168.20.77",
+                   "02:00:00:00:07:07"]
+        clients = [normalize_inputs.client(4000, secrets[0], "WIRELESS",
+                                           ip=secrets[1], mac=secrets[2])]
+        devices = self.site_of(6, [(5, "OFFLINE")])
+        data = self.run_batch(devices, clients).data
+
+        self.assertIn(secrets[0], json.dumps(data["clients"]),
+                      "the fixture client never arrived")
+
+        body = envelope.success("b7c1d4e9f2a68035", "2026-01-15T12:00:00Z",
+                                "2026-01-15T12:00:02Z", envelope.meta(),
+                                data, self.warnings.to_list())
+        text, _status = envelope.encode(body)
+        whole = json.loads(text)
+        del whole["data"]["clients"]
+        rest = json.dumps(whole)
+        for secret in secrets:
+            self.assertNotIn(secret, rest,
+                             "a client identifier escaped the client list")
 
 
 class EnvelopeShape(unittest.TestCase):

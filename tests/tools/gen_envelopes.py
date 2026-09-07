@@ -572,7 +572,7 @@ def accept_success():
                 [warning("clients_unavailable", "Client list unavailable; count shown as unknown."),
                  warning("statistics_unavailable", "Gateway statistics unavailable.",
                          {"deviceId": uid(10)}),
-                 warning("wans_unavailable", "WAN names unavailable.")])))
+                 ])))
 
     out.append(("success_five_gateways_truncated",
                 "Five gateways: REQ-008a fetches statistics for at most four, in "
@@ -1132,6 +1132,51 @@ def reject_cases():
          mutate(ok, **{"data.devices": [
              device_record(60, "d", "USW-Pro-48-PoE", "ONLINE", "online",
                            ["switching"], detail=device_detail(ports=65))]}))
+    # The radio bound is the EXACT MIRROR of the defect Phase B0 found and
+    # said it had fixed: the producer side was tested and the consumer side was
+    # not. It was fixed for ports and left for radios in the same commit.
+    case("bound_exceeded_radios", "bound_exceeded",
+         "A device with 9 radios, one past RADIOS_PER_DEVICE_MAX.",
+         mutate(ok, **{"data.devices": [
+             device_record(60, "ap", "U6-Pro", "ONLINE", "online",
+                           ["accessPoint"], detail=device_detail(radios=9))]}))
+    case("bound_exceeded_devices", "bound_exceeded",
+         "201 devices listed, one past DEVICES_LISTED_MAX. The COUNT is raised "
+         "to match, so the array bound is the only thing that can reject this "
+         "— `list_exceeds_total` must not be what fires.",
+         mutate(ok, **{"data.counts.devicesTotal": 201,
+                       "data.counts.byClass": {"online": 201, "transitional": 0,
+                                               "down": 0, "impaired": 0,
+                                               "unknown": 0},
+                       "data.devices": [
+                           device_record(600 + i, "d%d" % i, "USW-Lite-8-PoE",
+                                         "ONLINE", "online", ["switching"])
+                           for i in range(201)]}))
+    case("bound_exceeded_clients", "bound_exceeded",
+         "501 clients listed, one past CLIENTS_LISTED_MAX, with the count "
+         "raised to match for the same reason.",
+         mutate(ok, **{"data.counts.clients": 501,
+                       "data.clients": [
+                           client_record(1000 + i, "c%d" % i, "WIRED")
+                           for i in range(501)]}))
+    case("data_schema_violation_device_no_id", "data_schema_violation",
+         "A device whose `id` is absent. Named in DATA-008's row and unfixtured "
+         "until now — the check existed and nothing exercised it.",
+         mutate(ok, **{"data.devices": [
+             {k: v for k, v in device_record(
+                 60, "d", "USW-Lite-8-PoE", "ONLINE", "online",
+                 ["switching"]).items() if k != "id"}]}))
+    case("data_schema_violation_client_no_id", "data_schema_violation",
+         "A client whose `id` is the empty string.",
+         mutate(ok, **{"data.counts.clients": 9,
+                       "data.clients": [
+                           mutate(client_record(70, "a", "WIRED"), id="")]}))
+    case("data_schema_violation_device_metrics", "data_schema_violation",
+         "A device whose `metrics` is a number. `detail` had a fixture for this "
+         "shape and `metrics` did not, so half the check was unexercised.",
+         mutate(ok, **{"data.devices": [
+             mutate(device_record(60, "d", "USW-Lite-8-PoE", "ONLINE", "online",
+                                  ["switching"]), metrics=42)]}))
 
     # ---- failure shape ---------------------------------------------------
     fail = valid_failure()

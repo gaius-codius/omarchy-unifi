@@ -1,0 +1,5106 @@
+{
+  "batch": {
+    "exitStatus": 0,
+    "launchAt": "2026-01-15T11:58:00Z",
+    "nonce": "b7c1d4e9f2a68035",
+    "receiptAt": "2026-01-15T12:00:03Z"
+  },
+  "envelope": {
+    "attemptedAt": "2026-01-15T12:00:00Z",
+    "data": {
+      "applicationVersion": "9.1.0",
+      "clients": [
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000003e8",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c0",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000003e9",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c1",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000003ea",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c2",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000003eb",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c3",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000003ec",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c4",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000003ed",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c5",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000003ee",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c6",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000003ef",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c7",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000003f0",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c8",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000003f1",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c9",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000003f2",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c10",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000003f3",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c11",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000003f4",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c12",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000003f5",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c13",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000003f6",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c14",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000003f7",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c15",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000003f8",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c16",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000003f9",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c17",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000003fa",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c18",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000003fb",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c19",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000003fc",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c20",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000003fd",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c21",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000003fe",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c22",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000003ff",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c23",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000400",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c24",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000401",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c25",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000402",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c26",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000403",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c27",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000404",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c28",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000405",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c29",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000406",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c30",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000407",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c31",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000408",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c32",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000409",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c33",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-00000000040a",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c34",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-00000000040b",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c35",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-00000000040c",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c36",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-00000000040d",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c37",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-00000000040e",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c38",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-00000000040f",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c39",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000410",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c40",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000411",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c41",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000412",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c42",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000413",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c43",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000414",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c44",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000415",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c45",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000416",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c46",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000417",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c47",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000418",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c48",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000419",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c49",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-00000000041a",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c50",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-00000000041b",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c51",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-00000000041c",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c52",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-00000000041d",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c53",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-00000000041e",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c54",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-00000000041f",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c55",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000420",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c56",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000421",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c57",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000422",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c58",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000423",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c59",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000424",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c60",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000425",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c61",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000426",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c62",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000427",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c63",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000428",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c64",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000429",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c65",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-00000000042a",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c66",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-00000000042b",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c67",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-00000000042c",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c68",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-00000000042d",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c69",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-00000000042e",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c70",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-00000000042f",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c71",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000430",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c72",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000431",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c73",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000432",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c74",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000433",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c75",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000434",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c76",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000435",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c77",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000436",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c78",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000437",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c79",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000438",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c80",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000439",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c81",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-00000000043a",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c82",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-00000000043b",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c83",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-00000000043c",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c84",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-00000000043d",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c85",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-00000000043e",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c86",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-00000000043f",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c87",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000440",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c88",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000441",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c89",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000442",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c90",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000443",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c91",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000444",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c92",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000445",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c93",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000446",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c94",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000447",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c95",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000448",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c96",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000449",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c97",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-00000000044a",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c98",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-00000000044b",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c99",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-00000000044c",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c100",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-00000000044d",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c101",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-00000000044e",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c102",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-00000000044f",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c103",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000450",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c104",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000451",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c105",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000452",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c106",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000453",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c107",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000454",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c108",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000455",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c109",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000456",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c110",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000457",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c111",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000458",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c112",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000459",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c113",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-00000000045a",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c114",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-00000000045b",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c115",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-00000000045c",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c116",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-00000000045d",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c117",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-00000000045e",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c118",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-00000000045f",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c119",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000460",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c120",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000461",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c121",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000462",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c122",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000463",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c123",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000464",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c124",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000465",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c125",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000466",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c126",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000467",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c127",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000468",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c128",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000469",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c129",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-00000000046a",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c130",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-00000000046b",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c131",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-00000000046c",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c132",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-00000000046d",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c133",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-00000000046e",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c134",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-00000000046f",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c135",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000470",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c136",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000471",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c137",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000472",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c138",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000473",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c139",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000474",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c140",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000475",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c141",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000476",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c142",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000477",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c143",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000478",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c144",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000479",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c145",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-00000000047a",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c146",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-00000000047b",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c147",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-00000000047c",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c148",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-00000000047d",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c149",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-00000000047e",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c150",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-00000000047f",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c151",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000480",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c152",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000481",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c153",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000482",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c154",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000483",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c155",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000484",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c156",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000485",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c157",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000486",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c158",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000487",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c159",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000488",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c160",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000489",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c161",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-00000000048a",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c162",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-00000000048b",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c163",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-00000000048c",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c164",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-00000000048d",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c165",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-00000000048e",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c166",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-00000000048f",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c167",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000490",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c168",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000491",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c169",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000492",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c170",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000493",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c171",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000494",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c172",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000495",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c173",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000496",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c174",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000497",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c175",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000498",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c176",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000499",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c177",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-00000000049a",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c178",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-00000000049b",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c179",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-00000000049c",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c180",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-00000000049d",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c181",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-00000000049e",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c182",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-00000000049f",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c183",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000004a0",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c184",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000004a1",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c185",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000004a2",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c186",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000004a3",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c187",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000004a4",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c188",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000004a5",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c189",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000004a6",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c190",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000004a7",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c191",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000004a8",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c192",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000004a9",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c193",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000004aa",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c194",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000004ab",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c195",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000004ac",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c196",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000004ad",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c197",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000004ae",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c198",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000004af",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c199",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000004b0",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c200",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000004b1",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c201",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000004b2",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c202",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000004b3",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c203",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000004b4",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c204",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000004b5",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c205",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000004b6",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c206",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000004b7",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c207",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000004b8",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c208",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000004b9",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c209",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000004ba",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c210",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000004bb",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c211",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000004bc",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c212",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000004bd",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c213",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000004be",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c214",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000004bf",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c215",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000004c0",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c216",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000004c1",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c217",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000004c2",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c218",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000004c3",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c219",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000004c4",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c220",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000004c5",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c221",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000004c6",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c222",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000004c7",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c223",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000004c8",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c224",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000004c9",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c225",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000004ca",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c226",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000004cb",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c227",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000004cc",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c228",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000004cd",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c229",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000004ce",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c230",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000004cf",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c231",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000004d0",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c232",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000004d1",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c233",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000004d2",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c234",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000004d3",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c235",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000004d4",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c236",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000004d5",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c237",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000004d6",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c238",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000004d7",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c239",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000004d8",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c240",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000004d9",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c241",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000004da",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c242",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000004db",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c243",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000004dc",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c244",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000004dd",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c245",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000004de",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c246",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000004df",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c247",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000004e0",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c248",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000004e1",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c249",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000004e2",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c250",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000004e3",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c251",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000004e4",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c252",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000004e5",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c253",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000004e6",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c254",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000004e7",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c255",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000004e8",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c256",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000004e9",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c257",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000004ea",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c258",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000004eb",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c259",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000004ec",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c260",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000004ed",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c261",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000004ee",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c262",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000004ef",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c263",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000004f0",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c264",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000004f1",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c265",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000004f2",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c266",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000004f3",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c267",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000004f4",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c268",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000004f5",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c269",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000004f6",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c270",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000004f7",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c271",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000004f8",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c272",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000004f9",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c273",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000004fa",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c274",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000004fb",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c275",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000004fc",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c276",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000004fd",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c277",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000004fe",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c278",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000004ff",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c279",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000500",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c280",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000501",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c281",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000502",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c282",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000503",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c283",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000504",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c284",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000505",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c285",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000506",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c286",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000507",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c287",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000508",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c288",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000509",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c289",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-00000000050a",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c290",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-00000000050b",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c291",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-00000000050c",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c292",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-00000000050d",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c293",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-00000000050e",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c294",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-00000000050f",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c295",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000510",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c296",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000511",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c297",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000512",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c298",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000513",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c299",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000514",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c300",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000515",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c301",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000516",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c302",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000517",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c303",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000518",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c304",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000519",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c305",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-00000000051a",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c306",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-00000000051b",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c307",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-00000000051c",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c308",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-00000000051d",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c309",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-00000000051e",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c310",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-00000000051f",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c311",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000520",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c312",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000521",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c313",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000522",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c314",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000523",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c315",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000524",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c316",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000525",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c317",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000526",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c318",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000527",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c319",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000528",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c320",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000529",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c321",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-00000000052a",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c322",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-00000000052b",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c323",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-00000000052c",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c324",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-00000000052d",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c325",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-00000000052e",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c326",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-00000000052f",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c327",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000530",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c328",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000531",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c329",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000532",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c330",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000533",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c331",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000534",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c332",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000535",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c333",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000536",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c334",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000537",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c335",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000538",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c336",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000539",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c337",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-00000000053a",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c338",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-00000000053b",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c339",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-00000000053c",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c340",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-00000000053d",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c341",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-00000000053e",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c342",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-00000000053f",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c343",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000540",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c344",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000541",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c345",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000542",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c346",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000543",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c347",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000544",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c348",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000545",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c349",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000546",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c350",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000547",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c351",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000548",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c352",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000549",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c353",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-00000000054a",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c354",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-00000000054b",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c355",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-00000000054c",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c356",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-00000000054d",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c357",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-00000000054e",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c358",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-00000000054f",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c359",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000550",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c360",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000551",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c361",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000552",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c362",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000553",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c363",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000554",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c364",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000555",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c365",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000556",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c366",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000557",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c367",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000558",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c368",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000559",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c369",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-00000000055a",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c370",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-00000000055b",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c371",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-00000000055c",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c372",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-00000000055d",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c373",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-00000000055e",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c374",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-00000000055f",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c375",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000560",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c376",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000561",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c377",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000562",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c378",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000563",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c379",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000564",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c380",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000565",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c381",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000566",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c382",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000567",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c383",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000568",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c384",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000569",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c385",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-00000000056a",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c386",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-00000000056b",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c387",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-00000000056c",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c388",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-00000000056d",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c389",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-00000000056e",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c390",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-00000000056f",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c391",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000570",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c392",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000571",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c393",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000572",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c394",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000573",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c395",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000574",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c396",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000575",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c397",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000576",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c398",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000577",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c399",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000578",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c400",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000579",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c401",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-00000000057a",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c402",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-00000000057b",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c403",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-00000000057c",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c404",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-00000000057d",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c405",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-00000000057e",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c406",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-00000000057f",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c407",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000580",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c408",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000581",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c409",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000582",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c410",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000583",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c411",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000584",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c412",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000585",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c413",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000586",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c414",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000587",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c415",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000588",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c416",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000589",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c417",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-00000000058a",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c418",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-00000000058b",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c419",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-00000000058c",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c420",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-00000000058d",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c421",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-00000000058e",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c422",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-00000000058f",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c423",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000590",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c424",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000591",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c425",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000592",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c426",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000593",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c427",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000594",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c428",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000595",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c429",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000596",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c430",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000597",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c431",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000598",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c432",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-000000000599",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c433",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-00000000059a",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c434",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-00000000059b",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c435",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-00000000059c",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c436",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-00000000059d",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c437",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-00000000059e",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c438",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-00000000059f",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c439",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000005a0",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c440",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000005a1",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c441",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000005a2",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c442",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000005a3",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c443",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000005a4",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c444",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000005a5",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c445",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000005a6",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c446",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000005a7",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c447",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000005a8",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c448",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000005a9",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c449",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000005aa",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c450",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000005ab",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c451",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000005ac",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c452",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000005ad",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c453",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000005ae",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c454",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000005af",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c455",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000005b0",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c456",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000005b1",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c457",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000005b2",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c458",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000005b3",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c459",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000005b4",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c460",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000005b5",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c461",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000005b6",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c462",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000005b7",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c463",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000005b8",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c464",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000005b9",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c465",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000005ba",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c466",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000005bb",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c467",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000005bc",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c468",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000005bd",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c469",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000005be",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c470",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000005bf",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c471",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000005c0",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c472",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000005c1",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c473",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000005c2",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c474",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000005c3",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c475",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000005c4",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c476",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000005c5",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c477",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000005c6",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c478",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000005c7",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c479",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000005c8",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c480",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000005c9",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c481",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000005ca",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c482",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000005cb",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c483",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000005cc",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c484",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000005cd",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c485",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000005ce",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c486",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000005cf",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c487",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000005d0",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c488",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000005d1",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c489",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000005d2",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c490",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000005d3",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c491",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000005d4",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c492",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000005d5",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c493",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000005d6",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c494",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000005d7",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c495",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000005d8",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c496",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000005d9",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c497",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000005da",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c498",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000005db",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c499",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        },
+        {
+          "accessType": "DEFAULT",
+          "connectedAt": "2026-01-12T09:14:00Z",
+          "id": "00000000-0000-5000-9000-0000000005dc",
+          "ipAddress": null,
+          "macAddress": null,
+          "name": "c500",
+          "type": "WIRED",
+          "uplinkDeviceId": null
+        }
+      ],
+      "counts": {
+        "accessPoints": {
+          "down": 0,
+          "impaired": 0,
+          "online": 2,
+          "transitional": 0,
+          "unknown": 0
+        },
+        "byClass": {
+          "down": 0,
+          "impaired": 0,
+          "online": 5,
+          "transitional": 0,
+          "unknown": 0
+        },
+        "clients": 501,
+        "devicesTotal": 5,
+        "gateways": {
+          "down": 0,
+          "impaired": 0,
+          "online": 1,
+          "transitional": 0,
+          "unknown": 0
+        },
+        "offlineTotal": 0,
+        "switches": {
+          "down": 0,
+          "impaired": 0,
+          "online": 2,
+          "transitional": 0,
+          "unknown": 0
+        }
+      },
+      "devices": [],
+      "gateways": [
+        {
+          "class": "online",
+          "downloadBps": 12000000,
+          "id": "00000000-0000-5000-9000-00000000000a",
+          "model": "UDM-Pro",
+          "name": "UDM Pro",
+          "state": "ONLINE",
+          "uploadBps": 3000000,
+          "uptimeSec": 864000
+        }
+      ],
+      "offlineDevices": [],
+      "site": {
+        "id": "00000000-0000-5000-9000-000000000001",
+        "name": "Home"
+      },
+      "wan": {
+        "downloadBps": 12000000,
+        "status": "up",
+        "uploadBps": 3000000,
+        "uptimeSec": 864000
+      }
+    },
+    "error": null,
+    "meta": {
+      "allowInsecureTls": false,
+      "apiRootHost": "192.168.1.1",
+      "commitGeneration": 7,
+      "customCaInUse": false,
+      "helperVersion": "0.1.0",
+      "siteId": "00000000-0000-5000-9000-000000000001"
+    },
+    "nonce": "b7c1d4e9f2a68035",
+    "observedAt": "2026-01-15T12:00:02Z",
+    "ok": true,
+    "protocolVersion": 1,
+    "warnings": []
+  },
+  "id": "bound_exceeded_clients",
+  "neverEmittedBy": "helper",
+  "note": "501 clients listed, one past CLIENTS_LISTED_MAX, with the count raised to match for the same reason.",
+  "publishedAs": "malformed_response",
+  "rejectedBy": "service",
+  "rejectionClass": "bound_exceeded",
+  "rule": "DATA-008 / bound_exceeded",
+  "stdout": null,
+  "synthesize": null
+}

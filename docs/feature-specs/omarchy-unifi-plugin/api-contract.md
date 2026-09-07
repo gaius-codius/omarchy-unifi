@@ -180,13 +180,23 @@ The plugin needs the **count** only. It is read from the terminal page's
 `totalCount` after every page invariant has been satisfied — never from an
 arithmetic shortcut.
 
-### `/v1/sites/{siteId}/wans` → `WAN overview`
+### `/v1/sites/{siteId}/devices/{deviceId}` → `Device detail`
+Route 6 since 2026-09-07. Observed field set in §12b; the shape the plugin
+consumes is `DATA-B01` in `docs/protocol-v1.md`. A superset of the list record,
+adding `configurationId`, `provisionedAt`, `uplink.deviceId` and
+`interfaces.ports[]` with per-port `state`, `connector`, `maxSpeedMbps` and
+`poe`.
+
+### `/v1/sites/{siteId}/wans` → `WAN overview` — **no longer fetched**
 | Field | Type | Required |
 |---|---|---|
 | `id` | uuid | yes |
 | `name` | string, e.g. `Internet 1` | yes |
 
 **That is the entire schema.** No status, no latency, no loss, no throughput.
+That is why the route was dropped (DEV-5 Option B, Phase B0): it could never
+contribute to `DATA-006`. The field map is kept because it is an API fact and
+the reason for the removal, not because the plugin uses it.
 
 ### Errors → `Error Message`
 | Field | Type |
@@ -376,12 +386,15 @@ general knowledge and is explicitly unverified. See `SPEC-v1.1-browse.md` §11.
 ### Measured request cost
 
 Nine devices, local console, sequential, each request its own handshake
-(`Connection: close`):
+(`Connection: close`). The last line is a **six-request probe** — one call per
+route the batch uses — and is not a batch: a real batch re-reads page 0 of every
+paginated collection (DATA-009a), which made the Phase 12a batch nine requests
+for the same routes.
 
 ```
 GET /devices/{id}                    n=9  mean 13ms  max 15ms  total 0.12s
 GET /devices/{id}/statistics/latest  n=9  mean 12ms  max 15ms  total 0.11s
-a current-shape 6-request batch                                total 0.09s
+a 6-request probe of the batch's routes                        total 0.09s
 ```
 
 Against REQ-017's 25 s budget this is negligible here, and the bound in

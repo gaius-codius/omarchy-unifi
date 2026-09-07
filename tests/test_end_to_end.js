@@ -156,18 +156,45 @@ test("AC-025: a multi-role device is counted in every role it reports", () => {
     counts.devicesTotal)
 })
 
-test("REQ-008a: statistics stop at four gateways and the rest are listed", () => {
+test("REQ-008a: every gateway is listed, and metrics come from both tiers", () => {
   const { result, envelope } = acceptedEnvelope("five-gateways")
   assert.strictEqual(envelope.data.gateways.length, 5)
+
+  // Until REQ-B02 this asserted four gateways with metrics and a
+  // `gateway_statistics_truncated` warning. Both are now wrong END TO END,
+  // because the browse tier fetches statistics for the head of REQ-B11's order
+  // and picks up the fifth gateway that REQ-008a's cap declined. The warning
+  // counts what is ABSENT rather than what the cap skipped, so on this site it
+  // correctly says nothing.
+  //
+  // The envelope fixture `success_five_gateways_truncated` still carries four
+  // and the warning, and is still valid: it is a PROTOCOL case — an envelope a
+  // consumer must accept — describing a helper that genuinely could not fetch
+  // the fifth. What changed is which envelope this corpus produces, not which
+  // ones are acceptable.
   const withMetrics = envelope.data.gateways.filter((g) => g.uptimeSec !== null)
-  assert.strictEqual(withMetrics.length, 4)
-  const warning = envelope.warnings.find((w) => w.code === "gateway_statistics_truncated")
-  assert.ok(warning, "no gateway_statistics_truncated warning")
-  assert.deepStrictEqual(warning.detail, { fetched: 4, total: 5 })
-  // The bound is on route 4's contribution to the REQ-017 budget, so it has to
-  // be visible in the requests actually made.
+  assert.strictEqual(withMetrics.length, 5,
+    "the browse tier should have completed what REQ-008a's cap left")
+  assert.strictEqual(
+    envelope.warnings.find((w) => w.code === "gateway_statistics_truncated"),
+    undefined, "nothing was missing, so nothing should have been reported")
+  // REQ-008a's bound is on which gateways supply `wan`'s metrics, and since
+  // REQ-B02 it is no longer the only thing that requests route 4 — the browse
+  // tier fetches statistics for the head of REQ-B11's order too, and the two
+  // selections are deliberately independent (see `collect._device_detail`).
+  //
+  // So the request count is asserted as a BOUND rather than as an equality.
+  // The equality would now fail against a correct implementation, and it never
+  // did test what it read as: four requests are consistent with four ARBITRARY
+  // gateways, and it is the four in PRIMARY order that REQ-008a cares about.
+  // That is what the `withMetrics` assertions above check.
   const statistics = result.requests.filter((t) => t.includes("/statistics/latest"))
-  assert.strictEqual(statistics.length, 4)
+  assert.ok(statistics.length >= 4, "fewer than four gateways were asked")
+  assert.ok(statistics.length <= envelope.data.counts.devicesTotal,
+    "a device was asked for statistics more than once")
+  // No device is asked twice: the browse tier skips what REQ-008a already has.
+  assert.strictEqual(new Set(statistics).size, statistics.length,
+    "the same statistics URL was requested twice")
 })
 
 test("REQ-000: an unrecognised state lands in unknown with a warning", () => {

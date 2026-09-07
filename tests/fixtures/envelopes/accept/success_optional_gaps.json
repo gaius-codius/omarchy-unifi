@@ -86,11 +86,6 @@
         "deviceId": "00000000-0000-5000-9000-00000000000a"
       },
       "message": "Gateway statistics unavailable."
-    },
-    {
-      "code": "wans_unavailable",
-      "detail": null,
-      "message": "WAN names unavailable."
     }
   ]
 }

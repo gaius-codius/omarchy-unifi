@@ -2,16 +2,19 @@
 
 An Omarchy bar plugin that shows UniFi Network site health: a status glyph on
 the bar and a popup panel with WAN state, device counts, and which devices are
-offline. It is **read-only** — it issues six GET requests and never changes
+offline. It is **read-only** — it uses six kinds of GET request and never changes
 anything on your controller.
 
-> **Status: pre-release.** Through Phase 11 of
+> **Status: pre-release.** Through Phase 12b and Phase B0 of
 > `docs/feature-specs/omarchy-unifi-plugin/PLAN.md`. The helper, the service and
 > the panel are written, tested, and have been run installed in a real Omarchy
-> shell against a loopback fixture controller. What has **not** happened is
-> Phase 12: nothing has yet talked to a real UniFi controller, so the API key
-> header, the six routes and the supported-version matrix are still asserted
-> against a stub rather than against hardware.
+> shell against a real UniFi controller (Network 10.6.101) — so the API key
+> header, the route set, the record shapes and the supported-version matrix are
+> confirmed against hardware rather than only against a stub.
+>
+> Still to come: the v1.1 **Devices and Clients** views
+> (`SPEC-v1.1-browse.md`, phases B1-B4), and Phase 13 — manual QA, packaging
+> and release.
 
 ## What it shows
 

@@ -10,8 +10,10 @@ Supporting documents: `api-contract.md`, `unifi-network-v1-readonly-subset.json`
 
 **Extended by `SPEC-v1.1-browse.md` (2026-09-07).** The Devices and Clients
 views add requirements in a separate `REQ-B` / `AC-B` / `DATA-B` number space
-and do not edit anything below. The one exception is the route allowlist in §9,
-which that addendum changes in membership but not in size — see its §4.
+and do not edit anything below, with four exceptions, each marked in place:
+BIZ-001's and BIZ-004's route tables in **§8** (the allowlist changes membership
+but not size — see the addendum's §4), DATA-006's `data` shape in **§9** (it
+gains `devices[]` and `clients[]`), and AC-051 in **§12**.
 
 ## 2. Problem
 A UniFi site owner running Omarchy has no ambient signal of network health on
@@ -508,7 +510,14 @@ metric:
 | `/v1/sites/{id}/devices` | **required** | batch fails |
 | `/v1/sites/{id}/clients` | optional | `counts.clients = null` + warning |
 | `/v1/sites/{id}/devices/{id}/statistics/latest` | optional | metrics `null` + warning |
-| `/v1/sites/{id}/wans` | optional | WAN names omitted + warning |
+| `/v1/sites/{id}/devices/{id}` | optional | that device's `detail` `null` + warning |
+
+**Amended by SPEC-v1.1-browse.md §4 (2026-09-07).** The third optional row was
+`/v1/sites/{id}/wans`, whose failure omitted WAN names and raised
+`wans_unavailable`. The route returns `{id, name}` and nothing else — confirmed
+against hardware at Phase 12a — so it could never contribute to DATA-006, and
+DEV-5 was resolved by dropping it. Route 6 replaced it; the table still has
+three required rows and three optional ones.
 
 A batch is successful when every **required** collection completed and passed
 every DATA-009 invariant. An unsuccessful batch does not replace the last
@@ -1181,7 +1190,8 @@ function tested in both orders, and `join(exit_only)` yields no snapshot until
 the stream arrives or the watchdog fires.
 
 AC-051 (AUTO): An optional-collection failure (`/clients`, `statistics/latest`,
-`/wans`) yields a **successful** batch with the affected value `null`, a
+`/devices/{id}` — `/wans` until SPEC-v1.1-browse.md §4 retired it) yields a
+**successful** batch with the affected value `null`, a
 warning, and the snapshot replaced. A required-collection failure (`/info`,
 `/sites`, `/devices`) yields an unsuccessful batch that does not replace the
 snapshot.

@@ -366,7 +366,11 @@ def scenarios():
 
     healthy = [
         gateway("gw-1", "ONLINE", 1),
-        device("switch-1", "ONLINE", ["switching"], 2),
+        # A 48-port switch, so `PORT_COUNTS`'s largest entry is actually
+        # reached. It was not: every scenario used the 8-port default, the
+        # corpus topped out at 10 ports, and the comment claiming the bound was
+        # "APPROACHED without being reached" was false in the other direction.
+        device("switch-1", "ONLINE", ["switching"], 2, model="USW-Pro-48-PoE"),
         device("switch-2", "ONLINE", ["switching"], 3),
         device("ap-1", "ONLINE", ["accessPoint"], 4, model="U6-Pro"),
         device("ap-2", "ONLINE", ["accessPoint"], 5, model="U6-Pro"),

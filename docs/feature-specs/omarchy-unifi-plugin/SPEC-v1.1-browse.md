@@ -1,7 +1,9 @@
 # Spec addendum v1.1 — Devices and Clients
 
-**Status: DRAFT, awaiting confirmation (2026-09-07).** Nothing here is
-implemented. `SPEC.md` (spec-v1, frozen 2026-09-05) is unchanged by this
+**Status: CONFIRMED 2026-09-07. Phase B0 complete; B1 in progress.** Sections
+marked "*Corrected during Phase B0*" record where implementation contradicted
+what was confirmed — each is a change to this document, made deliberately and
+with its reason stated. `SPEC.md` (spec-v1, frozen 2026-09-05) is unchanged by this
 document except where a numbered amendment says otherwise; this file adds
 requirements rather than editing them, and uses its own `REQ-B` / `AC-B` /
 `DATA-B` number space so the frozen numbering stays stable.
@@ -109,10 +111,11 @@ ask for less:
    information. *(Caveat: only `WIRED` and `WIRELESS` clients exist on the
    observed site. If a `VPN` or `TELEPORT` client turns out to carry more, this
    can be revisited on evidence.)*
-2. **`/v1/sites/{siteId}/wans` should go.** DEV-5 has been open since Phase 5.
+2. **`/v1/sites/{siteId}/wans` should go.** DEV-5 had been open since Phase 5.
    Phase 12a settled the *factual* question by observation — the route returns
-   `{id, name}` and nothing else — but the **change was never applied and the
-   route is still fetched on every batch.** It cannot contribute to `DATA-006`
+   `{id, name}` and nothing else — but the change was never applied, and as
+   this addendum was drafted the route was **still fetched on every batch**.
+   Phase B0 removed it. It cannot contribute to `DATA-006`
    and costs two HTTPS requests per batch (DATA-009a's end-of-collection
    re-read, each with its own handshake). This addendum resolves DEV-5 as
    **Option B — drop it**.
@@ -143,8 +146,22 @@ every consumer sees the same order.
 
 **REQ-B02.** `statistics/latest` is fetched for adopted devices generally, not
 gateways only, bounded by `DEVICE_DETAIL_MAX = 40`. The same bound governs
-`GET /devices/{deviceId}`, and the two are fetched for the *same* set of devices
-so a device can never have ports without stats or the reverse.
+`GET /devices/{deviceId}`, and within this tier the two are fetched for the
+*same* set of devices, so a device can never have ports without stats.
+
+*Corrected during Phase B0.* The reverse does not hold, and stating it as a
+symmetric invariant was wrong. **REQ-008a's four-gateway statistics pass is
+retained as an independent tier and runs first.** It has to be: browse order
+sorts `down` devices first, so on a site with a hundred failed switches and one
+healthy gateway the gateway falls past this bound, and deriving REQ-008a's set
+from the browse head — which reads as a tidy simplification — would cost the
+panel its WAN reading exactly when the site is at its worst. A gateway can
+therefore carry `metrics` with `detail: null`.
+
+A consequence worth naming: **REQ-008a's `gateway_statistics_truncated` warning
+now counts what is missing rather than what its cap declined.** With two tiers a
+fifth gateway can be picked up by the browse pass, and a warning raised at the
+cap would have reported "fetched 4 of 5" beside an envelope carrying five.
 
 **REQ-B02a — the truncation is ordered by importance, not by array order.** The
 detail set is selected in REQ-B11's order: every `down`, `impaired` and
@@ -337,7 +354,8 @@ has, or the prefix being one everything starts with.
 | AC-B12 | AUTO | A site whose content exceeds the 224 KiB budget drops it in `bounds.ASSEMBLY_ORDER`, raises the warning naming what went, remains schema-valid, and **never reaches `envelope.encode`'s replacement path** — asserted by encoding the result and measuring it. |
 | AC-B12a | AUTO | `bounds.ENVELOPE_BUDGET_BYTES` is strictly below `envelope.STDOUT_MAX_BYTES`, and the two constants are declared independently so that raising one does not silently raise the other. |
 | AC-B13 | AUTO | A corpus of clients with names, IPs and MACs produces warnings, error messages and `status` output containing none of them (REQ-B20). |
-| AC-B14 | AUTO | The corpus privacy guard rejects a MAC outside the IANA documentation range, proven by a seeded canary. |
+| AC-B14 | AUTO | The corpus privacy guard rejects a MAC outside the `02:00:00:` locally-administered range, proven by a seeded canary that includes an IANA-documentation-range address — which is a real assigned OUI and must therefore be rejected too. |
+| AC-B23 | AUTO | Every warning code appearing in the fixture corpus is one `docs/protocol-v1.md` defines, proven by a seeded canary. `wans_unavailable` outlived its own removal inside an accept envelope because nothing checked this. |
 | AC-B15 | LIVE | The segmented control switches views; each view renders from `vm` and computes nothing (REQ-014). |
 | AC-B16 | LIVE | Typing in the search field filters the list and does not drive the panel cursor. Escape with a non-empty search clears it and leaves the panel open; Escape again closes it. |
 | AC-B17 | LIVE | Tab reaches every control in REQ-B15's order and wraps. Up/Down move the list cursor; Enter expands the focused row; exactly one row is expanded at a time. |

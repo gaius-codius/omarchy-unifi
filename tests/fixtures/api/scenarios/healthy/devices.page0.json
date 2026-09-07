@@ -31,7 +31,7 @@
       ],
       "ipAddress": "192.168.10.3",
       "macAddress": "02:00:00:00:00:02",
-      "model": "USW-Lite-8-PoE",
+      "model": "USW-Pro-48-PoE",
       "name": "Switch 1",
       "state": "ONLINE",
       "supported": true

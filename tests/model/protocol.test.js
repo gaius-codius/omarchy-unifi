@@ -116,7 +116,7 @@ test("the accept corpus covers all nineteen DATA-007 kinds", () => {
 
 test("every reject fixture is rejected with the class the index names", async (t) => {
   const keys = casesUnder("envelopes/reject/")
-  assert.strictEqual(keys.length, 49, "the reject corpus changed size")
+  assert.strictEqual(keys.length, 55, "the reject corpus changed size")
 
   for (const key of keys) {
     await t.test(key.split("/").pop(), () => {
@@ -138,7 +138,7 @@ test("every reject fixture is rejected with the class the index names", async (t
   }
 })
 
-test("AC-072: the corpus and the validator between them exercise all 36 rejection classes", () => {
+test("AC-072: the corpus and the validator between them exercise all 37 rejection classes", () => {
   // Written out longhand. A set built by mapping over the corpus would report
   // whatever the corpus happens to contain, which is the false green N-16
   // records; this states the 36 independently and requires the corpus to meet

@@ -78,6 +78,11 @@ GATEWAY_STATISTICS_MAX = 4
 PORTS_PER_DEVICE_MAX = 64
 RADIOS_PER_DEVICE_MAX = 8
 
+# DATA-006's `gateways` bound, enforced on the producer side as well as the
+# consumer's. The consumer's version rejects the ENVELOPE; this one shortens a
+# list, which is the same choice `offlineDevices` already makes.
+GATEWAYS_LISTED_MAX = 64
+
 # Classes that put a device on the offline list. `transitional` is excluded by
 # REQ-003: a device that is updating is not a device that is down.
 OFFLINE_CLASSES = (CLASS_DOWN, CLASS_IMPAIRED)
@@ -253,6 +258,18 @@ def build(site, devices, clients, statistics, application_version,
     ordered_gateways = gateway_order(devices)
     gateways = [_gateway_entry(device, statistics) for device in ordered_gateways]
     gateways.sort(key=lambda entry: entry["id"])
+    # DATA-006's `gateways` bound is 64 and was enforced only by the CONSUMER,
+    # which rejects the whole envelope for exceeding it. Since SPEC-AMD-1 a
+    # device is a gateway if it reports an off-LAN address, so a site behind
+    # carrier-grade NAT can present dozens — and the failure mode was a grey
+    # panel rather than a shortened list. Bounded here, in primary order, so
+    # the ones that matter survive.
+    if len(gateways) > GATEWAYS_LISTED_MAX and warnings is not None:
+        warnings.add("gateway_list_truncated",
+                     {"listed": GATEWAYS_LISTED_MAX, "total": len(gateways)},
+                     message="Showing %d of %d gateways."
+                             % (GATEWAYS_LISTED_MAX, len(gateways)))
+    gateways = gateways[:GATEWAYS_LISTED_MAX]
 
     # REQ-B01's list is a bounded SELECTION, and the bound is a byte budget only
     # `collect.py` can evaluate — so this function maps whatever it is handed
@@ -262,8 +279,23 @@ def build(site, devices, clients, statistics, application_version,
     #
     # The ORDER is still decided here, by `browse_order`, because REQ-B11 is a
     # rule about the model and not about the budget.
-    browse = [_device_entry(device, statistics, details or {})
-              for device in (listed_devices or [])]
+    # Records the CONSUMER would reject are dropped here rather than shipped.
+    #
+    # `Protocol.js` refuses a device with no string `id` or a client with no
+    # string `type`, and refusal is whole-envelope: the user loses the reading,
+    # not the row. `normalize` truncates rather than rejects everywhere else
+    # (a 96-port chassis costs the ports past 64, not the panel), and this is
+    # the same choice applied to a record the wire format cannot carry.
+    #
+    # The counts are unaffected — they come from `devices`, not from this list —
+    # so a dropped record is still counted, still classified, and still in
+    # `byClass`. It is only unbrowsable.
+    browse = []
+    for device in (browse_order(listed_devices or [])):
+        entry = _device_entry(device, statistics, details or {})
+        if not entry["id"]:
+            continue
+        browse.append(entry)
 
     data = {
         "site": {"id": sanitize.clean(site.get("id")),
@@ -281,7 +313,7 @@ def build(site, devices, clients, statistics, application_version,
         },
         "offlineDevices": offline,
         "devices": browse,
-        "clients": [_client_entry(record) for record in (client_records or [])],
+        "clients": _client_list(client_records, clients),
         "applicationVersion": sanitize.clean(application_version),
     }
     _check_invariants(data)
@@ -313,13 +345,30 @@ def browse_order(devices):
 
 
 def _browse_order(device):
+    """REQ-B11's sort key.
+
+    Every field is coerced, not assumed. `(name or "").lower()` raised
+    `AttributeError` on `{"name": 5}` — the only unguarded field in a module
+    where `_identifier` two lines below already returns `""` for a non-string
+    id. A controller that sends a numeric name is malformed, but crashing the
+    helper is a 30-second watchdog timeout with nothing in any log, which is
+    the worst way to report it.
+
+    Total over what is emitted. The final key is the device id, and
+    `build` drops any device whose id is not a usable string — so within the
+    list that reaches the wire the ids are non-empty and, by DATA-009's
+    uniqueness invariant, distinct. Two devices can only tie here if neither
+    can be told from the other by anything the API returned, and the order of
+    those two cannot matter.
+    """
     klass = classify_state(device.get("state"))
     name = device.get("name")
+    name = name.lower() if isinstance(name, str) else ""
     return (
         _BROWSE_CLASS_RANK.get(klass, len(_BROWSE_CLASS_RANK)),
         0 if is_gateway(device) else 1,
-        (name or "").lower(),
-        _identifier(device) or "",
+        name,
+        _identifier(device),
     )
 
 
@@ -413,6 +462,30 @@ def _device_metrics(body):
         "downloadBps": _count(uplink.get("rxRateBps")),
         "uploadBps": _count(uplink.get("txRateBps")),
     }
+
+
+def _client_list(records, total):
+    """DATA-B02's array, and the one invariant that binds it to `counts`.
+
+    `list_exceeds_total` is a rejection class: an array longer than its own
+    total loses the whole envelope. It is reachable without anyone making a
+    mistake — `counts.clients` is `totalCount` read off the terminal page while
+    the records accumulate across pages, so a client connecting mid-pagination
+    produces one more record than the count. Clamping here costs that client its
+    row; not clamping costs the user the reading.
+
+    Records the consumer would refuse are dropped for the same reason, and by
+    the same rule as `devices[]`.
+    """
+    out = []
+    for record in (records or []):
+        entry = _client_entry(record)
+        if not entry["id"] or not entry["type"]:
+            continue
+        out.append(entry)
+    if isinstance(total, int) and len(out) > total:
+        return out[:max(0, total)]
+    return out
 
 
 def _client_entry(record):

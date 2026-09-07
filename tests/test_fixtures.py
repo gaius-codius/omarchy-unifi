@@ -136,6 +136,50 @@ class Privacy(unittest.TestCase):
         # emitting them and left the assertion above passing vacuously.
         self.assertGreater(seen, 50, "the corpus carries almost no MACs to check")
 
+    def test_every_warning_code_in_the_corpus_is_one_the_helper_can_raise(self):
+        """SEC-011's sibling: a fixture may only assert something reachable.
+
+        `wans_unavailable` survived DEV-5's removal inside an ACCEPT envelope,
+        so the corpus went on asserting that a code no helper can emit is
+        acceptable. Nothing noticed: `Protocol.js` validates a warning's SHAPE
+        and deliberately not its code — forward compatibility, so a newer helper
+        does not brick an older panel — and that same leniency is what let a
+        retired code sit in the corpus unremarked.
+
+        The enumeration is parsed from `docs/protocol-v1.md`, which is the
+        normative list both implementations are held to, rather than imported
+        from `warn.py`, which is one of the two things being checked.
+        """
+        text = read(os.path.join(REPO, "docs", "protocol-v1.md"))
+        section = re.search(r"\| `code` \| Raised when \| `detail` \|(.*?)\n\n",
+                            text, re.S)
+        self.assertIsNotNone(section, "protocol-v1.md: warning table not found")
+        documented = set()
+        for line in section.group(1).splitlines():
+            if line.startswith("| `"):
+                documented.add(line.split("|")[1].strip().strip("`"))
+        self.assertGreater(len(documented), 10)
+
+        # Service-side codes are appended by Service.qml for conditions it owns
+        # (DATA-002a, UX-010) and never appear in a helper envelope, so they are
+        # not in the helper's table and must not be demanded of it.
+        service_side = {"settings_invalid", "dashboard_url_insecure"}
+
+        strays = {}
+        for path in corpus_files():
+            if "envelopes" not in path:
+                continue
+            data = json.loads(read(path))
+            for entry in (data.get("warnings") or []):
+                if not isinstance(entry, dict):
+                    continue
+                code = entry.get("code")
+                if code in documented or code in service_side:
+                    continue
+                strays.setdefault(os.path.relpath(path, REPO), set()).add(code)
+        self.assertEqual(strays, {},
+                         "corpus warning code(s) no helper can raise")
+
     def test_the_mac_guard_still_rejects_a_real_one(self):
         """AC-B14. The address guard has had a canary since DEV-6; this one had none.
 

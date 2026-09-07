@@ -345,10 +345,10 @@ ShellRoot {
           }
         }
 
-        // 88 since SPEC-v1.1-browse.md: three accept fixtures and seven reject
-        // ones. A literal, so a corpus that silently shrank would fail here
-        // rather than quietly proving less under V4 than under V8.
-        check("the whole envelope corpus was driven", 88, checked)
+        // 94 since SPEC-v1.1-browse.md: three accept fixtures and thirteen
+        // reject ones. A literal, so a corpus that silently shrank would fail
+        // here rather than quietly proving less under V4 than under V8.
+        check("the whole envelope corpus was driven", 94, checked)
         if (wrong.length === 0) {
           ok("V4 agrees with V8 on all " + checked + " envelopes")
         } else {

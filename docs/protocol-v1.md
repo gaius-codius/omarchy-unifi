@@ -174,15 +174,15 @@ Present only on success, and only in this exact shape (DATA-006).
   "devices": [
     { "id": "…", "name": "Garage Switch", "model": "USW-Lite-8-PoE",
       "state": "OFFLINE", "class": "down", "roles": ["switching"],
-      "ipAddress": "198.51.100.12", "macAddress": "00:00:5E:00:53:0C",
+      "ipAddress": "198.51.100.12", "macAddress": "02:00:00:00:00:0c",
       "firmwareVersion": "7.0.50", "firmwareUpdatable": false,
-      "uplinkDeviceId": "…",
+      "uplinkDeviceId": null,
       "detail": null,
       "metrics": null }
   ],
   "clients": [
     { "id": "…", "name": "workshop-pi", "type": "WIRED", "accessType": "DEFAULT",
-      "ipAddress": "198.51.100.44", "macAddress": "00:00:5E:00:53:2C",
+      "ipAddress": "198.51.100.44", "macAddress": "02:00:00:00:01:2c",
       "uplinkDeviceId": "…", "connectedAt": "2026-01-12T09:14:00Z" }
   ],
   "applicationVersion": "9.1.0"
@@ -289,7 +289,7 @@ carrying the true total independently. The array's length is never the total.
 | `macAddress` | string | yes | |
 | `firmwareVersion` | string | yes | |
 | `firmwareUpdatable` | boolean | yes | |
-| `uplinkDeviceId` | uuid | yes | topology; only present with `detail` |
+| `uplinkDeviceId` | uuid | yes | topology; **`null` whenever `detail` is**, because it is read from route 6's body |
 | `detail` | object \| null | yes | `null` means **not fetched** |
 | `metrics` | object \| null | yes | `null` means **not fetched** |
 
@@ -382,11 +382,12 @@ to parse prose.
 | `statistics_unavailable` | optional `statistics/latest` failed | `{ "deviceId": "…" }` |
 | `gateway_statistics_truncated` | more than four gateways (REQ-008a) | `{ "fetched": 4, "total": 6 }` |
 | `offline_list_truncated` | more than ten offline devices (REQ-010) | `{ "listed": 10, "total": 17 }` |
+| `gateway_list_truncated` | more than 64 gateways | `{ "listed": 64, "total": 70 }` |
 | `device_detail_truncated` | detail fetched for some devices only (REQ-B02a/B02b) | `{ "fetched": 40, "total": 96 }` |
 | `device_detail_unavailable` | one device's detail or statistics failed | `{ "deviceId": "…" }` |
 | `devices_truncated` | more devices than the bound (REQ-B01) | `{ "listed": 200, "total": 412 }` |
 | `clients_truncated` | more clients than the bound (REQ-B03) | `{ "listed": 500, "total": 900 }` |
-| `envelope_truncated` | the assembled envelope exceeded its bound (DATA-B04) | `{ "dropped": "clients" }` |
+| `envelope_truncated` | the BYTE budget bound, rather than a count cap (DATA-B04) | `{ "dropped": "devices" \| "clients" \| "detail" }` |
 | `page_reread_mismatch` | the DATA-009a page-0 re-read disagreed once | `{ "collection": "devices" }` |
 | `insecure_tls` | `allowInsecureTls` is in force (UX-009) | `null` |
 | `custom_ca_in_use` | a `customCaPath` is in force | `null` |
@@ -504,8 +505,8 @@ fixed by `SPEC.md`; §15 delegates it, and the reasoning is in
 | `devices` array entries | 200 **[chosen]** | REQ-B01 |
 | `clients` array entries | 500 **[chosen]** | REQ-B03 |
 | devices fetched with detail | 40 **[chosen]** | REQ-B02 |
-| `detail.ports` entries per device | 64 **[chosen]** | REQ-B02 |
-| `detail.radios` entries per device | 8 **[chosen]** | REQ-B02 |
+| `detail.ports` entries per device | 64 **[chosen]** | DATA-B04 |
+| `detail.radios` entries per device | 8 **[chosen]** | DATA-B04 |
 | deadline reserved for detail | 8 s **[chosen]** | REQ-B02b |
 | `warnings` entries | 32 **[chosen]** | — |
 | any string value | 512 chars **[chosen]** | — |
@@ -606,6 +607,17 @@ exists for each.
 | `warnings_not_array` | `warnings` is `null` or not an array |
 | `warning_shape_invalid` | a warning is not an object with a string `code` and `message` |
 | `bound_exceeded` | any [Bounds](#bounds) limit on strings, arrays, depth or integers |
+
+`envelope_truncated` distinguishes the two reasons content goes missing. A
+count cap is a product limit — "your site is larger than this build lists" — and
+the byte budget is a transport one — "this reading did not fit". They are
+different facts to a user with three hundred devices, and without this code the
+other truncation warnings fire identically for both.
+
+`dropped` names where the budget first bound. In practice that is almost always
+`detail`: measured, `devices[]` and `clients[]` at their full caps come to about
+150 KiB against a ~192 KiB list budget, so the base records always fit and it is
+per-device detail the budget actually constrains.
 
 `list_exceeds_total` is the invariant that makes truncation honest. A bounded
 array may be **shorter** than its total — that is what the bound is for, and

@@ -1,0 +1,3513 @@
+{
+  "batch": {
+    "exitStatus": 0,
+    "launchAt": "2026-01-15T11:58:00Z",
+    "nonce": "b7c1d4e9f2a68035",
+    "receiptAt": "2026-01-15T12:00:03Z"
+  },
+  "envelope": {
+    "attemptedAt": "2026-01-15T12:00:00Z",
+    "data": {
+      "applicationVersion": "9.1.0",
+      "clients": [],
+      "counts": {
+        "accessPoints": {
+          "down": 0,
+          "impaired": 0,
+          "online": 2,
+          "transitional": 0,
+          "unknown": 0
+        },
+        "byClass": {
+          "down": 0,
+          "impaired": 0,
+          "online": 201,
+          "transitional": 0,
+          "unknown": 0
+        },
+        "clients": 42,
+        "devicesTotal": 201,
+        "gateways": {
+          "down": 0,
+          "impaired": 0,
+          "online": 1,
+          "transitional": 0,
+          "unknown": 0
+        },
+        "offlineTotal": 0,
+        "switches": {
+          "down": 0,
+          "impaired": 0,
+          "online": 2,
+          "transitional": 0,
+          "unknown": 0
+        }
+      },
+      "devices": [
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-000000000258",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d0",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-000000000259",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d1",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-00000000025a",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d2",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-00000000025b",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d3",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-00000000025c",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d4",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-00000000025d",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d5",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-00000000025e",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d6",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-00000000025f",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d7",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-000000000260",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d8",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-000000000261",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d9",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-000000000262",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d10",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-000000000263",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d11",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-000000000264",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d12",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-000000000265",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d13",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-000000000266",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d14",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-000000000267",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d15",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-000000000268",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d16",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-000000000269",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d17",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-00000000026a",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d18",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-00000000026b",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d19",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-00000000026c",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d20",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-00000000026d",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d21",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-00000000026e",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d22",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-00000000026f",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d23",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-000000000270",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d24",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-000000000271",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d25",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-000000000272",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d26",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-000000000273",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d27",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-000000000274",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d28",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-000000000275",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d29",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-000000000276",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d30",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-000000000277",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d31",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-000000000278",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d32",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-000000000279",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d33",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-00000000027a",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d34",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-00000000027b",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d35",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-00000000027c",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d36",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-00000000027d",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d37",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-00000000027e",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d38",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-00000000027f",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d39",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-000000000280",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d40",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-000000000281",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d41",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-000000000282",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d42",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-000000000283",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d43",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-000000000284",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d44",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-000000000285",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d45",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-000000000286",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d46",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-000000000287",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d47",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-000000000288",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d48",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-000000000289",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d49",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-00000000028a",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d50",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-00000000028b",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d51",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-00000000028c",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d52",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-00000000028d",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d53",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-00000000028e",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d54",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-00000000028f",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d55",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-000000000290",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d56",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-000000000291",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d57",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-000000000292",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d58",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-000000000293",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d59",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-000000000294",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d60",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-000000000295",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d61",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-000000000296",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d62",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-000000000297",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d63",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-000000000298",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d64",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-000000000299",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d65",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-00000000029a",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d66",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-00000000029b",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d67",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-00000000029c",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d68",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-00000000029d",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d69",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-00000000029e",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d70",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-00000000029f",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d71",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-0000000002a0",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d72",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-0000000002a1",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d73",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-0000000002a2",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d74",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-0000000002a3",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d75",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-0000000002a4",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d76",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-0000000002a5",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d77",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-0000000002a6",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d78",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-0000000002a7",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d79",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-0000000002a8",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d80",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-0000000002a9",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d81",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-0000000002aa",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d82",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-0000000002ab",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d83",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-0000000002ac",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d84",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-0000000002ad",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d85",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-0000000002ae",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d86",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-0000000002af",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d87",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-0000000002b0",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d88",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-0000000002b1",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d89",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-0000000002b2",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d90",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-0000000002b3",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d91",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-0000000002b4",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d92",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-0000000002b5",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d93",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-0000000002b6",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d94",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-0000000002b7",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d95",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-0000000002b8",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d96",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-0000000002b9",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d97",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-0000000002ba",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d98",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-0000000002bb",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d99",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-0000000002bc",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d100",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-0000000002bd",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d101",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-0000000002be",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d102",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-0000000002bf",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d103",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-0000000002c0",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d104",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-0000000002c1",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d105",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-0000000002c2",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d106",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-0000000002c3",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d107",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-0000000002c4",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d108",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-0000000002c5",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d109",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-0000000002c6",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d110",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-0000000002c7",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d111",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-0000000002c8",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d112",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-0000000002c9",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d113",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-0000000002ca",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d114",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-0000000002cb",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d115",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-0000000002cc",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d116",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-0000000002cd",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d117",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-0000000002ce",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d118",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-0000000002cf",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d119",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-0000000002d0",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d120",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-0000000002d1",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d121",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-0000000002d2",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d122",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-0000000002d3",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d123",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-0000000002d4",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d124",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-0000000002d5",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d125",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-0000000002d6",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d126",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-0000000002d7",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d127",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-0000000002d8",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d128",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-0000000002d9",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d129",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-0000000002da",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d130",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-0000000002db",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d131",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-0000000002dc",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d132",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-0000000002dd",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d133",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-0000000002de",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d134",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-0000000002df",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d135",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-0000000002e0",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d136",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-0000000002e1",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d137",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-0000000002e2",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d138",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-0000000002e3",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d139",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-0000000002e4",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d140",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-0000000002e5",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d141",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-0000000002e6",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d142",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-0000000002e7",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d143",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-0000000002e8",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d144",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-0000000002e9",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d145",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-0000000002ea",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d146",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-0000000002eb",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d147",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-0000000002ec",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d148",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-0000000002ed",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d149",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-0000000002ee",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d150",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-0000000002ef",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d151",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-0000000002f0",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d152",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-0000000002f1",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d153",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-0000000002f2",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d154",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-0000000002f3",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d155",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-0000000002f4",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d156",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-0000000002f5",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d157",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-0000000002f6",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d158",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-0000000002f7",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d159",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-0000000002f8",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d160",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-0000000002f9",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d161",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-0000000002fa",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d162",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-0000000002fb",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d163",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-0000000002fc",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d164",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-0000000002fd",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d165",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-0000000002fe",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d166",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-0000000002ff",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d167",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-000000000300",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d168",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-000000000301",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d169",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-000000000302",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d170",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-000000000303",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d171",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-000000000304",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d172",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-000000000305",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d173",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-000000000306",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d174",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-000000000307",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d175",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-000000000308",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d176",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-000000000309",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d177",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-00000000030a",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d178",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-00000000030b",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d179",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-00000000030c",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d180",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-00000000030d",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d181",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-00000000030e",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d182",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-00000000030f",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d183",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-000000000310",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d184",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-000000000311",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d185",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-000000000312",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d186",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-000000000313",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d187",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-000000000314",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d188",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-000000000315",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d189",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-000000000316",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d190",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-000000000317",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d191",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-000000000318",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d192",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-000000000319",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d193",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-00000000031a",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d194",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-00000000031b",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d195",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-00000000031c",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d196",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-00000000031d",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d197",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-00000000031e",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d198",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-00000000031f",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d199",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        },
+        {
+          "class": "online",
+          "detail": null,
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-000000000320",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d200",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        }
+      ],
+      "gateways": [
+        {
+          "class": "online",
+          "downloadBps": 12000000,
+          "id": "00000000-0000-5000-9000-00000000000a",
+          "model": "UDM-Pro",
+          "name": "UDM Pro",
+          "state": "ONLINE",
+          "uploadBps": 3000000,
+          "uptimeSec": 864000
+        }
+      ],
+      "offlineDevices": [],
+      "site": {
+        "id": "00000000-0000-5000-9000-000000000001",
+        "name": "Home"
+      },
+      "wan": {
+        "downloadBps": 12000000,
+        "status": "up",
+        "uploadBps": 3000000,
+        "uptimeSec": 864000
+      }
+    },
+    "error": null,
+    "meta": {
+      "allowInsecureTls": false,
+      "apiRootHost": "192.168.1.1",
+      "commitGeneration": 7,
+      "customCaInUse": false,
+      "helperVersion": "0.1.0",
+      "siteId": "00000000-0000-5000-9000-000000000001"
+    },
+    "nonce": "b7c1d4e9f2a68035",
+    "observedAt": "2026-01-15T12:00:02Z",
+    "ok": true,
+    "protocolVersion": 1,
+    "warnings": []
+  },
+  "id": "bound_exceeded_devices",
+  "neverEmittedBy": "helper",
+  "note": "201 devices listed, one past DEVICES_LISTED_MAX. The COUNT is raised to match, so the array bound is the only thing that can reject this — `list_exceeds_total` must not be what fires.",
+  "publishedAs": "malformed_response",
+  "rejectedBy": "service",
+  "rejectionClass": "bound_exceeded",
+  "rule": "DATA-008 / bound_exceeded",
+  "stdout": null,
+  "synthesize": null
+}

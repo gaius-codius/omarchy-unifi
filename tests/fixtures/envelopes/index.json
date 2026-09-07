@@ -395,7 +395,7 @@
   "coverage": {
     "acceptFixtures": 39,
     "errorKinds": 19,
-    "rejectFixtures": 49,
+    "rejectFixtures": 55,
     "rejectionClasses": 37
   },
   "generatedBy": "tests/tools/gen_envelopes.py",
@@ -429,8 +429,29 @@
       "rejectionClass": "bound_exceeded",
       "rule": "DATA-008 / bound_exceeded"
     },
+    "bound_exceeded_clients": {
+      "note": "501 clients listed, one past CLIENTS_LISTED_MAX, with the count raised to match for the same reason.",
+      "publishedAs": "malformed_response",
+      "rejectedBy": "service",
+      "rejectionClass": "bound_exceeded",
+      "rule": "DATA-008 / bound_exceeded"
+    },
+    "bound_exceeded_devices": {
+      "note": "201 devices listed, one past DEVICES_LISTED_MAX. The COUNT is raised to match, so the array bound is the only thing that can reject this — `list_exceeds_total` must not be what fires.",
+      "publishedAs": "malformed_response",
+      "rejectedBy": "service",
+      "rejectionClass": "bound_exceeded",
+      "rule": "DATA-008 / bound_exceeded"
+    },
     "bound_exceeded_ports": {
       "note": "A device with 65 ports, one past PORTS_PER_DEVICE_MAX.",
+      "publishedAs": "malformed_response",
+      "rejectedBy": "service",
+      "rejectionClass": "bound_exceeded",
+      "rule": "DATA-008 / bound_exceeded"
+    },
+    "bound_exceeded_radios": {
+      "note": "A device with 9 radios, one past RADIOS_PER_DEVICE_MAX.",
       "publishedAs": "malformed_response",
       "rejectedBy": "service",
       "rejectionClass": "bound_exceeded",
@@ -450,6 +471,13 @@
       "rejectionClass": "byclass_sum_mismatch",
       "rule": "DATA-008 / byclass_sum_mismatch"
     },
+    "data_schema_violation_client_no_id": {
+      "note": "A client whose `id` is the empty string.",
+      "publishedAs": "malformed_response",
+      "rejectedBy": "service",
+      "rejectionClass": "data_schema_violation",
+      "rule": "DATA-008 / data_schema_violation"
+    },
     "data_schema_violation_client_type": {
       "note": "A client whose `type` is null. Unrecognised types are accepted on purpose (a client type decides nothing); a MISSING one is not, because the row has nothing to render.",
       "publishedAs": "malformed_response",
@@ -466,6 +494,20 @@
     },
     "data_schema_violation_device_detail_absent": {
       "note": "A device with NO `detail` key at all. Absent and null are different statements — 'the producer forgot' versus 'the producer did not ask' — and only the second is acceptable, so the key is required and its value is nullable rather than the other way round.",
+      "publishedAs": "malformed_response",
+      "rejectedBy": "service",
+      "rejectionClass": "data_schema_violation",
+      "rule": "DATA-008 / data_schema_violation"
+    },
+    "data_schema_violation_device_metrics": {
+      "note": "A device whose `metrics` is a number. `detail` had a fixture for this shape and `metrics` did not, so half the check was unexercised.",
+      "publishedAs": "malformed_response",
+      "rejectedBy": "service",
+      "rejectionClass": "data_schema_violation",
+      "rule": "DATA-008 / data_schema_violation"
+    },
+    "data_schema_violation_device_no_id": {
+      "note": "A device whose `id` is absent. Named in DATA-008's row and unfixtured until now — the check existed and nothing exercised it.",
       "publishedAs": "malformed_response",
       "rejectedBy": "service",
       "rejectionClass": "data_schema_violation",

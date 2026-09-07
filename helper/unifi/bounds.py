@@ -26,8 +26,21 @@ and would then starve every ordinary one.
 
 Nothing here decides WHICH records to drop. That is `collect.py`'s and
 `normalize.py`'s job, in REQ-B11's order. This module owns the arithmetic and
-one guarantee: **the assembled envelope cannot reach `envelope.encode`'s
-replacement path.**
+one guarantee, stated precisely because a looser version of it was false:
+
+**The browse lists cannot push an otherwise-fitting envelope over the cliff.**
+
+Not "the envelope cannot reach the cliff" — that is not something this module
+can promise. The health reading has its own bounds (64 gateways, 10 offline
+devices, 32 warnings) and, with every string at `sanitize`'s 512-CHARACTER
+limit and `ensure_ascii=True` spending six bytes per non-ASCII character, those
+bounds admit content larger than 256 KiB on their own. `envelope.encode`'s
+replacement path remains the backstop for that, and DATA-005's
+character-versus-byte gap is why it has to.
+
+What this module guarantees is narrower and is the part it controls: whatever
+the fixed content costs, `devices[]` and `clients[]` are sized against what is
+actually left after it.
 """
 
 import json
@@ -40,21 +53,47 @@ import json
 # `test_unifi_status.py` asserts the two agree.
 STDOUT_MAX_BYTES = 256 * 1024
 
-# The guard rail, 32 KiB below the cliff. The headroom absorbs three things the
-# projection cannot see exactly: `json.dumps` key ordering and separator
-# overhead across the whole document, the `\uXXXX` expansion of non-ASCII names
-# under `ensure_ascii=True` (a Cyrillic device name is 6 bytes per character in
-# the output and 2 in the input), and warnings appended AFTER assembly by the
-# truncation itself — a truncating envelope grows a warning at the moment it can
-# least afford one.
+# The guard rail, 32 KiB below the cliff. The headroom absorbs `json.dumps` key
+# ordering and separator overhead across the whole document.
 ENVELOPE_BUDGET_BYTES = 224 * 1024
 
-# Reserved for everything that is not `devices[]` or `clients[]`: site, wan,
-# gateways (64 max), offlineDevices (10 max), counts, warnings (32 max), meta
-# and the envelope frame. Measured at ~25 KiB worst case; rounded up.
-FIXED_CONTENT_RESERVE_BYTES = 32 * 1024
+# Reserved for the two things written AFTER the lists are sized: the warnings
+# block, which the truncation itself adds to at the moment it can least afford
+# one, and the envelope frame. 32 entries at DATA-005's 256-character message
+# bound plus a small detail object is under 20 KiB; the frame — protocolVersion,
+# ok, nonce, two timestamps, meta — is about 1 KiB.
+WARNINGS_RESERVE_BYTES = 24 * 1024
+FRAME_RESERVE_BYTES = 2 * 1024
 
-LIST_BUDGET_BYTES = ENVELOPE_BUDGET_BYTES - FIXED_CONTENT_RESERVE_BYTES
+# The ceiling when no fixed content has been measured. Used by `Budget()` with
+# no argument and by tests; real assembly calls `room_for_lists`.
+LIST_BUDGET_BYTES = (ENVELOPE_BUDGET_BYTES - WARNINGS_RESERVE_BYTES
+                     - FRAME_RESERVE_BYTES)
+
+
+def room_for_lists(fixed_content):
+    """How many bytes `devices[]` and `clients[]` may have, given the rest.
+
+    **Measured, not reserved.** An earlier version subtracted a constant
+    32 KiB, described as "measured at ~25 KiB worst case", and was wrong by
+    between five and thirty times: the worst case the protocol actually admits
+    is 64 gateways, 10 offline devices and 32 warnings with every string at
+    `sanitize`'s 512-CHARACTER bound, which is ~175 KiB of ASCII and — because
+    `ensure_ascii=True` writes a non-ASCII character as six bytes of escape —
+    approaching a megabyte of Cyrillic. Nothing tested the constant: setting it
+    to zero left every test green.
+
+    A subtraction cannot be right here, because the quantity varies by a factor
+    of thirty with content the helper does not control. So the fixed content is
+    encoded and measured, and the lists get what is actually left.
+
+    Returns 0 rather than a negative number. A site whose health reading alone
+    fills the envelope gets no browse lists, which is the correct trade and the
+    one DATA-B04's assembly order already states.
+    """
+    room = (ENVELOPE_BUDGET_BYTES - fixed_content
+            - WARNINGS_RESERVE_BYTES - FRAME_RESERVE_BYTES)
+    return max(0, room)
 
 # --- the count caps -------------------------------------------------------
 #
@@ -112,24 +151,39 @@ class Budget(object):
     considered rather than the least important one.
     """
 
-    __slots__ = ("limit", "used")
+    __slots__ = ("limit", "used", "refused")
 
     def __init__(self, limit=None):
         self.limit = LIST_BUDGET_BYTES if limit is None else limit
         self.used = 0
+        # The name of the first list the BUDGET refused, or None. It is what
+        # separates "your site is larger than the cap" from "your reading did
+        # not fit", which are different facts to a user with 300 devices: the
+        # first is a product limit and the second is a transport one. Without
+        # it `envelope_truncated` could only be guessed at from the other
+        # warnings, and would fire identically for both.
+        self.refused = None
 
     @property
     def remaining(self):
         return self.limit - self.used
 
-    def admits(self, value, size=None):
-        """Would this value still fit? `size` may be supplied if already known."""
+    def admits(self, value, size=None, name=None):
+        """Would this value still fit? `size` may be supplied if already known.
+
+        `name` records WHICH list first hit the ceiling, and is recorded on
+        refusal rather than on success so that a caller which probes and then
+        gives up cannot overwrite an earlier, more informative answer.
+        """
         cost = encoded_size(value) if size is None else size
         # +1 for the separating comma the array will need. A per-record byte
         # sounds like pedantry; across 500 clients it is half a kilobyte, and
         # the whole purpose of this class is that the projection is never
         # optimistic.
-        return self.used + cost + 1 <= self.limit
+        fits = self.used + cost + 1 <= self.limit
+        if not fits and name is not None and self.refused is None:
+            self.refused = name
+        return fits
 
     def spend(self, value, size=None):
         cost = encoded_size(value) if size is None else size
@@ -151,7 +205,7 @@ def bounded_list(records, cap, budget, warnings=None, code=None, total=None):
         if len(kept) >= cap:
             break
         size = encoded_size(record)
-        if not budget.admits(record, size):
+        if not budget.admits(record, size, name=code_list_name(code)):
             break
         budget.spend(record, size)
         kept.append(record)
@@ -160,3 +214,15 @@ def bounded_list(records, cap, budget, warnings=None, code=None, total=None):
     if dropped > 0 and warnings is not None and code is not None:
         warnings.add(code, {"listed": len(kept), "total": true_total})
     return kept, dropped
+
+
+def code_list_name(code):
+    """The array a truncation warning is about, for `Budget.refused`.
+
+    A small mapping rather than string surgery on the code: `devices_truncated`
+    happens to begin with the array's name and `device_detail_truncated` does
+    not, and a rule derived from the first would silently mis-attribute the
+    second.
+    """
+    return {"devices_truncated": "devices",
+            "clients_truncated": "clients"}.get(code)

@@ -27,6 +27,7 @@ CODES = (
     "statistics_unavailable",
     "gateway_statistics_truncated",
     "offline_list_truncated",
+    "gateway_list_truncated",
     # SPEC-v1.1-browse.md §5. Four of the five are truncation notices, and each
     # one exists so a bound is VISIBLE: a list silently shortened to fit is a
     # list that lies about the network.
@@ -53,6 +54,7 @@ MESSAGES = {
     "statistics_unavailable": "Gateway statistics unavailable; metrics shown as unknown.",
     "gateway_statistics_truncated": "Statistics were fetched for the first four gateways only.",
     "offline_list_truncated": "The offline device list is truncated; see the total.",
+    "gateway_list_truncated": "The gateway list is truncated; see the total.",
     "device_detail_truncated": "Details were fetched for some devices only; see the total.",
     "device_detail_unavailable": "Details for one device could not be read.",
     "devices_truncated": "The device list is truncated; see the total.",

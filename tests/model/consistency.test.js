@@ -231,7 +231,8 @@ test("the suspending kinds are a subset of the fatal kinds", () => {
 })
 
 test("the warning codes Schedule.js emits are in protocol-v1.md's closed enumeration", () => {
-  // AMD-8 made `warnings` a closed 14-value enumeration. A code invented here
+  // AMD-8 made `warnings` a closed enumeration — 14 values then, 18 since
+  // SPEC-v1.1-browse.md. A code invented here
   // would be rejected by the same validator that accepts the helper's.
   for (const code of ["retry_after_clamped", "retry_after_ignored"]) {
     assert.ok(PROTOCOL.indexOf("| `" + code + "` |") !== -1,
