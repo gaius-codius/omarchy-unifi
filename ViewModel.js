@@ -954,24 +954,36 @@ function parseRfc3339(value) {
   return ms / 1000 - offset
 }
 
-// The absolute instant, in UTC and labelled as such.
+// The absolute instant, in the reader's LOCAL time and unlabelled.
 //
-// Local time would read better and is deliberately not used: it would make a
-// pure module's output depend on the process time zone, which is the same class
-// of hidden environmental input the `Intl` ban exists to prevent, and would
-// make every assertion over this string depend on where the test ran. The row
-// already carries the relative form, which is what a glance needs; this is the
-// exact instant, for the reader who wants to line it up against something else.
+// This was UTC first, on the argument that a local rendering makes a pure
+// module's output depend on the process time zone — the same class of hidden
+// environmental input the `Intl` ban exists to prevent. The argument is true and
+// is not the deciding one: the panel exists to be compared against the
+// controller's own UI and against the reader's clock, and both are local. A
+// "UTC" suffix is a conversion the reader has to do in their head, at the one
+// moment they are trying to line an event up against something else.
+//
+// The cost is paid in the tests rather than avoided. `TZ` is pinned to
+// `Asia/Kolkata` in both engines' runners — a +05:30 zone with no DST, so a
+// mutation back to `getUTC*` shifts BOTH the hour and the minute and a
+// half-applied offset shifts only the minute. Each runner asserts the pin took
+// effect, because a missing tzdata would silently make local time equal UTC and
+// every assertion here would pass while proving nothing.
+//
+// The `Intl` ban still stands and this does not weaken it: `getHours` is
+// specified against the local time zone and returns a number, where
+// `toLocaleString` returns ICU-formatted text that the two engines disagree
+// about. The digits are assembled here.
 function formatInstant(value) {
   const seconds = parseRfc3339(value)
   if (seconds === null) return "unknown"
   const at = new Date(seconds * 1000)
-  return at.getUTCFullYear()
-    + "-" + pad2(at.getUTCMonth() + 1)
-    + "-" + pad2(at.getUTCDate())
-    + " " + pad2(at.getUTCHours())
-    + ":" + pad2(at.getUTCMinutes())
-    + " UTC"
+  return at.getFullYear()
+    + "-" + pad2(at.getMonth() + 1)
+    + "-" + pad2(at.getDate())
+    + " " + pad2(at.getHours())
+    + ":" + pad2(at.getMinutes())
 }
 
 function pad2(value) {

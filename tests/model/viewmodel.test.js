@@ -1,5 +1,19 @@
 // AC-011 (AUTO half), AC-062, AC-063, AC-064, AC-066, AC-067, AC-071 (string half).
 
+// REQ-B14's absolute instant renders in LOCAL time, so every assertion over it
+// would otherwise depend on where the test ran. Pinned before anything reads a
+// clock, and pinned to a zone chosen for what it can catch:
+//
+//   * +05:30, so a mutation back to `getUTC*` shifts the HOUR and the MINUTE.
+//     A whole-hour zone would let a half-applied offset through.
+//   * no DST, so the expected string does not depend on the date in the fixture.
+//
+// `node --test` runs each file in its own process, so this does not leak into
+// the other model suites. `formatInstant` asserts the pin took effect — a
+// missing tzdata would silently make local time equal UTC and every assertion
+// here would pass while proving nothing.
+process.env.TZ = "Asia/Kolkata"
+
 const { test } = require("node:test")
 const assert = require("node:assert")
 const fs = require("node:fs")
@@ -1688,7 +1702,7 @@ test("REQ-B14: a client detail carries the MAC, access type and absolute instant
   assert.strictEqual(values.mac, "02:00:00:00:01:28")
   assert.strictEqual(values.access, "DEFAULT")
   assert.strictEqual(values.uplink, "Garage Switch")
-  assert.strictEqual(values.connected, "2026-01-12 09:14 UTC")
+  assert.strictEqual(values.connected, "2026-01-12 14:44")
 })
 
 // --- REQ-B17: the time strings -------------------------------------------
@@ -1737,7 +1751,7 @@ test("REQ-B17: a date that does not exist is unknown, not a nearby one", () => {
   // And the leap day that DOES exist still parses, or the guard is just a ban
   // on February.
   assert.strictEqual(ViewModel.formatInstant("2024-02-29T12:00:00Z"),
-    "2024-02-29 12:00 UTC")
+    "2024-02-29 17:30")
 })
 
 test("REQ-B17: an unparseable connectedAt renders as nothing, never as 'never'", () => {
@@ -1771,19 +1785,43 @@ test("AC-071/REQ-B17: connected-since recomputes from nowWall and owns no clock"
     ViewModel.browseClientRow(record, "", at + 3 * 86400).metaText)
 })
 
-test("REQ-B17: the absolute instant is UTC-labelled and locale-free", () => {
+test("REQ-B17: the pinned test zone is in force", () => {
+  // The canary for every assertion below. Without tzdata, or with `TZ` ignored,
+  // local time silently becomes UTC — and then a `getUTC*` rendering would pass
+  // every local-time assertion in this file. A test that cannot fail for the
+  // reason it exists is worse than none, so the reason is checked first.
+  const offsetMinutes = new Date(Date.UTC(2026, 0, 12)).getTimezoneOffset()
+  assert.strictEqual(offsetMinutes, -330,
+    "TZ=Asia/Kolkata (+05:30) is not in force; local-time assertions prove nothing")
+  assert.strictEqual(new Date(Date.UTC(2026, 6, 1)).getTimezoneOffset(), -330,
+    "the pinned zone must not observe DST, or the expected strings move")
+})
+
+test("REQ-B17: the absolute instant is the reader's local time", () => {
+  // 09:14 UTC is 14:44 in the pinned +05:30 zone. Both fields move, which is
+  // what a half-hour offset buys: a UTC rendering fails on the hour AND the
+  // minute, and an offset applied to hours only fails on the minute.
   assert.strictEqual(ViewModel.formatInstant("2026-01-12T09:14:00Z"),
-    "2026-01-12 09:14 UTC")
+    "2026-01-12 14:44")
   // Zero-padded on both fields, which a naive concatenation gets wrong exactly
-  // once a year and once an hour.
+  // once a year and once an hour. 04:07 UTC is 09:37 local.
   assert.strictEqual(ViewModel.formatInstant("2026-03-05T04:07:00Z"),
-    "2026-03-05 04:07 UTC")
-  // An offset is normalised to UTC rather than printed as given, so two
-  // timestamps on one panel are always comparable.
+    "2026-03-05 09:37")
+  // A local rendering crosses the date boundary, and the DATE has to cross with
+  // it: 21:00 UTC is 02:30 the NEXT DAY here. Formatting the local time beside
+  // the UTC date is the classic version of this bug and reads as plausible.
+  assert.strictEqual(ViewModel.formatInstant("2026-01-12T21:00:00Z"),
+    "2026-01-13 02:30")
+  // An offset in the input is resolved to the same instant, so two timestamps
+  // on one panel are always comparable however the controller wrote them.
   assert.strictEqual(ViewModel.formatInstant("2026-01-12T11:14:00+02:00"),
-    "2026-01-12 09:14 UTC")
+    ViewModel.formatInstant("2026-01-12T09:14:00Z"))
   assert.strictEqual(ViewModel.formatInstant(null), "unknown")
   assert.strictEqual(ViewModel.formatInstant("whenever"), "unknown")
+  // And it carries no zone label. It is the reader's own clock; a suffix would
+  // be a conversion to do in their head at the moment they least want one.
+  assert.strictEqual(ViewModel.formatInstant("2026-01-12T09:14:00Z").indexOf("UTC"),
+    -1)
 })
 
 // --- REQ-B10: the three pages --------------------------------------------

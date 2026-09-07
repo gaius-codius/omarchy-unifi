@@ -108,7 +108,14 @@ printf '{"repoRoot":"%s","stubRoot":"%s","only":"%s"}\n' \
 # watchdog cannot be observed in less time than they take — and Phase 10 added
 # another 12 s of view cases. The bound exists to stop a wedged harness hanging
 # a checkpoint, so it is set well above the real runtime rather than near it.
-out="$(QML_XHR_ALLOW_FILE_READ=1 timeout 420 quickshell -p "$QML_ROOT/runner.qml" 2>&1)"
+# REQ-B14's absolute instant renders in LOCAL time, so the literal the runner
+# asserts depends on the zone. Pinned to the same +05:30, DST-free zone
+# `tests/model/viewmodel.test.js` pins, because the point of running this module
+# under V4 at all is that the two engines agree — and they can only be compared
+# on a local-time rendering if they are given the same locality. The runner
+# asserts the pin took effect; a missing tzdata would make local time equal UTC
+# in both engines, and they would agree on the wrong answer.
+out="$(TZ=Asia/Kolkata QML_XHR_ALLOW_FILE_READ=1 timeout 420 quickshell -p "$QML_ROOT/runner.qml" 2>&1)"
 status=$?
 
 # Quickshell prefixes every console.log with a colourised level tag.

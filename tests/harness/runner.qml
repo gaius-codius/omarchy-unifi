@@ -503,7 +503,14 @@ ShellRoot {
         // 3339 grammar precisely because `Date.parse` is implementation-defined
         // outside ISO 8601 — so the two engines agreeing on this literal is the
         // assertion, not a formality.
-        check("REQ-B17: V4 renders the same instant", "2026-01-12 09:14 UTC",
+        //
+        // The literal is a LOCAL time, and `run_harness.sh` pins TZ to the same
+        // +05:30 DST-free zone the node suite pins. This is the canary for that:
+        // without it, a missing tzdata would make local time equal UTC in both
+        // engines and they would agree on the wrong answer.
+        check("REQ-B17: the pinned zone reached V4", -330,
+              new Date(Date.UTC(2026, 0, 12)).getTimezoneOffset())
+        check("REQ-B17: V4 renders the same instant", "2026-01-12 14:44",
               ViewModel.formatInstant("2026-01-12T09:14:00Z"))
         check("REQ-B17: V4 rejects a date that does not exist", "unknown",
               ViewModel.formatInstant("2026-02-30T00:00:00Z"))
