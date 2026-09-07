@@ -1151,23 +1151,25 @@ ShellRoot {
         // UX-007: "never a static instant". The retry deadline reaches the
         // panel as a countdown whatever schedule produced it — here REQ-023b's
         // two-second ramp, which is the shortest one that exists.
+        // SPEC-AMD-4: this is now the ONLY state in which the countdown is
+        // drawn at all, so this case carries the whole of UX-007's rendering.
+        check("the scheduler is backing off", "retry-wait",
+              service._status().schedulerState)
         var text = panelWidget.vm.nextAttemptText
         if (/^in \d+s$|^now$/.test(text)) ok("the retry is shown as a countdown (" + text + ")")
         else bad("the retry is shown as a countdown", "got [" + text + "]")
         check("the countdown reached the panel", true,
               text === "" || panelTextContains(text))
+        check("the panel labels it as the next attempt", true,
+              panelTextContains("Next attempt"))
       }
     })
 
-    // The measurement is taken against a SUCCESSFUL schedule, not a failed one.
-    // REQ-023b's ramp retries a fresh `network` failure every two seconds and
-    // resets the deadline each time, so the countdown there is a sawtooth
-    // between "in 1s" and "in 2s" — it recomputes constantly and still never
-    // moves by twelve seconds. Reading a twelve-second decrease off it is
-    // measuring the ramp, not the tick. An idle interval is monotone, which is
-    // what makes the drop mean what the assertion says it means.
+    // SPEC-AMD-4's negative half, and the reason the case below measures what
+    // it measures. A healthy widget draws NO countdown: it always has a next
+    // attempt and never needs to say so.
     pending.push({
-      name: "AC-071: an idle countdown is running before the measurement",
+      name: "SPEC-AMD-4: a healthy schedule draws no countdown at all",
       waitMs: 900,
       prepare: function () { writeScenario({ mode: "success" }) },
       setup: function () { resetService(30) },
@@ -1176,30 +1178,61 @@ ShellRoot {
         check("a snapshot arrived", true, panelWidget.vm.hasSnapshot)
         check("the scheduler is idle between polls", "idle-normal",
               service._status().schedulerState)
-        var text = panelWidget.vm.nextAttemptText
-        if (/^in \d+s$/.test(text)) ok("the countdown is rendered in seconds (" + text + ")")
-        else bad("the countdown is rendered in seconds", "got [" + text + "]")
+        // The deadline still EXISTS — the line is suppressed by the display
+        // rule, not by the scheduler having nothing to count down to. A case
+        // that did not check this would pass just as happily against a broken
+        // scheduler that had stopped polling.
+        if (typeof service._schedule.nextAttemptAt !== "number") {
+          bad("the scheduler still holds a deadline to count down to")
+        } else {
+          ok("the scheduler still holds a deadline; the panel simply omits it")
+        }
+        check("the model's countdown is empty", "", panelWidget.vm.nextAttemptText)
+        check("the panel shows no next-attempt line", false,
+              panelTextContains("Next attempt"))
       }
     })
 
+    // AC-071, as amended by SPEC-AMD-4. The criterion used to name
+    // `nextAttemptAt` specifically; that string is now absent on the healthy
+    // path, so the guarantee is stated over EVERY relative time the panel
+    // draws and measured over the one that survives here — `lastUpdateText`,
+    // which nothing had ever measured.
+    //
+    // This is strictly stronger than the version it replaces. The bound AC-071
+    // actually asserts is about the service recomputing, not about which string
+    // it recomputes into, and `maxGapMs` measured that all along.
+    //
+    // The old case took a baseline and subtracted. That cannot work here: the
+    // window opens inside `relativePast`'s "just now" band, so the baseline is
+    // not a number. SAMPLING is used instead — the same reason as before, that
+    // a single read at the end cannot tell a string that updates from one that
+    // was rendered once and latched.
     pending.push({
-      name: "AC-071: the countdown recomputes while the panel is open",
-      // Twelve seconds against a 5 s tick, so at least two recomputations must
-      // fall inside the window. SAMPLING — rather than reading once at the end
-      // — is what makes this a measurement of the interval rather than a single
-      // observation that happens to land just after a tick: a one-shot read six
-      // seconds in can legitimately see a one-second drop, because the last
-      // tick may have fired a second after the baseline was taken. That is how
-      // the first version of this case failed while the code was correct.
-      waitMs: 12000,
+      name: "AC-071: the panel's relative times recompute while it is open",
+      // TWENTY seconds, and the number is derived rather than picked. The
+      // freshness tick is 5 s and free-running, so it has an arbitrary phase
+      // relative to the batch that set `lastSuccessAt`; `relativePast` says
+      // "just now" below 10 s. A twelve-second window can therefore contain two
+      // recomputations that BOTH land inside the "just now" band — measured, at
+      // ticks 3.5 s and 8.5 s after a success — and the case fails against
+      // correct code. Twenty seconds guarantees a tick at or past 10 s
+      // whatever the phase.
+      //
+      // The lag it exposes is real and is within the criterion: what the panel
+      // shows can trail the true elapsed time by up to one tick, and AC-071
+      // allows fifteen seconds of exactly that.
+      waitMs: 20000,
       setup: function () {
         var self = this
-        self.before = panelWidget.vm.nextAttemptText
         self.rebuilds = 0
         self.lastAt = Date.now()
         self.maxGapMs = 0
         self.lastModel = panelWidget.vm
+        self.seen = [panelWidget.vm.lastUpdateText]
         pollTimer.callback = function () {
+          var text = panelWidget.vm.lastUpdateText
+          if (self.seen.indexOf(text) === -1) self.seen.push(text)
           if (panelWidget.vm === self.lastModel) return
           self.lastModel = panelWidget.vm
           self.rebuilds++
@@ -1212,7 +1245,6 @@ ShellRoot {
       teardown: function () { pollTimer.running = false; pollTimer.callback = null },
       assert: function () {
         if (panelWidget === null || service === null) return
-        var after = panelWidget.vm.nextAttemptText
 
         if (this.rebuilds < 2) {
           bad("the model was rebuilt more than once in twelve seconds",
@@ -1231,24 +1263,38 @@ ShellRoot {
               this.maxGapMs + "ms")
         }
 
-        if (!/^in \d+s$/.test(after)) {
-          bad("the countdown is still in seconds", "got [" + after + "]")
+        // A model rebuilt twice with a string that never moved would satisfy
+        // everything above. The point of the criterion is that the WORDS
+        // change, so the words are what is checked.
+        if (this.seen.length >= 2) {
+          ok("the relative time took " + this.seen.length
+             + " distinct values: " + JSON.stringify(this.seen))
+        } else {
+          bad("the relative time changed during the window",
+              JSON.stringify(this.seen))
+        }
+
+        var after = panelWidget.vm.lastUpdateText
+        if (!/^\d+s ago$/.test(after)) {
+          bad("the relative time ends as a count of seconds", "got [" + after + "]")
           return
         }
-        var wasSec = parseInt(this.before.replace(/[^0-9]/g, ""), 10)
-        var nowSec = parseInt(after.replace(/[^0-9]/g, ""), 10)
-        // Lower bound (window - tick): a countdown that has not been
-        // recomputed since the last tick can be one tick stale, and no more.
-        // Upper bound is the window plus slack, because the baseline is read in
-        // `setup` and the assertion runs after the driver's own scheduling —
-        // a measured 13 against a nominal 12 is the driver, not a fault.
-        between("the countdown fell by roughly the elapsed time",
-                7, 15, wasSec - nowSec)
-        checkPanelText("the new countdown reached the panel", after)
+        // It aged by roughly the window: the batch completed shortly before
+        // `setup` ran, so twelve seconds later it must read somewhere near
+        // twelve. Bounded on BOTH sides — a string stuck at a large constant
+        // would pass a lower bound alone.
+        // Bounded on BOTH sides — a string stuck at a large constant would pass
+        // a lower bound alone. The floor is 10 rather than 20 because the
+        // reading may be one 5 s tick stale, and the ceiling allows for the
+        // driver's own scheduling on top of the nominal window.
+        between("the relative time aged by roughly the elapsed time",
+                10, 30, parseInt(after.replace(/[^0-9]/g, ""), 10))
+        checkPanelText("the new relative time reached the panel",
+                       after.toUpperCase())
         // The panel holds no timer of its own: one clock, in the object that
         // owns it, so every monitor's widget updates from the same instant
         // (REQ-014 / UX-011).
-        check("the countdown is still the service's own", true,
+        check("the relative time is still the service's own", true,
               panelWidget.vm === service.viewModel)
       }
     })

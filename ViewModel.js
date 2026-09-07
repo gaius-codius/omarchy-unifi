@@ -788,8 +788,22 @@ function build(input) {
 
 // UX-007: rate limiting and backoff show `nextAttemptAt` as a RELATIVE time, so
 // the panel never displays a static instant that quietly becomes wrong.
+//
+// SPEC-AMD-4: "rate limiting and backoff" is now the CONDITION and not merely
+// the motivation. A healthy widget on a 30 s interval printed "Next attempt in
+// 26s" permanently, which answers a question nobody asked and reads, next to a
+// health word, as though something were being waited on. The line exists to
+// say "we are not stuck, we are waiting until T" — and that is only true, and
+// only reassuring, while the scheduler is actually backing off.
+//
+// `backingOff` is passed in rather than inferred from `errorKind`, because the
+// two disagree exactly where it matters: a failed refresh over a fresh snapshot
+// has an `errorKind` and may already have retried successfully, and REQ-023b's
+// startup ramp has no `errorKind` at all. The scheduler's own `retry-wait` is
+// the fact; anything derived here would be a second opinion about it.
 function nextAttemptText(state) {
   if (state.pollingSuspended === true) return ""
+  if (state.backingOff !== true) return ""
   if (typeof state.nextAttemptAt !== "number") return ""
   if (typeof state.now !== "number") return ""
   return relativeFuture(state.nextAttemptAt - state.now)

@@ -755,6 +755,12 @@ Item {
       settings: _settings,
       pollingSuspended: pollingSuspended,
       nextAttemptAt: _schedule.nextAttemptAt,
+      // SPEC-AMD-4. `retry-wait` is the ONE state in which the countdown is
+      // information: the scheduler has failed at least once and is deliberately
+      // waiting. `fatal-wait` has no deadline to count down to, `active-batch`
+      // is already running, and `idle-normal` is the healthy case the line was
+      // cluttering.
+      backingOff: _schedule.state === "retry-wait",
       // `lastSuccessAt`, not `lastSuccessAtWall`. The scheduler names its two
       // wall-clock fields inconsistently — `lastCompletionAtWall` carries the
       // suffix and `lastSuccessAt` does not — and reading the suffixed name

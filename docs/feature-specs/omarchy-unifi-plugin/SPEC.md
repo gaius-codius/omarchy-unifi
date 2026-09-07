@@ -459,6 +459,11 @@ what failed and the one action that would fix it. Rate limiting and backoff show
 `nextAttemptAt` as a relative time that updates at least every 15 s while the
 panel is open, so it is never static stale text.
 
+**SPEC-AMD-4 (2026-09-07):** "rate limiting and backoff" is the CONDITION for
+drawing the countdown, not merely the motivation for its format. It is shown
+only while the scheduler is in `retry-wait`, and is absent on a healthy
+schedule.
+
 UX-008 (keyboard): the bar item is focusable and activates with Enter/Space.
 Inside the panel, Tab cycles Refresh and Open UniFi, Enter activates, Escape
 closes and returns focus to the bar item.
@@ -1328,8 +1333,13 @@ present in the model for the entire session and has no dismiss handler.
 *Human observes:* it is still on screen after closing and reopening the panel
 and after a successful refresh.
 
-AC-071 (AUTO): The `nextAttemptAt` relative-time string recomputes at least
+AC-071 (AUTO): Every relative-time string the panel draws recomputes at least
 every 15 s while the panel is open.
+
+**SPEC-AMD-4 (2026-09-07):** originally worded against `nextAttemptAt`
+specifically. That string is now absent on the healthy path, so the criterion is
+stated over all of them and measured over `lastUpdateText`, which is present
+whenever a snapshot is. The bound itself is unchanged.
 
 ### Suite integrity
 AC-072 (AUTO): The suite contains at least one named, executing test per

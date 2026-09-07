@@ -518,13 +518,23 @@ test("REQ-011: Refresh is disabled with a reason while polling is suspended", ()
     "a disabled control with no explanation is worse than no control")
 })
 
-test("UX-007: the next attempt is relative, and absent when suspended", () => {
-  assert.strictEqual(build({ nextAttemptAt: 1120, now: 1000 }).nextAttemptText,
+test("UX-007: the next attempt is relative, and shown only while backing off", () => {
+  assert.strictEqual(
+    build({ backingOff: true, nextAttemptAt: 1120, now: 1000 }).nextAttemptText,
     "in 2m")
+  // SPEC-AMD-4. A healthy widget on a 30 s interval always has a next attempt
+  // and never needs to say so. The line answers "are we stuck?", which is only
+  // a question once something has failed.
+  assert.strictEqual(
+    build({ backingOff: false, nextAttemptAt: 1120, now: 1000 }).nextAttemptText, "")
+  assert.strictEqual(build({ nextAttemptAt: 1120, now: 1000 }).nextAttemptText, "",
+    "absent by default, so a caller that forgets the flag shows less, not more")
   // Suspended means there is no next attempt; a countdown to nothing is worse
-  // than no countdown.
-  assert.strictEqual(build({ pollingSuspended: true }).nextAttemptText, "")
-  assert.strictEqual(build({ nextAttemptAt: null }).nextAttemptText, "")
+  // than no countdown. Asserted with `backingOff` ON, so suspension is doing
+  // the work rather than being masked by the new condition.
+  assert.strictEqual(
+    build({ backingOff: true, pollingSuspended: true }).nextAttemptText, "")
+  assert.strictEqual(build({ backingOff: true, nextAttemptAt: null }).nextAttemptText, "")
 })
 
 test("BIZ-003: an unknown client count is unknown in the compact text", () => {
