@@ -395,7 +395,16 @@ test("every success fixture in the accept corpus yields its documented level", (
     success_optional_gaps: { level: "green", rule: 5 },
     success_five_gateways_truncated: { level: "green", rule: 5 },
     success_insecure_tls: { level: "green", rule: 5 },
-    success_meta_all_null: { level: "green", rule: 5 }
+    success_meta_all_null: { level: "green", rule: 5 },
+    // SPEC-v1.1-browse.md. The browse arrays must not touch the health
+    // decision: `browse_full` is amber because one device is DOWN in
+    // `byClass`, exactly as it would be with no `devices[]` at all, and the
+    // two truncated fixtures are green over a 300-device site whose arrays are
+    // nearly empty. If a health rule ever started reading `devices[]`, a
+    // truncated envelope would change colour and these three would catch it.
+    success_browse_full: { level: "amber", rule: 4 },
+    success_browse_truncated: { level: "green", rule: 5 },
+    success_browse_empty_lists: { level: "green", rule: 5 }
   }
 
   const names = fs.readdirSync(ACCEPT)

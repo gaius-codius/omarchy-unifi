@@ -1,0 +1,112 @@
+{
+  "batch": {
+    "exitStatus": 0,
+    "launchAt": "2026-01-15T11:58:00Z",
+    "nonce": "b7c1d4e9f2a68035",
+    "receiptAt": "2026-01-15T12:00:03Z"
+  },
+  "envelope": {
+    "attemptedAt": "2026-01-15T12:00:00Z",
+    "data": {
+      "applicationVersion": "9.1.0",
+      "clients": [],
+      "counts": {
+        "accessPoints": {
+          "down": 0,
+          "impaired": 0,
+          "online": 2,
+          "transitional": 0,
+          "unknown": 0
+        },
+        "byClass": {
+          "down": 0,
+          "impaired": 0,
+          "online": 5,
+          "transitional": 0,
+          "unknown": 0
+        },
+        "clients": 42,
+        "devicesTotal": 5,
+        "gateways": {
+          "down": 0,
+          "impaired": 0,
+          "online": 1,
+          "transitional": 0,
+          "unknown": 0
+        },
+        "offlineTotal": 0,
+        "switches": {
+          "down": 0,
+          "impaired": 0,
+          "online": 2,
+          "transitional": 0,
+          "unknown": 0
+        }
+      },
+      "devices": [
+        {
+          "class": "online",
+          "firmwareUpdatable": false,
+          "firmwareVersion": "9.1.0",
+          "id": "00000000-0000-5000-9000-00000000003c",
+          "ipAddress": null,
+          "macAddress": null,
+          "metrics": null,
+          "model": "USW-Lite-8-PoE",
+          "name": "d",
+          "roles": [
+            "switching"
+          ],
+          "state": "ONLINE",
+          "uplinkDeviceId": null
+        }
+      ],
+      "gateways": [
+        {
+          "class": "online",
+          "downloadBps": 12000000,
+          "id": "00000000-0000-5000-9000-00000000000a",
+          "model": "UDM-Pro",
+          "name": "UDM Pro",
+          "state": "ONLINE",
+          "uploadBps": 3000000,
+          "uptimeSec": 864000
+        }
+      ],
+      "offlineDevices": [],
+      "site": {
+        "id": "00000000-0000-5000-9000-000000000001",
+        "name": "Home"
+      },
+      "wan": {
+        "downloadBps": 12000000,
+        "status": "up",
+        "uploadBps": 3000000,
+        "uptimeSec": 864000
+      }
+    },
+    "error": null,
+    "meta": {
+      "allowInsecureTls": false,
+      "apiRootHost": "192.168.1.1",
+      "commitGeneration": 7,
+      "customCaInUse": false,
+      "helperVersion": "0.1.0",
+      "siteId": "00000000-0000-5000-9000-000000000001"
+    },
+    "nonce": "b7c1d4e9f2a68035",
+    "observedAt": "2026-01-15T12:00:02Z",
+    "ok": true,
+    "protocolVersion": 1,
+    "warnings": []
+  },
+  "id": "data_schema_violation_device_detail_absent",
+  "neverEmittedBy": "helper",
+  "note": "A device with NO `detail` key at all. Absent and null are different statements — 'the producer forgot' versus 'the producer did not ask' — and only the second is acceptable, so the key is required and its value is nullable rather than the other way round.",
+  "publishedAs": "malformed_response",
+  "rejectedBy": "service",
+  "rejectionClass": "data_schema_violation",
+  "rule": "DATA-008 / data_schema_violation",
+  "stdout": null,
+  "synthesize": null
+}

@@ -122,12 +122,41 @@ class Privacy(unittest.TestCase):
 
     def test_every_mac_is_in_the_synthetic_range(self):
         strays = {}
+        seen = 0
         for path in corpus_files():
             for found in set(MAC_ANY.findall(read(path))):
+                seen += 1
                 if not found.lower().startswith(SYNTHETIC_MAC_PREFIX):
                     strays.setdefault(os.path.relpath(path, REPO), set()).add(found)
         self.assertEqual(strays, {},
                          "MAC(s) outside the documented 02:00:00: synthetic range")
+        # A guard over an empty set is not a guard. `devices[]` and `clients[]`
+        # made MAC addresses far more numerous in the corpus (REQ-B01/B03), and
+        # this is what would notice if a future generator change stopped
+        # emitting them and left the assertion above passing vacuously.
+        self.assertGreater(seen, 50, "the corpus carries almost no MACs to check")
+
+    def test_the_mac_guard_still_rejects_a_real_one(self):
+        """AC-B14. The address guard has had a canary since DEV-6; this one had none.
+
+        Two independent ways for the guard to be useless, and neither would show
+        up as a failure: `MAC_ANY` could fail to match the shape a real MAC has,
+        or `SYNTHETIC_MAC_PREFIX` could be a prefix everything starts with. Both
+        are exercised here against real, assigned OUIs.
+
+        The synthetic range is stronger than a documentation range would be.
+        `02:` has the IEEE 802 locally-administered bit set, which by definition
+        means the address is drawn from no assigned OUI at all — there is no
+        vendor it *could* belong to, rather than a vendor who has agreed not to
+        use it.
+        """
+        for real in ("00:1a:2b:3c:4d:5e",   # a real assigned OUI
+                     "f0:9f:c2:11:22:33",   # Ubiquiti
+                     "78:45:58:aa:bb:cc",   # Ubiquiti
+                     "00:00:5e:00:53:01"):  # IANA documentation range: still assigned
+            found = MAC_ANY.findall("prefix %s suffix" % real)
+            self.assertEqual(found, [real], "MAC_ANY does not match %s" % real)
+            self.assertFalse(real.lower().startswith(SYNTHETIC_MAC_PREFIX), real)
 
     def test_every_ipv4_address_is_unroutable(self):
         strays = {}

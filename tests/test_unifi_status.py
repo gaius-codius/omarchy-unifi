@@ -44,7 +44,7 @@ import normalize_inputs  # noqa: E402
 import tls_stub  # noqa: E402
 import unifi  # noqa: E402
 import unifi_status  # noqa: E402
-from unifi import collect, commitset, credential, deadline, envelope  # noqa: E402
+from unifi import bounds, collect, commitset, credential, deadline, envelope  # noqa: E402
 from unifi import config as config_module  # noqa: E402
 from unifi import errors, normalize, pagination, paths, routes  # noqa: E402
 from unifi import sanitize, tlsctx, transport, version_gate, warn  # noqa: E402
@@ -1039,6 +1039,198 @@ class Sanitization(unittest.TestCase):
         self.assertIsNone(sanitize.host_of("not a url"))
 
 
+class Bounds(unittest.TestCase):
+    """SPEC-v1.1-browse.md DATA-B04. The guard rail, and where it sits."""
+
+    def test_the_budget_is_strictly_below_the_stdout_cliff(self):
+        """AC-B12a.
+
+        `envelope.encode` enforces DATA-005 as a CLIFF: one byte over and the
+        whole envelope is replaced by an `oversized_response` failure, so the
+        panel greys and the user gets no reading rather than a shorter list.
+        The budget exists to make that path unreachable, which it can only do
+        from strictly below it.
+        """
+        self.assertLess(bounds.ENVELOPE_BUDGET_BYTES, envelope.STDOUT_MAX_BYTES)
+        self.assertGreaterEqual(
+            envelope.STDOUT_MAX_BYTES - bounds.ENVELOPE_BUDGET_BYTES, 16 * 1024,
+            "the headroom absorbs separator overhead, \\uXXXX expansion of "
+            "non-ASCII names, and the warning that truncation itself appends")
+
+    def test_the_two_ceilings_are_declared_independently(self):
+        """AC-B12a's second half, and the reason this test exists at all.
+
+        If `bounds.py` imported the stdout bound and derived its own from it,
+        the assertion above would hold by construction and prove nothing — and
+        raising DATA-005 would silently raise the guard rail with it. They are
+        two literals in two modules, and this is what notices when only one of
+        them moves.
+        """
+        with io.open(os.path.join(_REPO, "helper", "unifi", "bounds.py"),
+                     encoding="utf-8") as handle:
+            source = handle.read()
+        # Comments stripped first. The module explains in prose exactly which
+        # constant it is deliberately not importing, and a naive substring
+        # search would flag the explanation as the violation it warns about.
+        code = "\n".join(line.split("#")[0] for line in source.splitlines())
+        self.assertNotIn("import envelope", code)
+        self.assertNotIn("envelope.STDOUT_MAX_BYTES", code)
+        self.assertEqual(bounds.STDOUT_MAX_BYTES, envelope.STDOUT_MAX_BYTES,
+                         "bounds.py records a different DATA-005 than envelope.py")
+
+    def test_the_list_budget_leaves_room_for_the_rest_of_the_envelope(self):
+        self.assertGreater(bounds.LIST_BUDGET_BYTES, 0)
+        self.assertEqual(
+            bounds.LIST_BUDGET_BYTES,
+            bounds.ENVELOPE_BUDGET_BYTES - bounds.FIXED_CONTENT_RESERVE_BYTES)
+
+    def test_a_record_that_does_not_fit_is_never_added(self):
+        # `admits` before `spend`, never spend-then-remove: removing afterwards
+        # leaves the arithmetic right and the ORDER wrong, because the dropped
+        # record would be the last one considered rather than the least
+        # important one.
+        budget = bounds.Budget(limit=200)
+        record = {"id": "x" * 50}
+        size = bounds.encoded_size(record)
+        self.assertTrue(budget.admits(record))
+        budget.spend(record)
+        self.assertEqual(budget.used, size + 1)
+        big = {"id": "y" * 500}
+        self.assertFalse(budget.admits(big))
+        self.assertEqual(budget.used, size + 1, "a refused record still cost bytes")
+
+    def test_the_projection_matches_how_the_envelope_is_actually_written(self):
+        # An optimistic projection is worse than none: it would let the cliff be
+        # reached anyway. `encoded_size` must use the same separators and
+        # ensure_ascii as `envelope.encode`, and a non-ASCII name is where the
+        # defaults differ most — six bytes out for two bytes in.
+        record = {"name": "Café Ätelier \u00fc"}
+        self.assertEqual(
+            bounds.encoded_size(record),
+            len(json.dumps(record, sort_keys=True, separators=(",", ":"),
+                           ensure_ascii=True).encode("utf-8")))
+        self.assertGreater(bounds.encoded_size(record),
+                           len(json.dumps(record).encode("utf-8")) - 20)
+
+    def test_bounded_list_reports_the_true_total_not_the_kept_length(self):
+        # REQ-010's rule, generalised. The warning's `total` comes from the
+        # count carried independently, so a caller holding a list that was
+        # already shortened upstream cannot understate the site.
+        collector = warn.Warnings()
+        records = [{"id": "device-%03d" % i} for i in range(10)]
+        kept, dropped = bounds.bounded_list(records, cap=3,
+                                            budget=bounds.Budget(),
+                                            warnings=collector,
+                                            code="devices_truncated",
+                                            total=412)
+        self.assertEqual(len(kept), 3)
+        self.assertEqual(dropped, 409)
+        entry = [w for w in collector.to_list() if w["code"] == "devices_truncated"]
+        self.assertEqual(entry[0]["detail"], {"listed": 3, "total": 412})
+
+    def test_bounded_list_stops_on_the_budget_before_the_cap(self):
+        collector = warn.Warnings()
+        records = [{"id": "device-%03d" % i} for i in range(50)]
+        kept, dropped = bounds.bounded_list(records, cap=50,
+                                            budget=bounds.Budget(limit=100),
+                                            warnings=collector,
+                                            code="devices_truncated")
+        self.assertGreater(len(kept), 0, "the budget admitted nothing at all")
+        self.assertLess(len(kept), 50, "the budget did not bind")
+        self.assertEqual(dropped, 50 - len(kept))
+
+
+class BrowseRecords(unittest.TestCase):
+    """DATA-B01's per-device mapping, at the edges the corpus does not reach."""
+
+    def _built(self, devices, **kwargs):
+        return normalize.build({"id": normalize_inputs.uid(1), "name": "Home"},
+                               devices, None, kwargs.pop("statistics", {}),
+                               "9.1.0", warn.Warnings(),
+                               listed_devices=devices, **kwargs)
+
+    def test_a_port_table_past_the_bound_is_truncated_not_rejected(self):
+        # The corpus has no device with more than 64 ports, so removing this
+        # truncation changed no fixture and the mutation survived. A 96-port
+        # chassis nobody has shipped yet should cost the user the ports past
+        # the bound, not the whole reading — so the producer truncates and the
+        # consumer's `bound_exceeded` is the backstop for a producer that did
+        # not.
+        device = normalize_inputs.browse_device(60, "ONLINE",
+                                                normalize_inputs.SWITCH)
+        detail = normalize_inputs.detail(ports=96)
+        data = self._built([device],
+                           details={normalize_inputs.uid(60): detail})
+        entry = data["devices"][0]
+        self.assertEqual(len(entry["detail"]["ports"]),
+                         normalize.PORTS_PER_DEVICE_MAX)
+        # The ones kept are the FIRST, so port 1 is present and 96 is not.
+        self.assertEqual(entry["detail"]["ports"][0]["idx"], 1)
+
+    def test_a_radio_table_past_the_bound_is_truncated(self):
+        device = normalize_inputs.browse_device(61, "ONLINE",
+                                                normalize_inputs.ACCESS_POINT)
+        detail = normalize_inputs.detail(radios=20)
+        data = self._built([device],
+                           details={normalize_inputs.uid(61): detail})
+        self.assertEqual(len(data["devices"][0]["detail"]["radios"]),
+                         normalize.RADIOS_PER_DEVICE_MAX)
+
+    def test_a_fractional_metric_is_not_coerced_to_an_integer(self):
+        # `_number`, not `_count`. Utilisation percentages and radio
+        # frequencies are fractional, and truncating 4.5 to 4 would be a silent
+        # lie about a number the panel prints.
+        device = normalize_inputs.browse_device(62, "ONLINE",
+                                                normalize_inputs.SWITCH)
+        data = self._built(
+            [device],
+            statistics={normalize_inputs.uid(62): normalize_inputs.stats(
+                100, 1, 2, cpu=4.5, memory=38.25)})
+        metrics = data["devices"][0]["metrics"]
+        self.assertEqual(metrics["cpuUtilizationPct"], 4.5)
+        self.assertEqual(metrics["memoryUtilizationPct"], 38.25)
+
+    def test_a_boolean_is_not_read_as_a_number(self):
+        # `True` is an int in Python, so a `firmwareUpdatable` that leaked into
+        # a numeric field would arrive as 1. `_number` rejects bools first.
+        self.assertIsNone(normalize._number(True))
+        self.assertIsNone(normalize._number("4.5"))
+        self.assertEqual(normalize._number(0), 0)
+
+    def test_detail_and_metrics_are_null_when_not_fetched(self):
+        device = normalize_inputs.browse_device(63, "ONLINE",
+                                                normalize_inputs.SWITCH)
+        entry = self._built([device])["devices"][0]
+        self.assertIsNone(entry["detail"])
+        self.assertIsNone(entry["metrics"])
+        self.assertIsNone(entry["uplinkDeviceId"])
+        # The KEYS are present. Absent and null are different statements and
+        # the consumer rejects the first (Protocol.js checkDeviceRecord).
+        for key in ("detail", "metrics", "uplinkDeviceId"):
+            self.assertIn(key, entry)
+
+    def test_an_empty_port_table_is_not_the_same_as_no_detail(self):
+        device = normalize_inputs.browse_device(64, "ONLINE",
+                                                normalize_inputs.ACCESS_POINT)
+        entry = self._built(
+            [device],
+            details={normalize_inputs.uid(64): normalize_inputs.detail()},
+        )["devices"][0]
+        self.assertIsNotNone(entry["detail"])
+        self.assertEqual(entry["detail"]["ports"], [])
+
+    def test_the_browse_class_matches_the_class_the_counters_used(self):
+        # The two are rendered a few hundred pixels apart. Asserted over every
+        # state the API defines, not over a sample.
+        for state in ("ONLINE", "OFFLINE", "ISOLATED", "UPDATING", "NONSENSE"):
+            with self.subTest(state=state):
+                device = normalize_inputs.browse_device(
+                    65, state, normalize_inputs.SWITCH)
+                data = self._built([device])
+                klass = data["devices"][0]["class"]
+                self.assertEqual(data["counts"]["byClass"][klass], 1)
+
+
 class WarningCodes(unittest.TestCase):
     """The closed set from docs/protocol-v1.md."""
 
@@ -1047,11 +1239,19 @@ class WarningCodes(unittest.TestCase):
         # warn.CODES would agree with any set warn.CODES happened to hold.
         self.assertEqual(sorted(warn.CODES), sorted([
             "unknown_device_state", "site_auto_selected", "sites_discovered",
-            "clients_unavailable", "statistics_unavailable", "wans_unavailable",
+            "clients_unavailable", "statistics_unavailable",
             "gateway_statistics_truncated", "offline_list_truncated",
             "page_reread_mismatch", "insecure_tls", "custom_ca_in_use",
             "retry_after_clamped", "retry_after_ignored", "stderr_bound_exceeded",
+            # SPEC-v1.1-browse.md §5.
+            "device_detail_truncated", "device_detail_unavailable",
+            "devices_truncated", "clients_truncated", "envelope_truncated",
         ]))
+        # DEV-5 retired this one. Asserted by name, because a code deleted from
+        # the tuple and left in `MESSAGES` would pass the equality above while
+        # `warn.MESSAGES` still documented a condition nothing can raise.
+        self.assertNotIn("wans_unavailable", warn.CODES)
+        self.assertNotIn("wans_unavailable", warn.MESSAGES)
 
     def test_every_code_has_a_message(self):
         for code in warn.CODES:
@@ -1134,9 +1334,13 @@ class RouteAllowlist(unittest.TestCase):
         return routes.build(self.ROOT, name, **params)
 
     def test_the_allowlist_holds_exactly_the_six_contract_routes(self):
+        # Six before DEV-5 and six after: `wans` left and `device` arrived.
+        # Written out rather than counted, because "there are six" is satisfied
+        # by any six and BIZ-001's claim is about WHICH.
         self.assertEqual(routes.ROUTE_NAMES,
-                         ("clients", "device_statistics", "devices", "info",
-                          "sites", "wans"))
+                         ("clients", "device", "device_statistics", "devices",
+                          "info", "sites"))
+        self.assertNotIn("wans", routes.ROUTES)
 
     def test_every_route_produces_the_local_console_url(self):
         # AC-018, longhand. The expected strings are written out rather than
@@ -1147,7 +1351,8 @@ class RouteAllowlist(unittest.TestCase):
             "sites": self.ROOT + "/v1/sites",
             "devices": self.ROOT + "/v1/sites/" + self.SITE + "/devices",
             "clients": self.ROOT + "/v1/sites/" + self.SITE + "/clients",
-            "wans": self.ROOT + "/v1/sites/" + self.SITE + "/wans",
+            "device": (self.ROOT + "/v1/sites/" + self.SITE
+                       + "/devices/" + self.DEVICE),
             "device_statistics": (self.ROOT + "/v1/sites/" + self.SITE
                                   + "/devices/" + self.DEVICE + "/statistics/latest"),
         }
@@ -2061,7 +2266,10 @@ class NormalizedModel(unittest.TestCase):
         collector = warn.Warnings()
         data = normalize.build(inputs["site"], inputs["devices"],
                                inputs["clients"], inputs["statistics"],
-                               inputs["applicationVersion"], collector)
+                               inputs["applicationVersion"], collector,
+                               details=inputs.get("details"),
+                               listed_devices=inputs.get("listedDevices"),
+                               client_records=inputs.get("clientRecords"))
         return data, collector
 
     def expected(self, case):
@@ -2072,7 +2280,7 @@ class NormalizedModel(unittest.TestCase):
 
     def test_every_accept_envelope_is_reproduced_byte_for_byte(self):
         cases = normalize_inputs.cases()
-        self.assertEqual(len(cases), 16)
+        self.assertEqual(len(cases), 19)
         for case in sorted(cases):
             with self.subTest(case=case):
                 data, _warnings = self.normalized(case)
@@ -2489,7 +2697,6 @@ class CollectionPolicy(unittest.TestCase):
             "devices": page(devices),
             "clients": page([{"id": normalize_inputs.uid(500 + i)}
                              for i in range(42)]),
-            "wans": page([{"id": normalize_inputs.uid(900), "name": "Internet 1"}]),
             "device_statistics": normalize_inputs.stats(864000, 12000000, 3000000),
         }
         self.calls = []
@@ -2514,9 +2721,21 @@ class CollectionPolicy(unittest.TestCase):
         self.assertEqual(batch.data["counts"]["devicesTotal"], 5)
         self.assertEqual(batch.site_id, self.SITE)
 
-    def test_the_six_routes_and_no_others_are_requested(self):
+    # The batch's route set and the ALLOWLIST are two different claims, and
+    # conflating them cost a test its meaning once already: asserting
+    # `set(calls) == set(ROUTE_NAMES)` reads as "no others are requested" but
+    # actually also asserts "all of them are", so adding an allowlisted route
+    # the batch does not yet use fails a test about something else entirely.
+    BATCH_ROUTES = {"info", "sites", "devices", "clients", "device_statistics"}
+
+    def test_no_route_outside_the_allowlist_is_requested(self):
         self.run_batch()
-        self.assertEqual(set(self.calls), set(routes.ROUTE_NAMES))
+        self.assertTrue(set(self.calls) <= set(routes.ROUTE_NAMES),
+                        sorted(set(self.calls) - set(routes.ROUTE_NAMES)))
+
+    def test_the_batch_requests_exactly_the_routes_it_needs(self):
+        self.run_batch()
+        self.assertEqual(set(self.calls), self.BATCH_ROUTES)
 
     def test_a_required_collection_failure_keeps_its_own_kind(self):
         # BIZ-004 says the batch fails; it does not say it becomes
@@ -2550,10 +2769,14 @@ class CollectionPolicy(unittest.TestCase):
         self.assertIn("statistics_unavailable", self.warnings.codes())
         self.assertEqual(batch.data["counts"]["devicesTotal"], 5)
 
-    def test_a_wans_failure_warns_and_nothing_more(self):
-        batch = self.run_batch(overrides={"wans": errors.NetworkError("x")})
-        self.assertIn("wans_unavailable", self.warnings.codes())
-        self.assertEqual(batch.data["counts"]["devicesTotal"], 5)
+    def test_the_wans_route_is_not_requested_at_all(self):
+        # DEV-5 Option B. The removal is asserted as an OBSERVATION of the
+        # batch's traffic, not merely as an absence from the route table:
+        # deleting the entry and leaving a hand-built URL in `collect.py` would
+        # satisfy the allowlist test and still send the request.
+        self.run_batch()
+        self.assertNotIn("wans", self.calls)
+        self.assertNotIn("wans", routes.ROUTES)
 
     def test_an_incomplete_required_collection_is_partial_response(self):
         # The other half: an INVARIANT failure, where the transport worked and

@@ -1,0 +1,15 @@
+{
+  "cpuUtilizationPct": 15.0,
+  "interfaces": {
+    "radios": []
+  },
+  "loadAverage15Min": 0.18,
+  "loadAverage1Min": 0.3,
+  "loadAverage5Min": 0.24,
+  "memoryUtilizationPct": 24.0,
+  "uplink": {
+    "rxRateBps": 12025000,
+    "txRateBps": 3025000
+  },
+  "uptimeSec": 954000
+}

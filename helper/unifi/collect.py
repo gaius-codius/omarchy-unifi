@@ -12,18 +12,18 @@ either. The policy is one table here:
 | `/v1/sites/{id}/devices` | required | the batch fails |
 | `/v1/sites/{id}/clients` | optional | `counts.clients = null` + warning |
 | `/v1/sites/{id}/devices/{id}/statistics/latest` | optional | metrics null + warning |
-| `/v1/sites/{id}/wans` | optional | warning |
+| `/v1/sites/{id}/devices/{id}` | optional | that device's detail null + warning |
 
 The reason it is a table and not a set of `try` blocks with different bodies is
 BIZ-004's own sentence: *a device-health indicator must not be disabled by an
 unavailable throughput metric*. Every optional route on that list is a metric;
 every required one is the inventory the health rules read.
 
-`/v1/wans` is fetched and its result is unused. `api-contract.md` limitation 3
-says the route returns `{id, name}` and nothing else, and DATA-006 has no field
-for a WAN name — so in v1 the call can only fail, never contribute. It is made
-because BIZ-004 lists it and `wans_unavailable` is a documented warning code;
-whether to keep paying for it is raised as DEV-5 rather than decided here.
+`/v1/wans` is gone. DEV-5, resolved 2026-09-07 as Option B: the route returns
+`{id, name}` and nothing else — inferred from the specification at Phase 5,
+confirmed against hardware at Phase 12a — so it could never contribute to
+DATA-006. It cost two HTTPS requests per batch, because DATA-009a re-reads page
+0 at the end of every collection and every request sends `Connection: close`.
 """
 
 from . import errors
@@ -90,11 +90,6 @@ def run(config, credential, context, deadline, warnings, budget=None,
     # --- optional: the client count ---------------------------------------
     clients = _optional_count(collection("clients", siteId=site["id"]),
                               warnings, "clients_unavailable")
-
-    # --- optional: /v1/wans. See the module docstring and DEV-5. ----------
-    wans = collection("wans", siteId=site["id"])
-    if not wans.complete:
-        warnings.add("wans_unavailable")
 
     data = normalize.build(site, devices, clients, statistics,
                            application_version, warnings)

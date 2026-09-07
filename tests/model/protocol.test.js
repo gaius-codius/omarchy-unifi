@@ -73,7 +73,7 @@ function runReject(fixture) {
 
 test("every accept fixture is accepted, and yields what the service needs", async (t) => {
   const keys = casesUnder("envelopes/accept/")
-  assert.strictEqual(keys.length, 36, "the accept corpus changed size")
+  assert.strictEqual(keys.length, 39, "the accept corpus changed size")
 
   for (const key of keys) {
     await t.test(key.split("/").pop(), () => {
@@ -116,7 +116,7 @@ test("the accept corpus covers all nineteen DATA-007 kinds", () => {
 
 test("every reject fixture is rejected with the class the index names", async (t) => {
   const keys = casesUnder("envelopes/reject/")
-  assert.strictEqual(keys.length, 42, "the reject corpus changed size")
+  assert.strictEqual(keys.length, 49, "the reject corpus changed size")
 
   for (const key of keys) {
     await t.test(key.split("/").pop(), () => {
@@ -158,10 +158,13 @@ test("AC-072: the corpus and the validator between them exercise all 36 rejectio
     "failure_error_missing", "error_kind_missing",
     "error_http_status_forbidden", "error_http_status_wrong",
     "error_retry_after_forbidden", "error_retryable_mismatch",
-    "warnings_not_array", "warning_shape_invalid", "bound_exceeded"
+    "warnings_not_array", "warning_shape_invalid", "bound_exceeded",
+    // SPEC-v1.1-browse.md: a bounded array may be shorter than its total but
+    // never longer.
+    "list_exceeds_total"
   ]
-  assert.strictEqual(EXPECTED.length, 36)
-  assert.strictEqual(new Set(EXPECTED).size, 36, "a class is listed twice")
+  assert.strictEqual(EXPECTED.length, 37)
+  assert.strictEqual(new Set(EXPECTED).size, 37, "a class is listed twice")
 
   const produced = new Set()
   for (const key of casesUnder("envelopes/reject/")) {

@@ -81,11 +81,18 @@ taken from the controller's Integrations documentation, not from this file.
 | 1 | `/v1/info` | detected `applicationVersion`, capability gate | no |
 | 2 | `/v1/sites` | site discovery / name resolution | yes |
 | 3 | `/v1/sites/{siteId}/devices` | adopted device inventory and state | yes |
-| 4 | `/v1/sites/{siteId}/devices/{deviceId}/statistics/latest` | gateway uptime and uplink throughput | no |
-| 5 | `/v1/sites/{siteId}/clients` | connected client count | yes |
-| 6 | `/v1/sites/{siteId}/wans` | WAN identity only (see limitations) | yes |
+| 4 | `/v1/sites/{siteId}/devices/{deviceId}/statistics/latest` | per-device uptime, load and uplink throughput | no |
+| 5 | `/v1/sites/{siteId}/clients` | connected client list and count | yes |
+| 6 | `/v1/sites/{siteId}/devices/{deviceId}` | per-device detail: ports, PoE, uplink | no |
 
 No other route may be constructed. No method other than `GET` is implemented.
+
+**Row 6 was `/v1/sites/{siteId}/wans` until 2026-09-07.** It returned
+`{id, name}` and nothing else — inferred at Phase 5, confirmed against hardware
+at Phase 12a — so it could never contribute to `DATA-006`, while costing two
+HTTPS requests per batch under DATA-009a's end-of-collection re-read. Removed as
+DEV-5 Option B. Row 4's purpose line said "gateway" for the same span of time;
+§12b records that the route is per-device and always was.
 
 ## Pagination contract
 

@@ -229,10 +229,6 @@ def site(label, name):
     return {"id": uid("site/" + label), "internalReference": label, "name": name}
 
 
-def wan(label, name):
-    return {"id": uid("wan/" + label), "name": name}
-
-
 def client(index):
     return {
         "id": uid("client/%d" % index),
@@ -246,12 +242,77 @@ def client(index):
     }
 
 
-def statistics(uptime_sec, rx_bps, tx_bps):
-    return {
-        "interfaces": {"radios": []},
+def statistics(uptime_sec, rx_bps, tx_bps, index=0, radios=0):
+    """Route 4. Observed 2026-09-07 to be per-DEVICE, not gateway-only.
+
+    `cpuUtilizationPct` and the load averages were always in the published
+    schema; nothing consumed them while this route was believed to be about
+    gateways, so nothing generated them either. REQ-B02 consumes them now.
+    """
+    body = {
+        "interfaces": {"radios": [
+            {"frequencyGHz": 2.4 if i == 0 else 5.0,
+             "txRetriesPct": round(1.5 + i * 0.75, 2)}
+            for i in range(radios)
+        ]},
         "uptimeSec": uptime_sec,
         "uplink": {"rxRateBps": rx_bps, "txRateBps": tx_bps},
+        "cpuUtilizationPct": round(3.0 + (index % 17) * 1.5, 1),
+        "memoryUtilizationPct": round(20.0 + (index % 23) * 2.0, 1),
+        "loadAverage1Min": round(0.10 + (index % 7) * 0.05, 2),
+        "loadAverage5Min": round(0.08 + (index % 7) * 0.04, 2),
+        "loadAverage15Min": round(0.06 + (index % 7) * 0.03, 2),
     }
+    return body
+
+
+# The largest switch UniFi ships is 48 ports; `bounds.PORTS_PER_DEVICE_MAX` is
+# 64. The corpus goes to 52 so the bound is APPROACHED without being reached —
+# a fixture sitting exactly on a bound cannot distinguish "<=" from "<".
+PORT_COUNTS = {"USW-Lite-8-PoE": 10, "USW-Pro-48-PoE": 52, "UDM-Pro": 10,
+               "UXG-Pro": 4}
+
+
+def device_detail(record, index, uplink_id=None):
+    """Route 6, `GET /v1/sites/{siteId}/devices/{deviceId}`.
+
+    A superset of the list record. Ports for anything that switches or routes,
+    radios for anything that does not — matching the `interfaces` capability
+    hint the list record already carries, because a detail body that disagreed
+    with its own list record is a corpus defect nothing else would catch.
+    """
+    features = record["features"]
+    has_ports = "ports" in record["interfaces"]
+    port_count = PORT_COUNTS.get(record["model"], 8) if has_ports else 0
+    detail = dict(record)
+    detail.pop("features", None)
+    detail.pop("interfaces", None)
+    detail["configurationId"] = uid("config/" + record["id"])
+    detail["provisionedAt"] = BASE_TIME
+    if uplink_id is not None:
+        detail["uplink"] = {"deviceId": uplink_id}
+    ports = []
+    for i in range(port_count):
+        # Port 1 of every switch is down and un-powered, so a corpus consumer
+        # that renders only "UP" ports has something to get wrong.
+        up = i > 0
+        ports.append({
+            "idx": i + 1,
+            "connector": "RJ45" if i < port_count - 2 else "SFP+",
+            "state": "UP" if up else "DOWN",
+            "maxSpeedMbps": 1000 if i < port_count - 2 else 10000,
+            "poe": ({"enabled": up, "standard": "802.3at",
+                     "state": "GOOD" if up else "OFF", "type": 4}
+                    if i < port_count - 2 else None),
+        })
+    if has_ports:
+        detail["interfaces"] = {"ports": ports}
+        if "switching" in features:
+            detail["features"] = {"switching": {"lags": []}}
+    else:
+        detail["interfaces"] = {"radios": [
+            {"frequencyGHz": 2.4}, {"frequencyGHz": 5.0}]}
+    return detail
 
 
 def page(records, offset=0, limit=PAGE_LIMIT, total=None):
@@ -294,9 +355,13 @@ def console_without_the_feature(label, state, index, model="UDM-Pro"):
 
 
 def scenarios():
-    """Each entry is (name, note, devices, sites, wans, clients) with an
-    optional seventh element: a stated schema deviation, recorded in the
-    manifest. Only one scenario has one."""
+    """Each entry is (name, note, devices, sites, clients) with an optional
+    sixth element: a stated schema deviation, recorded in the manifest. Only
+    one scenario has one.
+
+    The `wans` count was the fifth element until 2026-09-07. DEV-5 Option B
+    removed the route, and the fixtures went with it: a corpus that still serves
+    `/wans` is a corpus in which an accidental request for it would succeed."""
     out = []
 
     healthy = [
@@ -306,7 +371,7 @@ def scenarios():
         device("ap-1", "ONLINE", ["accessPoint"], 4, model="U6-Pro"),
         device("ap-2", "ONLINE", ["accessPoint"], 5, model="U6-Pro"),
     ]
-    out.append(("healthy", "Every device online, one gateway. REQ-002 rule 5 (green).", healthy, 1, 1, 42))
+    out.append(("healthy", "Every device online, one gateway. REQ-002 rule 5 (green).", healthy, 1, 42))
 
     degraded = [
         gateway("gw-1", "ONLINE", 1),
@@ -316,7 +381,7 @@ def scenarios():
         device("ap-2", "UPDATING", ["accessPoint"], 5, model="U6-Pro"),
     ]
     out.append(("degraded", "One down, one impaired, one transitional. REQ-002 rule 4 (amber); "
-                            "the UPDATING AP must NOT contribute.", degraded, 1, 1, 31))
+                            "the UPDATING AP must NOT contribute.", degraded, 1, 31))
 
     all_down = [
         gateway("gw-1", "OFFLINE", 1),
@@ -324,17 +389,17 @@ def scenarios():
         device("ap-1", "OFFLINE", ["accessPoint"], 3, model="U6-Pro"),
     ]
     out.append(("all-down", "Every gateway down. REQ-002 rule 3 (red), which strictly precedes amber.",
-                all_down, 1, 1, 0))
+                all_down, 1, 0))
 
     out.append(("empty-site", "Zero adopted devices. REQ-002 rule 2 (grey) and UX-005; the page is a "
-                              "VALID empty result, not a premature one (DATA-009b).", [], 1, 1, 0))
+                              "VALID empty result, not a premature one (DATA-009b).", [], 1, 0))
 
     no_gateway = [
         device("switch-1", "ONLINE", ["switching"], 2),
         device("ap-1", "OFFLINE", ["accessPoint"], 3, model="U6-Pro"),
     ]
     out.append(("no-gateway", "No gateway-featured device: can never be red (rule 3 needs one) and "
-                              "reports wan.status == unknown.", no_gateway, 1, 1, 7))
+                              "reports wan.status == unknown.", no_gateway, 1, 7))
 
     inferred = [
         console_without_the_feature("console-1", "ONLINE", 1),
@@ -346,7 +411,7 @@ def scenarios():
                 "DEV-6: no device advertises `gateway`, and the console is identified by "
                 "reporting a global address. wan.status == up with the console's metrics, "
                 "counts.gateways == 1, and the role rows over-count (REQ-009).",
-                inferred, 1, 2, 19))
+                inferred, 1, 19))
 
     two_gw = [
         gateway("gw-1", "ONLINE", 1),
@@ -354,12 +419,12 @@ def scenarios():
         device("switch-1", "ONLINE", ["switching"], 3),
     ]
     out.append(("two-gateways", "One ONLINE, one ISOLATED: amber via rule 4, NOT red, and "
-                                "wan.status == degraded.", two_gw, 1, 2, 12))
+                                "wan.status == degraded.", two_gw, 1, 12))
 
     five_gw = [gateway("gw-%d" % i, "ONLINE", i) for i in range(1, 6)]
     five_gw.append(device("ap-1", "ONLINE", ["accessPoint"], 6, model="U6-Pro"))
     out.append(("five-gateways", "Five gateways: statistics are fetched for at most four (REQ-008a), "
-                                 "the fifth listed without metrics plus a warning.", five_gw, 1, 2, 20))
+                                 "the fifth listed without metrics plus a warning.", five_gw, 1, 20))
 
     # One device per state, plus the unknown one. Ordering is the enum order so
     # a diff shows which state changed.
@@ -371,7 +436,7 @@ def scenarios():
     all_states.append(device("state-unknown", UNKNOWN_STATE, ["switching"], 30))
     out.append(("all-states", "One device in each of the ten API states plus %s, which is outside the "
                               "enum and must land in `unknown` with a warning (REQ-000)." % UNKNOWN_STATE,
-                all_states, 1, 1, 5, "device.state enum relaxed: %s is deliberately outside the "
+                all_states, 1, 5, "device.state enum relaxed: %s is deliberately outside the "
                                      "published enum, because REQ-000's `unknown` class has no other "
                                      "way to be exercised." % UNKNOWN_STATE))
 
@@ -383,7 +448,7 @@ def scenarios():
     out.append(("multi-feature", "A Dream Machine reporting all three roles at once, an AP-only device, "
                                  "and a device with an EMPTY features array. byClass must count all "
                                  "three exactly once; the role objects must not sum to devicesTotal.",
-                multi_feature, 1, 1, 18))
+                multi_feature, 1, 18))
 
     # 500 devices, all down: three pages at limit 200, and the envelope's
     # offlineDevices array bounded to 10 while offlineTotal stays 500.
@@ -392,12 +457,12 @@ def scenarios():
     out.append(("large-500-down", "500 devices, every one down. Three pages at limit 200; the envelope "
                                   "bounds offlineDevices to 10 while offlineTotal stays 500, which is "
                                   "what AC-063's \"and 490 more\" is computed from.",
-                large, 1, 1, 0))
+                large, 1, 0))
 
     out.append(("multi-site", "Several sites and no committed siteId: DATA-012 requires site_unselected "
-                              "with the {id, name} pairs carried in warnings.", healthy, 3, 1, 42))
+                              "with the {id, name} pairs carried in warnings.", healthy, 3, 42))
     out.append(("zero-site", "Zero sites: DATA-012 requires `unsupported`, not an empty success.",
-                healthy, 0, 1, 42))
+                healthy, 0, 42))
 
     return out
 
@@ -619,8 +684,8 @@ def generate(out_dir):
     manifest = {"scenarios": {}, "pagination": {}}
 
     for entry in scenarios():
-        name, note, devices, site_count, wan_count, client_count = entry[:6]
-        deviation = entry[6] if len(entry) > 6 else None
+        name, note, devices, site_count, client_count = entry[:5]
+        deviation = entry[5] if len(entry) > 5 else None
         relaxed = frozenset(["state"]) if deviation else frozenset()
         base = os.path.join(out_dir, "scenarios", name)
 
@@ -640,37 +705,61 @@ def generate(out_dir):
                             relaxed=relaxed)
             write_json(os.path.join(base, "devices.page%d.json" % i), pg)
 
-        wans = [wan("%s-%d" % (name, i), "Internet %d" % (i + 1)) for i in range(wan_count)]
-        wan_pages = paginate(wans)
-        for i, pg in enumerate(wan_pages):
-            validator.check(pg, {"$ref": "#/components/schemas/WAN overview page"})
-            write_json(os.path.join(base, "wans.page%d.json" % i), pg)
-
         clients = [client(i) for i in range(client_count)]
         client_pages = paginate(clients)
         for i, pg in enumerate(client_pages):
             validator.check(pg, {"$ref": "#/components/schemas/Client overview page"})
             write_json(os.path.join(base, "clients.page%d.json" % i), pg)
 
-        # Statistics for every gateway, so REQ-008a's four-gateway bound has
-        # more than four to choose from in the five-gateway scenario.
-        stats_written = []
+        # Statistics and detail for EVERY device, not only gateways.
+        #
+        # Until 2026-09-07 only gateways got a statistics body, because route 4
+        # was believed to be a gateway route. It is not (api-contract.md §12b),
+        # and REQ-B02 fetches it per device — so a corpus that answers only for
+        # gateways would make every non-gateway request 404 and the truncation
+        # warnings fire for the wrong reason.
+        #
+        # `large-500-down` is bounded: REQ-B02's cap is 40 devices, and writing
+        # five hundred detail bodies to answer at most forty requests would put
+        # a third of a megabyte in the repository to test a bound. 64 is written
+        # instead, in the same order REQ-B11 selects, so the cap has headroom
+        # above it and the 65th request would legitimately find nothing.
+        detail_cap = 64
+        selectable = sorted(devices, key=lambda d: (str(d.get("name") or ""), d["id"]))
+        answered = selectable[:detail_cap]
+        uplinks = {}
         gateways = [d for d in devices if "gateway" in d["features"]]
-        for i, gw in enumerate(sorted(gateways, key=lambda d: d["id"])):
-            body = statistics(864000 + i * 3600, 12000000 + i * 1000, 3000000 + i * 1000)
+        primary = sorted(gateways, key=lambda d: d["id"])[0] if gateways else None
+        stats_written = []
+        detail_written = []
+        for i, dev in enumerate(sorted(answered, key=lambda d: d["id"])):
+            radios = 0 if "ports" in dev["interfaces"] else 2
+            body = statistics(864000 + i * 3600, 12000000 + i * 1000,
+                              3000000 + i * 1000, index=i, radios=radios)
             validator.check(body, {"$ref": "#/components/schemas/Latest statistics for a device"})
-            write_json(os.path.join(base, "statistics.%s.json" % gw["id"]), body)
-            stats_written.append(gw["id"])
+            write_json(os.path.join(base, "statistics.%s.json" % dev["id"]), body)
+            stats_written.append(dev["id"])
+
+            # The primary gateway is nobody's uplink and has none of its own:
+            # a device that is its own uplink is a cycle, and a consumer that
+            # walked the chain would hang on it.
+            uplink_id = None
+            if primary is not None and dev["id"] != primary["id"]:
+                uplink_id = primary["id"]
+            uplinks[dev["id"]] = uplink_id
+            detail = device_detail(dev, i, uplink_id=uplink_id)
+            write_json(os.path.join(base, "detail.%s.json" % dev["id"]), detail)
+            detail_written.append(dev["id"])
 
         manifest["scenarios"][name] = {
             "note": note,
             "devices": len(devices),
             "sites": site_count,
-            "wans": wan_count,
             "clients": client_count,
             "devicePages": len(device_pages),
             "clientPages": len(client_pages),
-            "gatewayStatistics": stats_written,
+            "deviceStatistics": stats_written,
+            "deviceDetail": detail_written,
             "schemaDeviation": deviation,
         }
 

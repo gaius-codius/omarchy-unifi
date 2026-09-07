@@ -199,9 +199,30 @@ by the accept corpus, and re-deriving them from `devices[]` in the consumer
 would move a decision out of the helper. Where the same device appears in both,
 the two representations must agree; a cross-check asserts it.
 
-**DATA-B04.** The envelope gains a size bound of 4 MiB, checked before it is
-written. Exceeding it truncates `clients[]` first, then `devices[]`, raising
-`envelope_truncated`. `DATA-009`'s per-response 8 MiB bound is unchanged.
+**DATA-B04.** The envelope is assembled against a **224 KiB** byte budget.
+
+*Corrected 2026-09-07, during Phase B0.* The confirmed figure was 4 MiB, which
+is not reachable: DATA-005 caps helper stdout at **256 KiB**, and
+`envelope.encode` enforces it as a **cliff** — one byte over and the entire
+envelope is replaced by an `oversized_response` failure, so the panel greys and
+the user gets no reading at all rather than a shorter list. 4 MiB would have
+guaranteed that outcome on any large site. Raising DATA-005 was the alternative;
+it is a bound in the frozen spec and this does not need it.
+
+224 KiB is a guard rail 32 KiB in front of that cliff, and the reserve is spent
+on three things the projection cannot see exactly: `json.dumps` separator
+overhead, the six-bytes-per-character `\uXXXX` expansion of a non-ASCII device
+name under `ensure_ascii=True`, and the warning that truncation itself appends —
+a truncating envelope grows a warning at the moment it can least afford one.
+
+**The count caps in REQ-B01/B02/B03 are upper limits; bytes bind first, and are
+meant to.** A site of nine small devices gets detail for all nine; a site of two
+hundred switches gets it for as many as fit, broken ones first. A pure count cap
+would have to be set for the worst imaginable site and would starve every
+ordinary one. Content is dropped in `bounds.ASSEMBLY_ORDER` — never the health
+reading, then base device records, then clients, then per-device detail — each
+raising the warning that names what went. `DATA-009`'s per-response 8 MiB bound
+is unchanged; it bounds raw API traffic, not this.
 
 **Warning codes added:** `device_detail_truncated`, `device_detail_unavailable`,
 `clients_truncated`, `devices_truncated`, `envelope_truncated`.
@@ -281,9 +302,20 @@ diagnostic output containing none of them.
 **REQ-B21.** Per D3, the MAC address is not rendered until a row is expanded.
 
 **REQ-B22.** SEC-011 is unchanged: no real controller data in fixtures. New
-fixtures use RFC 5737 addresses and MAC addresses from the IANA documentation
-range `00:00:5E:00:53:00–FF`. The corpus privacy guard is extended to reject any
-MAC outside that range, the same way it already rejects routable addresses.
+fixtures use RFC 5737 addresses and MAC addresses from `02:00:00:`.
+
+*Corrected during Phase B0.* This originally specified the IANA documentation
+range `00:00:5E:00:53:00–FF`. The repository's existing convention is stronger
+and was already in place: `02:` has the IEEE 802 locally-administered bit set,
+so the address is drawn from **no assigned OUI at all** — there is no vendor it
+could belong to, rather than a vendor who has agreed not to use it. `00:00:5E`
+is a real OUI assigned to IANA. The existing convention stands and the
+documentation range is used only as a negative-control input.
+
+The corpus guard already rejected MACs outside `02:00:00:`; what it lacked, and
+now has, is a **canary**. Two independent ways for it to be useless would both
+have passed silently: the MAC regex failing to match the shape a real address
+has, or the prefix being one everything starts with.
 
 ---
 
@@ -302,7 +334,8 @@ MAC outside that range, the same way it already rejects routable addresses.
 | AC-B09 | AUTO | A device with `detail: null` renders the truncation sentence; a device with `detail.ports: []` renders an empty port table. The two are never confused. |
 | AC-B10 | AUTO | `metrics: null` renders as "unknown" throughout and never as `0` (BIZ-003, applied to the new fields). |
 | AC-B11 | AUTO | A client with no name renders its IP; with neither, its id; never the empty string. |
-| AC-B12 | AUTO | An envelope exceeding 4 MiB truncates clients first, then devices, raises `envelope_truncated`, and remains schema-valid. |
+| AC-B12 | AUTO | A site whose content exceeds the 224 KiB budget drops it in `bounds.ASSEMBLY_ORDER`, raises the warning naming what went, remains schema-valid, and **never reaches `envelope.encode`'s replacement path** — asserted by encoding the result and measuring it. |
+| AC-B12a | AUTO | `bounds.ENVELOPE_BUDGET_BYTES` is strictly below `envelope.STDOUT_MAX_BYTES`, and the two constants are declared independently so that raising one does not silently raise the other. |
 | AC-B13 | AUTO | A corpus of clients with names, IPs and MACs produces warnings, error messages and `status` output containing none of them (REQ-B20). |
 | AC-B14 | AUTO | The corpus privacy guard rejects a MAC outside the IANA documentation range, proven by a seeded canary. |
 | AC-B15 | LIVE | The segmented control switches views; each view renders from `vm` and computes nothing (REQ-014). |
@@ -437,8 +470,9 @@ requirement that the console be cloud-connected, and coarser granularity.
 
 1. **Six routes, not eight** — `GET /clients/{id}` dropped as redundant, and
    `/v1/wans` removed, closing DEV-5 as Option B (§4).
-2. **The bounds**: 200 devices listed, 500 clients listed, detail for 40, 4 MiB
-   envelope, 8 s deadline reserve (§5).
+2. **The bounds**: 200 devices listed, 500 clients listed, detail for 40, 8 s
+   deadline reserve (§5). ~~4 MiB envelope~~ — corrected to 224 KiB during
+   Phase B0; see DATA-B04 for why 4 MiB was unreachable.
 3. **The panel resets to Overview and clears the search when it closes**
    (REQ-B10).
 4. **Order by brokenness, not alphabetically**, for devices (REQ-B11).

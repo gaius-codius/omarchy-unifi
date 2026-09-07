@@ -84,6 +84,11 @@ def success_data():
             "switches": cls(online=2), "accessPoints": cls(online=2),
         },
         "offlineDevices": [],
+        # DATA-B01/B02. Empty, which is what a fully budget-truncated reading
+        # looks like and is a valid envelope — but the KEYS are required, and a
+        # stub that omitted them would be rejected as a schema violation.
+        "devices": [],
+        "clients": [],
         "applicationVersion": "9.1.0",
     }
 
@@ -146,11 +151,83 @@ def degraded_data():
             {"id": "00000000-0000-5000-9000-00000000001b", "name": "Loft Switch",
              "model": "USW-Flex", "state": "ISOLATED", "class": "impaired"},
         ],
+        # DATA-B01/B02, in REQ-B11's order: `down` and `impaired` before
+        # `online`, a gateway ahead of its peers within a class, then by name.
+        # Populated here and empty in `success_data` on purpose — the degraded
+        # stub is the one the view cases use precisely because every list it
+        # can draw is non-empty.
+        "devices": [
+            {"id": "00000000-0000-5000-9000-00000000000b", "name": "USG Backup",
+             "model": "USG-3P", "state": "OFFLINE", "class": "down",
+             "roles": ["gateway"], "ipAddress": "192.168.10.11",
+             "macAddress": "02:00:00:00:00:0b", "firmwareVersion": "9.1.0",
+             "firmwareUpdatable": True, "uplinkDeviceId": None,
+             "detail": None, "metrics": None},
+            {"id": "00000000-0000-5000-9000-00000000001a", "name": "Garage AP",
+             "model": "U6-Lite", "state": "OFFLINE", "class": "down",
+             "roles": ["accessPoint"], "ipAddress": "192.168.10.26",
+             "macAddress": "02:00:00:00:00:1a", "firmwareVersion": "9.1.0",
+             "firmwareUpdatable": False, "uplinkDeviceId": None,
+             "detail": None, "metrics": None},
+            {"id": "00000000-0000-5000-9000-00000000001b", "name": "Loft Switch",
+             "model": "USW-Flex", "state": "ISOLATED", "class": "impaired",
+             "roles": ["switching"], "ipAddress": "192.168.10.27",
+             "macAddress": "02:00:00:00:00:1b", "firmwareVersion": "9.1.0",
+             "firmwareUpdatable": False, "uplinkDeviceId": None,
+             "detail": None, "metrics": None},
+            {"id": "00000000-0000-5000-9000-00000000000a", "name": "UDM Pro",
+             "model": "UDM-Pro", "state": "ONLINE", "class": "online",
+             "roles": ["gateway", "switching"], "ipAddress": "192.0.2.1",
+             "macAddress": "02:00:00:00:00:0a", "firmwareVersion": "9.1.0",
+             "firmwareUpdatable": False, "uplinkDeviceId": None,
+             "detail": {"provisionedAt": "2026-01-02T08:00:00Z",
+                        "ports": [
+                            {"idx": 1, "connector": "RJ45", "state": "DOWN",
+                             "maxSpeedMbps": 1000, "poe": None},
+                            {"idx": 2, "connector": "RJ45", "state": "UP",
+                             "maxSpeedMbps": 1000,
+                             "poe": {"enabled": True, "standard": "802.3at",
+                                     "state": "GOOD"}}],
+                        "radios": []},
+             "metrics": {"uptimeSec": 864000, "cpuUtilizationPct": 4.5,
+                         "memoryUtilizationPct": 38.0,
+                         "downloadBps": 12000000, "uploadBps": 3000000}},
+            {"id": "00000000-0000-5000-9000-00000000002a", "name": "Studio AP",
+             "model": "U6-Pro", "state": "ONLINE", "class": "online",
+             "roles": ["accessPoint"], "ipAddress": "192.168.10.42",
+             "macAddress": "02:00:00:00:00:2a", "firmwareVersion": "9.1.0",
+             "firmwareUpdatable": False,
+             "uplinkDeviceId": "00000000-0000-5000-9000-00000000000a",
+             "detail": {"provisionedAt": "2026-01-02T08:00:00Z", "ports": [],
+                        "radios": [{"frequencyGHz": 2.4, "txRetriesPct": 1.5},
+                                   {"frequencyGHz": 5.0, "txRetriesPct": 2.5}]},
+             "metrics": {"uptimeSec": 432000, "cpuUtilizationPct": 11.0,
+                         "memoryUtilizationPct": 44.5,
+                         "downloadBps": 900000, "uploadBps": 400000}},
+        ],
+        # Fewer than `counts.clients` says exist: the list is bounded and the
+        # count is not derived from it. An unnamed client is included because
+        # REQ-B12's fallback chain needs something to fall back from.
+        "clients": [
+            {"id": "00000000-0000-5000-9000-000000000028",
+             "name": "workshop-pi", "type": "WIRED", "accessType": "DEFAULT",
+             "ipAddress": "192.168.20.40", "macAddress": "02:00:00:00:01:28",
+             "uplinkDeviceId": "00000000-0000-5000-9000-00000000001b",
+             "connectedAt": "2026-01-12T09:14:00Z"},
+            {"id": "00000000-0000-5000-9000-000000000029",
+             "name": None, "type": "WIRELESS", "accessType": "DEFAULT",
+             "ipAddress": "192.168.20.41", "macAddress": "02:00:00:00:01:29",
+             "uplinkDeviceId": "00000000-0000-5000-9000-00000000002a",
+             "connectedAt": None},
+        ],
         "applicationVersion": "9.1.0",
     }
 
 
 DEGRADED_WARNINGS = [
+    {"code": "clients_truncated",
+     "message": "The client list is truncated; see the total.",
+     "detail": {"listed": 2, "total": 42}},
     {"code": "offline_list_truncated",
      "message": "The offline device list is truncated; see the total.",
      "detail": {"listed": 2, "total": 7}},

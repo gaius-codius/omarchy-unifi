@@ -1,0 +1,23 @@
+{
+  "configurationId": "f21f9d8d-9936-5a2e-a09c-6f743636c214",
+  "firmwareUpdatable": false,
+  "firmwareVersion": "9.1.0",
+  "id": "2b7aa8b3-0288-5aae-b93a-379967eb2338",
+  "interfaces": {
+    "radios": [
+      {
+        "frequencyGHz": 2.4
+      },
+      {
+        "frequencyGHz": 5.0
+      }
+    ]
+  },
+  "ipAddress": "192.168.10.5",
+  "macAddress": "02:00:00:00:00:04",
+  "model": "U6-Pro",
+  "name": "Ap 2",
+  "provisionedAt": "2026-01-15T12:00:00Z",
+  "state": "OFFLINE",
+  "supported": true
+}

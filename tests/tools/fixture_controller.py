@@ -99,11 +99,18 @@ class Controller(object):
             return load(os.path.join(self.root, "info.json"))
         if tail == ["sites"]:
             return self._page("sites", offset)
-        if len(tail) == 3 and tail[0] == "sites" and tail[2] in ("devices", "clients", "wans"):
+        if len(tail) == 3 and tail[0] == "sites" and tail[2] in ("devices", "clients"):
             return self._page(tail[2], offset)
         if (len(tail) == 6 and tail[0] == "sites" and tail[2] == "devices"
                 and tail[4:] == ["statistics", "latest"]):
             path = os.path.join(self.root, "statistics.%s.json" % tail[3])
+            if not os.path.exists(path):
+                return None
+            return load(path)
+        # Route 6, SPEC-v1.1-browse.md §4. Longer patterns are matched first, so
+        # this cannot shadow the statistics route above.
+        if len(tail) == 4 and tail[0] == "sites" and tail[2] == "devices":
+            path = os.path.join(self.root, "detail.%s.json" % tail[3])
             if not os.path.exists(path):
                 return None
             return load(path)
@@ -118,6 +125,8 @@ class Controller(object):
             return tail == ["sites"]
         if route == "device_statistics":
             return len(tail) == 6 and tail[4:] == ["statistics", "latest"]
+        if route == "device":
+            return len(tail) == 4 and tail[0] == "sites" and tail[2] == "devices"
         return len(tail) == 3 and tail[2] == route
 
     def _page(self, collection, offset):

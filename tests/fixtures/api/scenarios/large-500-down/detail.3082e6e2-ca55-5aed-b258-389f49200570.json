@@ -1,0 +1,135 @@
+{
+  "configurationId": "28a57eeb-5fdc-55ea-a1c1-5d920a5c6419",
+  "features": {
+    "switching": {
+      "lags": []
+    }
+  },
+  "firmwareUpdatable": false,
+  "firmwareVersion": "9.1.0",
+  "id": "3082e6e2-ca55-5aed-b258-389f49200570",
+  "interfaces": {
+    "ports": [
+      {
+        "connector": "RJ45",
+        "idx": 1,
+        "maxSpeedMbps": 1000,
+        "poe": {
+          "enabled": false,
+          "standard": "802.3at",
+          "state": "OFF",
+          "type": 4
+        },
+        "state": "DOWN"
+      },
+      {
+        "connector": "RJ45",
+        "idx": 2,
+        "maxSpeedMbps": 1000,
+        "poe": {
+          "enabled": true,
+          "standard": "802.3at",
+          "state": "GOOD",
+          "type": 4
+        },
+        "state": "UP"
+      },
+      {
+        "connector": "RJ45",
+        "idx": 3,
+        "maxSpeedMbps": 1000,
+        "poe": {
+          "enabled": true,
+          "standard": "802.3at",
+          "state": "GOOD",
+          "type": 4
+        },
+        "state": "UP"
+      },
+      {
+        "connector": "RJ45",
+        "idx": 4,
+        "maxSpeedMbps": 1000,
+        "poe": {
+          "enabled": true,
+          "standard": "802.3at",
+          "state": "GOOD",
+          "type": 4
+        },
+        "state": "UP"
+      },
+      {
+        "connector": "RJ45",
+        "idx": 5,
+        "maxSpeedMbps": 1000,
+        "poe": {
+          "enabled": true,
+          "standard": "802.3at",
+          "state": "GOOD",
+          "type": 4
+        },
+        "state": "UP"
+      },
+      {
+        "connector": "RJ45",
+        "idx": 6,
+        "maxSpeedMbps": 1000,
+        "poe": {
+          "enabled": true,
+          "standard": "802.3at",
+          "state": "GOOD",
+          "type": 4
+        },
+        "state": "UP"
+      },
+      {
+        "connector": "RJ45",
+        "idx": 7,
+        "maxSpeedMbps": 1000,
+        "poe": {
+          "enabled": true,
+          "standard": "802.3at",
+          "state": "GOOD",
+          "type": 4
+        },
+        "state": "UP"
+      },
+      {
+        "connector": "RJ45",
+        "idx": 8,
+        "maxSpeedMbps": 1000,
+        "poe": {
+          "enabled": true,
+          "standard": "802.3at",
+          "state": "GOOD",
+          "type": 4
+        },
+        "state": "UP"
+      },
+      {
+        "connector": "SFP+",
+        "idx": 9,
+        "maxSpeedMbps": 10000,
+        "poe": null,
+        "state": "UP"
+      },
+      {
+        "connector": "SFP+",
+        "idx": 10,
+        "maxSpeedMbps": 10000,
+        "poe": null,
+        "state": "UP"
+      }
+    ]
+  },
+  "ipAddress": "192.168.10.108",
+  "macAddress": "02:00:00:00:00:6b",
+  "model": "USW-Lite-8-PoE",
+  "name": "Bulk 007",
+  "provisionedAt": "2026-01-15T12:00:00Z",
+  "state": "OFFLINE",
+  "supported": true,
+  "uplink": {
+    "deviceId": "140d6676-08f6-5cbd-806a-bff7222ccc5d"
+  }
+}

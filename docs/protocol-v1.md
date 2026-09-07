@@ -171,14 +171,34 @@ Present only on success, and only in this exact shape (DATA-006).
   "offlineDevices": [
     { "id": "…", "name": "Garage Switch", "model": "USW-Lite-8-PoE", "state": "OFFLINE", "class": "down" }
   ],
+  "devices": [
+    { "id": "…", "name": "Garage Switch", "model": "USW-Lite-8-PoE",
+      "state": "OFFLINE", "class": "down", "roles": ["switching"],
+      "ipAddress": "198.51.100.12", "macAddress": "00:00:5E:00:53:0C",
+      "firmwareVersion": "7.0.50", "firmwareUpdatable": false,
+      "uplinkDeviceId": "…",
+      "detail": null,
+      "metrics": null }
+  ],
+  "clients": [
+    { "id": "…", "name": "workshop-pi", "type": "WIRED", "accessType": "DEFAULT",
+      "ipAddress": "198.51.100.44", "macAddress": "00:00:5E:00:53:2C",
+      "uplinkDeviceId": "…", "connectedAt": "2026-01-12T09:14:00Z" }
+  ],
   "applicationVersion": "9.1.0"
 }
 ```
 
 `wan.latencyMs` and `wan.packetLossPct` are **absent from the model** — not
-present-and-null. No supported API version can populate them: `/v1/sites/{id}/wans`
-returns `{id, name}` and nothing else (`api-contract.md`). A present-and-null
-field would invite a future contributor to fill it in.
+present-and-null. No supported API version can populate them, and this is now
+**observed** rather than inferred: the 2026-09-07 probe found no site-level
+`/health`, `/events`, `/alarms`, `/statistics` or `/isp-metrics` route on
+Network 10.6.101, and `/v1/sites/{id}/wans` returns `{id, name}` and nothing
+else (`api-contract.md` §12b). A present-and-null field would invite a future
+contributor to fill it in.
+
+`/v1/sites/{id}/wans` is **no longer fetched** — DEV-5, resolved 2026-09-07 as
+Option B — and `wans_unavailable` is retired with it.
 
 ### Device class (REQ-000)
 
@@ -252,6 +272,89 @@ The panel's "and N more" line is computed from `counts.offlineTotal`, **not**
 from this array's length, so a helper-side bound can never understate how many
 devices are down.
 
+### `devices` (REQ-B01)
+
+Every adopted device, bounded — see Bounds — with `counts.devicesTotal`
+carrying the true total independently. The array's length is never the total.
+
+| Field | Type | Nullable | Notes |
+|---|---|---|---|
+| `id` | uuid | no | |
+| `name` | string | yes | |
+| `model` | string | yes | |
+| `state` | string | no | the raw API value, unmapped |
+| `class` | class | no | REQ-000, the same mapping the counters use |
+| `roles` | array of `gateway` \| `switching` \| `accessPoint` | no | may be empty; a device is in **every** role it reports (REQ-009) |
+| `ipAddress` | string | yes | |
+| `macAddress` | string | yes | |
+| `firmwareVersion` | string | yes | |
+| `firmwareUpdatable` | boolean | yes | |
+| `uplinkDeviceId` | uuid | yes | topology; only present with `detail` |
+| `detail` | object \| null | yes | `null` means **not fetched** |
+| `metrics` | object \| null | yes | `null` means **not fetched** |
+
+`class` and `roles` are computed once, in `normalize.py`, and are the same
+values `counts` is built from. Recomputing them in a consumer is what would let
+the browser and the health rules disagree about what a device is.
+
+**`detail: null` and `detail.ports: []` are different facts and must render
+differently.** The first says the helper did not ask; the second says the
+controller answered and the device has no ports. This is BIZ-003's rule — `null`
+is unknown, not zero — applied to a container.
+
+```json
+"detail": {
+  "provisionedAt": "2026-01-02T08:00:00Z",
+  "ports": [
+    { "idx": 1, "connector": "RJ45", "state": "UP", "maxSpeedMbps": 1000,
+      "poe": { "enabled": true, "standard": "802.3at", "state": "GOOD" } }
+  ],
+  "radios": [ { "frequencyGHz": 5.0, "txRetriesPct": 3.2 } ]
+}
+```
+
+Every field inside `detail` other than `ports` and `radios` is nullable;
+`ports` and `radios` are always arrays, possibly empty. `poe` is `null` on a
+port that reports none.
+
+```json
+"metrics": { "uptimeSec": 864000, "cpuUtilizationPct": 4.1,
+             "memoryUtilizationPct": 38.0,
+             "downloadBps": 12000000, "uploadBps": 3000000 }
+```
+
+Every `metrics` field is nullable. `downloadBps` and `uploadBps` come from
+`uplink.{rxRateBps, txRateBps}`, which is that device's **own uplink** — for a
+gateway it is the WAN, for an access point it is the link to its switch. They
+are not comparable across devices and the panel labels them per device.
+
+### `clients` (REQ-B03)
+
+Every connected client, bounded — see Bounds — with `counts.clients` carrying
+the true total independently, still read from the terminal page's `totalCount`.
+
+| Field | Type | Nullable |
+|---|---|---|
+| `id` | uuid | no |
+| `name` | string | yes |
+| `type` | string | no |
+| `accessType` | string | yes |
+| `ipAddress` | string | yes |
+| `macAddress` | string | yes |
+| `uplinkDeviceId` | uuid | yes |
+| `connectedAt` | RFC 3339 string | yes |
+
+`type` is the raw API value and is **not** mapped to a closed set: the observed
+values are `WIRED` and `WIRELESS`, the published schema also lists `VPN` and
+`TELEPORT`, and a future controller may add more. An unrecognised type renders
+as itself rather than as "unknown", because unlike a device `state` it decides
+nothing.
+
+**These fields are personal data (REQ-B20).** They may appear in the rendered
+panel and nowhere else — not in a warning, not in an error, not in a log line,
+not in `status`. There is no client field anywhere in `counts`, `warnings` or
+`error`.
+
 ## `warnings`
 
 An array of objects. Empty is normal; `null` is a rejection.
@@ -277,9 +380,13 @@ to parse prose.
 | `sites_discovered` | no `siteId` committed and several sites exist; paired with `site_unselected` | `{ "sites": [ { "id": "…", "name": "…" } ] }` |
 | `clients_unavailable` | optional `/clients` failed (BIZ-004) | `null` |
 | `statistics_unavailable` | optional `statistics/latest` failed | `{ "deviceId": "…" }` |
-| `wans_unavailable` | optional `/wans` failed | `null` |
 | `gateway_statistics_truncated` | more than four gateways (REQ-008a) | `{ "fetched": 4, "total": 6 }` |
 | `offline_list_truncated` | more than ten offline devices (REQ-010) | `{ "listed": 10, "total": 17 }` |
+| `device_detail_truncated` | detail fetched for some devices only (REQ-B02a/B02b) | `{ "fetched": 40, "total": 96 }` |
+| `device_detail_unavailable` | one device's detail or statistics failed | `{ "deviceId": "…" }` |
+| `devices_truncated` | more devices than the bound (REQ-B01) | `{ "listed": 200, "total": 412 }` |
+| `clients_truncated` | more clients than the bound (REQ-B03) | `{ "listed": 500, "total": 900 }` |
+| `envelope_truncated` | the assembled envelope exceeded its bound (DATA-B04) | `{ "dropped": "clients" }` |
 | `page_reread_mismatch` | the DATA-009a page-0 re-read disagreed once | `{ "collection": "devices" }` |
 | `insecure_tls` | `allowInsecureTls` is in force (UX-009) | `null` |
 | `custom_ca_in_use` | a `customCaPath` is in force | `null` |
@@ -392,11 +499,49 @@ fixed by `SPEC.md`; §15 delegates it, and the reasoning is in
 | `offlineDevices` entries | 10 | REQ-010 |
 | gateways fetched with statistics | 4 | REQ-008a |
 | `gateways` array entries | 64 **[chosen]** | — |
+| **assembled envelope** | **224 KiB [chosen]** | DATA-B04 |
+| reserved for non-list content | 32 KiB **[chosen]** | DATA-B04 |
+| `devices` array entries | 200 **[chosen]** | REQ-B01 |
+| `clients` array entries | 500 **[chosen]** | REQ-B03 |
+| devices fetched with detail | 40 **[chosen]** | REQ-B02 |
+| `detail.ports` entries per device | 64 **[chosen]** | REQ-B02 |
+| `detail.radios` entries per device | 8 **[chosen]** | REQ-B02 |
+| deadline reserved for detail | 8 s **[chosen]** | REQ-B02b |
 | `warnings` entries | 32 **[chosen]** | — |
 | any string value | 512 chars **[chosen]** | — |
 | `message` fields specifically | 256 chars **[chosen]** | — |
 | JSON nesting depth | 16 **[chosen]** | — |
 | any integer count | 0 – 1 000 000 **[chosen]** | — |
+
+**The three count caps above are upper limits, not the operative bound.** Bytes
+bind first, and are meant to. `envelope.encode` enforces DATA-005's 256 KiB as a
+**cliff** — one byte over and the whole envelope is replaced by an
+`oversized_response` failure, so the panel greys and the user gets no reading at
+all rather than a shorter list. DATA-B04's 224 KiB budget is a guard rail placed
+in front of that cliff: assembly stops there, having dropped the least important
+content first and raised a warning naming what went.
+
+Assembly order, most important first (`bounds.ASSEMBLY_ORDER`):
+
+1. everything that is not `devices[]` or `clients[]` — the health reading
+   itself, never dropped;
+2. `devices[]` base records — identity, state and class; small and bounded;
+3. `clients[]`;
+4. per-device `detail` and `metrics` — the flexible one, and already ordered by
+   importance under REQ-B02a, so what survives a squeeze is the **broken**
+   devices rather than the alphabetically early ones.
+
+Measured against real hardware on 2026-09-07 (`api-contract.md` §12b): a device
+list record is ~305 B, a client ~284 B, a device's detail ~630 B with no ports
+and ~4.4 KB with 26, at roughly 130 B per port. A 200-device site of 48-port
+switches would clear 256 KiB on detail alone, which is why the byte budget and
+not the count cap is what actually decides.
+
+The 32 KiB reserve absorbs three things the projection cannot see exactly:
+`json.dumps` separator overhead across the document, the six-bytes-per-character
+`\uXXXX` expansion of a non-ASCII device name under `ensure_ascii=True`, and
+warnings appended by the truncation itself — a truncating envelope grows a
+warning at the moment it can least afford one.
 
 ### Pagination (helper-side, during collection)
 
@@ -445,9 +590,10 @@ exists for each.
 | `success_observed_at_unordered` | not `attemptedAt <= observedAt <= receiptTime` |
 | `success_data_missing` | `ok: true` with `data` absent or `null` |
 | `success_data_empty` | `ok: true` with `data: {}` |
-| `data_schema_violation` | `data` fails the DATA-006 shape — missing `site.id`/`site.name`, a `wan.status` outside its domain, a missing count bucket, a missing class within a bucket, a negative or non-integer total, `offlineDevices` not an array |
+| `data_schema_violation` | `data` fails the DATA-006 shape — missing `site.id`/`site.name`, a `wan.status` outside its domain, a missing count bucket, a missing class within a bucket, a negative or non-integer total, `offlineDevices` not an array; or the DATA-B01/B02 shape — a device with no `id`, a `class` outside REQ-000, a role outside the three, `detail`/`metrics` neither an object nor an explicit `null`, a client with no `id` or a non-string `type` |
 | `byclass_sum_mismatch` | `sum(byClass) != devicesTotal` |
 | `byclass_offline_mismatch` | `byClass.down + byClass.impaired != offlineTotal` |
+| `list_exceeds_total` | `devices` or `clients` holds MORE entries than `counts` says exist |
 | `failure_exit_zero` | `ok: false` with exit status 0 |
 | `failure_data_not_null` | `ok: false` with a non-null `data` |
 | `failure_observed_at_not_null` | `ok: false` with a non-null `observedAt` |
@@ -460,6 +606,13 @@ exists for each.
 | `warnings_not_array` | `warnings` is `null` or not an array |
 | `warning_shape_invalid` | a warning is not an object with a string `code` and `message` |
 | `bound_exceeded` | any [Bounds](#bounds) limit on strings, arrays, depth or integers |
+
+`list_exceeds_total` is the invariant that makes truncation honest. A bounded
+array may be **shorter** than its total — that is what the bound is for, and
+`devices_truncated` says so — but it may never be **longer**. A bound is allowed
+to hide records; it is not allowed to make the total a lie. This is REQ-010's
+rule about `offlineTotal`, the one that stops "and N more" being computed off a
+truncated array, generalised to the two arrays that can actually get large.
 
 `attempted_at_too_early` has one exception, DATA-008a: when it is the **only**
 reason for rejection, the service re-baselines its recorded launch time to the

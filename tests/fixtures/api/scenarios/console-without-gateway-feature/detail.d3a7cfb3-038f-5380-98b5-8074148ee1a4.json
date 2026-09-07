@@ -1,0 +1,132 @@
+{
+  "configurationId": "db7286f6-f344-595c-a861-9d26336ef915",
+  "features": {
+    "switching": {
+      "lags": []
+    }
+  },
+  "firmwareUpdatable": false,
+  "firmwareVersion": "9.1.0",
+  "id": "d3a7cfb3-038f-5380-98b5-8074148ee1a4",
+  "interfaces": {
+    "ports": [
+      {
+        "connector": "RJ45",
+        "idx": 1,
+        "maxSpeedMbps": 1000,
+        "poe": {
+          "enabled": false,
+          "standard": "802.3at",
+          "state": "OFF",
+          "type": 4
+        },
+        "state": "DOWN"
+      },
+      {
+        "connector": "RJ45",
+        "idx": 2,
+        "maxSpeedMbps": 1000,
+        "poe": {
+          "enabled": true,
+          "standard": "802.3at",
+          "state": "GOOD",
+          "type": 4
+        },
+        "state": "UP"
+      },
+      {
+        "connector": "RJ45",
+        "idx": 3,
+        "maxSpeedMbps": 1000,
+        "poe": {
+          "enabled": true,
+          "standard": "802.3at",
+          "state": "GOOD",
+          "type": 4
+        },
+        "state": "UP"
+      },
+      {
+        "connector": "RJ45",
+        "idx": 4,
+        "maxSpeedMbps": 1000,
+        "poe": {
+          "enabled": true,
+          "standard": "802.3at",
+          "state": "GOOD",
+          "type": 4
+        },
+        "state": "UP"
+      },
+      {
+        "connector": "RJ45",
+        "idx": 5,
+        "maxSpeedMbps": 1000,
+        "poe": {
+          "enabled": true,
+          "standard": "802.3at",
+          "state": "GOOD",
+          "type": 4
+        },
+        "state": "UP"
+      },
+      {
+        "connector": "RJ45",
+        "idx": 6,
+        "maxSpeedMbps": 1000,
+        "poe": {
+          "enabled": true,
+          "standard": "802.3at",
+          "state": "GOOD",
+          "type": 4
+        },
+        "state": "UP"
+      },
+      {
+        "connector": "RJ45",
+        "idx": 7,
+        "maxSpeedMbps": 1000,
+        "poe": {
+          "enabled": true,
+          "standard": "802.3at",
+          "state": "GOOD",
+          "type": 4
+        },
+        "state": "UP"
+      },
+      {
+        "connector": "RJ45",
+        "idx": 8,
+        "maxSpeedMbps": 1000,
+        "poe": {
+          "enabled": true,
+          "standard": "802.3at",
+          "state": "GOOD",
+          "type": 4
+        },
+        "state": "UP"
+      },
+      {
+        "connector": "SFP+",
+        "idx": 9,
+        "maxSpeedMbps": 10000,
+        "poe": null,
+        "state": "UP"
+      },
+      {
+        "connector": "SFP+",
+        "idx": 10,
+        "maxSpeedMbps": 10000,
+        "poe": null,
+        "state": "UP"
+      }
+    ]
+  },
+  "ipAddress": "192.0.2.1",
+  "macAddress": "02:00:00:00:00:01",
+  "model": "UDM-Pro",
+  "name": "Console 1",
+  "provisionedAt": "2026-01-15T12:00:00Z",
+  "state": "ONLINE",
+  "supported": true
+}

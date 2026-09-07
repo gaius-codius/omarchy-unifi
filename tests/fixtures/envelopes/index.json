@@ -220,6 +220,36 @@
       "shape": "success",
       "verdict": "accept"
     },
+    "success_browse_empty_lists": {
+      "consumedBy": [
+        "service (Protocol.js must accept)",
+        "helper (normalize.py must be able to produce)"
+      ],
+      "errorKind": null,
+      "note": "DATA-B04's boundary: the budget admitted nothing, so both arrays are empty while the totals are not. This must render as 'showing 0 of 300', never as 'no devices' — which is what a consumer reading the array length instead of the count says.",
+      "shape": "success",
+      "verdict": "accept"
+    },
+    "success_browse_full": {
+      "consumedBy": [
+        "service (Protocol.js must accept)",
+        "helper (normalize.py must be able to produce)"
+      ],
+      "errorKind": null,
+      "note": "REQ-B01/B03: every device and client listed. `detail` is present on three devices and null on two IN THE SAME ENVELOPE, because 'not fetched' and 'fetched and empty' render differently (REQ-B14) and a corpus where every device is alike lets a consumer conflate them. Also carries a featureless device, an unnamed client, and a client type outside the observed two.",
+      "shape": "success",
+      "verdict": "accept"
+    },
+    "success_browse_truncated": {
+      "consumedBy": [
+        "service (Protocol.js must accept)",
+        "helper (normalize.py must be able to produce)"
+      ],
+      "errorKind": null,
+      "note": "DATA-B04: both arrays are shorter than their totals and say so. A consumer that computed the remainder from `devices.length` rather than from `counts` would report 2 devices on a site of 300 and call it complete.",
+      "shape": "success",
+      "verdict": "accept"
+    },
     "success_console_without_gateway_feature": {
       "consumedBy": [
         "service (Protocol.js must accept)",
@@ -363,10 +393,10 @@
   },
   "contract": "docs/protocol-v1.md",
   "coverage": {
-    "acceptFixtures": 36,
+    "acceptFixtures": 39,
     "errorKinds": 19,
-    "rejectFixtures": 42,
-    "rejectionClasses": 36
+    "rejectFixtures": 49,
+    "rejectionClasses": 37
   },
   "generatedBy": "tests/tools/gen_envelopes.py",
   "note": "The accept corpus is consumed in TWO directions: tests/model/*.test.js feeds it to Health.js as input, and tests/test_unifi_status.py asserts it as normalize.py output. That is what stops the Python producer and the JS consumer inventing two shapes from the same prose (risk R-F, and the mechanism by which DEV-1 went unnoticed).",
@@ -399,6 +429,13 @@
       "rejectionClass": "bound_exceeded",
       "rule": "DATA-008 / bound_exceeded"
     },
+    "bound_exceeded_ports": {
+      "note": "A device with 65 ports, one past PORTS_PER_DEVICE_MAX.",
+      "publishedAs": "malformed_response",
+      "rejectedBy": "service",
+      "rejectionClass": "bound_exceeded",
+      "rule": "DATA-008 / bound_exceeded"
+    },
     "byclass_offline_mismatch": {
       "note": "byClass.down + byClass.impaired is 2 while offlineTotal says 0.",
       "publishedAs": "malformed_response",
@@ -412,6 +449,34 @@
       "rejectedBy": "service",
       "rejectionClass": "byclass_sum_mismatch",
       "rule": "DATA-008 / byclass_sum_mismatch"
+    },
+    "data_schema_violation_client_type": {
+      "note": "A client whose `type` is null. Unrecognised types are accepted on purpose (a client type decides nothing); a MISSING one is not, because the row has nothing to render.",
+      "publishedAs": "malformed_response",
+      "rejectedBy": "service",
+      "rejectionClass": "data_schema_violation",
+      "rule": "DATA-008 / data_schema_violation"
+    },
+    "data_schema_violation_device_class": {
+      "note": "A device whose `class` is \"flapping\", outside REQ-000's five.",
+      "publishedAs": "malformed_response",
+      "rejectedBy": "service",
+      "rejectionClass": "data_schema_violation",
+      "rule": "DATA-008 / data_schema_violation"
+    },
+    "data_schema_violation_device_detail_absent": {
+      "note": "A device with NO `detail` key at all. Absent and null are different statements — 'the producer forgot' versus 'the producer did not ask' — and only the second is acceptable, so the key is required and its value is nullable rather than the other way round.",
+      "publishedAs": "malformed_response",
+      "rejectedBy": "service",
+      "rejectionClass": "data_schema_violation",
+      "rule": "DATA-008 / data_schema_violation"
+    },
+    "data_schema_violation_device_role": {
+      "note": "A device reporting a role outside the three REQ-009 counts.",
+      "publishedAs": "malformed_response",
+      "rejectedBy": "service",
+      "rejectionClass": "data_schema_violation",
+      "rule": "DATA-008 / data_schema_violation"
     },
     "data_schema_violation_missing_class": {
       "note": "counts.byClass omits `impaired`. Absence must never be read as zero.",
@@ -517,6 +582,20 @@
       "rejectedBy": "service",
       "rejectionClass": "failure_observed_at_not_null",
       "rule": "DATA-008 / failure_observed_at_not_null"
+    },
+    "list_exceeds_total": {
+      "note": "Six devices listed while devicesTotal says 5. A bounded array may be SHORTER than its total — that is what the bound is for — but never longer. Longer means the total is understating the site, which is the one thing REQ-010's independent-count rule exists to prevent.",
+      "publishedAs": "malformed_response",
+      "rejectedBy": "service",
+      "rejectionClass": "list_exceeds_total",
+      "rule": "DATA-008 / list_exceeds_total"
+    },
+    "list_exceeds_total_clients": {
+      "note": "Two clients listed while counts.clients says 1. The same rule on the other array; `counts.clients` is nullable, so the check must not fire when it is null — success_optional_gaps is the fixture that proves it does not.",
+      "publishedAs": "malformed_response",
+      "rejectedBy": "service",
+      "rejectionClass": "list_exceeds_total",
+      "rule": "DATA-008 / list_exceeds_total"
     },
     "meta_helper_version_missing": {
       "note": "meta.helperVersion is null. It is the ONE field DEV-2 does not make nullable.",

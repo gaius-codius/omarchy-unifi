@@ -345,7 +345,10 @@ ShellRoot {
           }
         }
 
-        check("the whole envelope corpus was driven", 78, checked)
+        // 88 since SPEC-v1.1-browse.md: three accept fixtures and seven reject
+        // ones. A literal, so a corpus that silently shrank would fail here
+        // rather than quietly proving less under V4 than under V8.
+        check("the whole envelope corpus was driven", 88, checked)
         if (wrong.length === 0) {
           ok("V4 agrees with V8 on all " + checked + " envelopes")
         } else {
@@ -1001,16 +1004,25 @@ ShellRoot {
         check("its class is on screen", true, panelTextContains("impaired"))
         check("the remainder line is on screen", true, panelTextContains("and 5 more"))
 
-        // REQ-013a. The fixture raises two warnings and one of them,
-        // `insecure_tls`, has its own permanent row (UX-009) — so it is
-        // deliberately NOT repeated in the list, and the list has one entry.
-        check("the list carries the warning without a row of its own", 1,
-              model.warningRows.length)
+        // REQ-013a / SPEC-AMD-2. `insecure_tls` has its own permanent row
+        // (UX-009) and is deliberately NOT repeated in the list; every other
+        // warning is.
+        //
+        // Asserted by MEMBERSHIP rather than by counting. A count says "one
+        // entry" and passes for a list holding the wrong single warning, and it
+        // breaks whenever the fixture gains an unrelated one — which it just
+        // did, when the browse arrays brought `clients_truncated` with them.
+        var listed = model.warningRows.map(function (row) { return row.code })
+        check("the self-rendering warning is not repeated", -1,
+              listed.indexOf("insecure_tls"))
+        check("every other warning is listed", true,
+              listed.indexOf("offline_list_truncated") !== -1
+              && listed.indexOf("clients_truncated") !== -1)
+        check("the envelope did raise the one that is suppressed", true,
+              model.warnings.some(function (w) { return w.code === "insecure_tls" }))
         check("a warning sentence is on screen", true,
               panelTextContains("offline device list is truncated"))
         check("its code is on screen", true, panelTextContains("offline_list_truncated"))
-        check("the self-rendering warning is not repeated", true,
-              model.warningRows[0].code !== "insecure_tls")
 
         // AC-025: the role rows sum to 13 over 12 unique devices.
         check("the role rows are not a partition", true, model.roleCountsAreNotAPartition)

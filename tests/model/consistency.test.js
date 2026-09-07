@@ -301,7 +301,16 @@ test("every bound in Protocol.js is the number protocol-v1.md states", () => {
     "`warnings` entries": [Protocol.WARNINGS_MAX, ""],
     "any string value": [Protocol.STRING_MAX_CHARS, "chars"],
     "`message` fields specifically": [Protocol.MESSAGE_MAX_CHARS, "chars"],
-    "JSON nesting depth": [Protocol.DEPTH_MAX, ""]
+    "JSON nesting depth": [Protocol.DEPTH_MAX, ""],
+    // SPEC-v1.1-browse.md. Four copies of each of these now exist —
+    // protocol-v1.md, Protocol.js, helper/unifi/bounds.py and
+    // helper/unifi/normalize.py — because HC-16 forbids the dual-use modules
+    // importing anything and the helper is a different language. The document
+    // is the shared source; this is what stops the copies drifting.
+    "`devices` array entries": [Protocol.DEVICES_LISTED_MAX, ""],
+    "`clients` array entries": [Protocol.CLIENTS_LISTED_MAX, ""],
+    "`detail.ports` entries per device": [Protocol.PORTS_PER_DEVICE_MAX, ""],
+    "`detail.radios` entries per device": [Protocol.RADIOS_PER_DEVICE_MAX, ""]
   }
   for (const label of Object.keys(named)) {
     const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
@@ -318,7 +327,10 @@ test("every rejection class Protocol.js can produce is one protocol-v1.md define
     .filter((line) => line.startsWith("|"))
     .map((line) => line.split("|")[1].trim().replace(/`/g, ""))
 
-  assert.strictEqual(documented.length, 36, "DATA-008 defines 36 rejection classes")
+  // 37 since SPEC-v1.1-browse.md added `list_exceeds_total`. The literal is
+  // here rather than derived so that adding a class to the document without a
+  // fixture, or a fixture without a document row, fails this build.
+  assert.strictEqual(documented.length, 37, "DATA-008 defines 37 rejection classes")
 
   // Every class the SOURCE can emit, scraped from the calls themselves rather
   // than from a list this file also maintains — a second list would just be

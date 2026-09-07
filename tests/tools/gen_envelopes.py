@@ -237,14 +237,90 @@ def failure(error, warnings=None, meta_populated=True):
     }
 
 
-def data(site_name, wan, gateways, count_block, offline, version="9.1.0"):
+def data(site_name, wan, gateways, count_block, offline, version="9.1.0",
+         devices=None, clients=None):
+    """DATA-006, extended by DATA-B01/B02.
+
+    `devices` and `clients` default to EMPTY, and that is a valid envelope
+    rather than a lazy one: it is exactly what a fully budget-truncated reading
+    looks like (DATA-B04), and the only cross-check the protocol imposes is that
+    neither array may be LONGER than its total. The fixtures that exercise the
+    browse shapes populate them explicitly; the fixtures that exist to drive the
+    five health rules leave them empty, because a health rule reads `counts` and
+    a device list it did not use would be noise in the diff.
+    """
     return {
         "site": {"id": uid(1), "name": site_name},
         "wan": wan,
         "gateways": gateways,
         "counts": count_block,
         "offlineDevices": offline,
+        "devices": [] if devices is None else devices,
+        "clients": [] if clients is None else clients,
         "applicationVersion": version,
+    }
+
+
+# --- DATA-B01 / DATA-B02 record builders ---------------------------------
+#
+# `detail` and `metrics` are REQUIRED keys whose value may be null. Absent and
+# null are different statements — "the producer forgot" versus "the producer did
+# not ask" — and only one of them is acceptable, so these builders always emit
+# the key.
+
+def device_record(index, name, model, state, klass, roles,
+                  ip=None, mac=None, firmware="9.1.0", updatable=False,
+                  uplink=None, detail=None, metrics=None):
+    return {
+        "id": uid(index),
+        "name": name,
+        "model": model,
+        "state": state,
+        "class": klass,
+        "roles": list(roles),
+        "ipAddress": ip,
+        "macAddress": mac,
+        "firmwareVersion": firmware,
+        "firmwareUpdatable": updatable,
+        "uplinkDeviceId": uplink,
+        "detail": detail,
+        "metrics": metrics,
+    }
+
+
+def device_detail(ports=0, radios=0, provisioned="2026-01-02T08:00:00Z"):
+    return {
+        "provisionedAt": provisioned,
+        "ports": [
+            {"idx": i + 1, "connector": "RJ45", "state": "UP" if i else "DOWN",
+             "maxSpeedMbps": 1000,
+             "poe": {"enabled": bool(i), "standard": "802.3at",
+                     "state": "GOOD" if i else "OFF"} if i < ports - 1 else None}
+            for i in range(ports)
+        ],
+        "radios": [
+            {"frequencyGHz": 2.4 if i == 0 else 5.0, "txRetriesPct": 1.5 + i}
+            for i in range(radios)
+        ],
+    }
+
+
+def device_metrics(uptime=None, cpu=None, memory=None, down=None, up=None):
+    return {"uptimeSec": uptime, "cpuUtilizationPct": cpu,
+            "memoryUtilizationPct": memory, "downloadBps": down, "uploadBps": up}
+
+
+def client_record(index, name, kind, ip=None, mac=None, uplink=None,
+                  connected="2026-01-12T09:14:00Z", access="DEFAULT"):
+    return {
+        "id": uid(index),
+        "name": name,
+        "type": kind,
+        "accessType": access,
+        "ipAddress": ip,
+        "macAddress": mac,
+        "uplinkDeviceId": uplink,
+        "connectedAt": connected,
     }
 
 
@@ -555,6 +631,139 @@ def accept_success():
                            cls(online=1), cls(online=2), cls(online=2)),
                     [],
                 ), None, meta_populated=False)))
+
+    # --- SPEC-v1.1-browse.md ------------------------------------------------
+    #
+    # Three fixtures, and each exists for a distinction the shape allows but
+    # prose does not force anyone to get right.
+
+    # 1. A complete browse reading. `detail` is present on some devices and
+    #    `null` on others IN THE SAME ENVELOPE, because the two render
+    #    differently (REQ-B14) and a corpus in which every device is one or the
+    #    other lets a consumer treat them as the same thing.
+    # Written in REQ-B11's order, which is the order the envelope must carry:
+    # `down` before `online`, a gateway ahead of its peers within a class, then
+    # by name. Ordering these by id would agree with a producer that did no
+    # sorting at all, so the authored order IS the assertion.
+    browse_devices = [
+        device_record(31, "Garage Switch", "USW-Lite-8-PoE", "OFFLINE", "down",
+                      ["switching"], ip="192.168.10.31", mac="02:00:00:00:00:1f",
+                      uplink=uid(30), updatable=True,
+                      detail=device_detail(ports=10), metrics=device_metrics()),
+        device_record(30, "UDM Pro", "UDM-Pro", "ONLINE", "online",
+                      ["gateway", "switching"],
+                      ip="192.0.2.1", mac="02:00:00:00:00:1e",
+                      detail=device_detail(ports=10),
+                      metrics=device_metrics(864000, 4.5, 38.0, 12000000, 3000000)),
+        device_record(32, "Attic AP", "U6-Pro", "ONLINE", "online",
+                      ["accessPoint"], ip="192.168.10.32", mac="02:00:00:00:00:20",
+                      uplink=uid(30),
+                      detail=device_detail(radios=2),
+                      metrics=device_metrics(432000, 11.0, 44.5, 900000, 400000)),
+        # Beyond REQ-B02's detail bound: listed, identified, classified, and
+        # explicitly not asked about.
+        device_record(33, "Shed AP", "U6-Lite", "ONLINE", "online",
+                      ["accessPoint"], ip="192.168.10.33", mac="02:00:00:00:00:21"),
+        # An empty `roles` array is legal and is REQ-009's featureless device.
+        # It is counted in `byClass` and in no role bucket.
+        device_record(34, "Unknown Device", "UNKNOWN-DEV", "ONLINE", "online", []),
+    ]
+    # The head of a 300-device site in the same order: the gateway, then the
+    # first access point by name. Authored rather than sliced from the list
+    # above, because the truncated fixture describes a DIFFERENT site.
+    truncated_devices = [
+        device_record(30, "UDM Pro", "UDM-Pro", "ONLINE", "online",
+                      ["gateway", "switching"],
+                      ip="192.0.2.1", mac="02:00:00:00:00:1e",
+                      metrics=device_metrics(864000, None, None, 12000000, 3000000)),
+        device_record(500, "AP 000", "U6-Lite", "ONLINE", "online",
+                      ["accessPoint"]),
+    ]
+    browse_clients = [
+        client_record(40, "workshop-pi", "WIRED", ip="192.168.20.40",
+                      mac="02:00:00:00:01:28", uplink=uid(31)),
+        client_record(41, "phone", "WIRELESS", ip="192.168.20.41",
+                      mac="02:00:00:00:01:29", uplink=uid(32)),
+        # No name, no address: REQ-B12's fallback chain has to have something
+        # to fall back FROM, and this is the record that proves it is reachable.
+        client_record(42, None, "WIRELESS", uplink=uid(32), connected=None),
+        # A type outside the observed two. Deliberately NOT rejected: unlike a
+        # device state it decides nothing, so it renders as itself.
+        client_record(43, "road-laptop", "TELEPORT", ip="192.168.20.43"),
+    ]
+    out.append(("success_browse_full",
+                "REQ-B01/B03: every device and client listed. `detail` is present "
+                "on three devices and null on two IN THE SAME ENVELOPE, because "
+                "'not fetched' and 'fetched and empty' render differently "
+                "(REQ-B14) and a corpus where every device is alike lets a "
+                "consumer conflate them. Also carries a featureless device, an "
+                "unnamed client, and a client type outside the observed two.",
+                success(data(
+                    "Home",
+                    wan("up", 864000, 12000000, 3000000),
+                    [gateway(30, "UDM Pro", "UDM-Pro", "ONLINE", "online",
+                             864000, 12000000, 3000000)],
+                    counts(4, 5, 1,
+                           cls(online=4, down=1),
+                           cls(online=1), cls(online=1, down=1), cls(online=2)),
+                    [offline_device(31, "Garage Switch", "USW-Lite-8-PoE",
+                                    "OFFLINE", "down")],
+                    devices=browse_devices, clients=browse_clients,
+                ), [warning("device_detail_truncated",
+                            "Details were fetched for some devices only; see the total.",
+                            {"fetched": 3, "total": 5})])))
+
+    # 2. Truncation. Both arrays SHORTER than their totals, which is the whole
+    #    point of the bounds — and the case a consumer computing "N more" from
+    #    an array length would get wrong.
+    out.append(("success_browse_truncated",
+                "DATA-B04: both arrays are shorter than their totals and say so. "
+                "A consumer that computed the remainder from `devices.length` "
+                "rather than from `counts` would report 2 devices on a site of "
+                "300 and call it complete.",
+                success(data(
+                    "Home",
+                    wan("up", 864000, 12000000, 3000000),
+                    [gateway(30, "UDM Pro", "UDM-Pro", "ONLINE", "online",
+                             864000, 12000000, 3000000)],
+                    counts(900, 300, 0,
+                           cls(online=300),
+                           cls(online=1), cls(online=201), cls(online=99)),
+                    [],
+                    devices=truncated_devices, clients=browse_clients[:1],
+                ), [warning("devices_truncated",
+                            "The device list is truncated; see the total.",
+                            {"listed": 2, "total": 300}),
+                    warning("clients_truncated",
+                            "The client list is truncated; see the total.",
+                            {"listed": 1, "total": 900}),
+                    warning("envelope_truncated",
+                            "The reading was too large to send whole and was shortened.",
+                            {"dropped": "clients"})])))
+
+    # 3. Empty arrays over a non-zero total. Valid, and the boundary of case 2:
+    #    everything was dropped. A consumer must render "showing 0 of 300"
+    #    rather than "no devices".
+    out.append(("success_browse_empty_lists",
+                "DATA-B04's boundary: the budget admitted nothing, so both "
+                "arrays are empty while the totals are not. This must render as "
+                "'showing 0 of 300', never as 'no devices' — which is what a "
+                "consumer reading the array length instead of the count says.",
+                success(data(
+                    "Home",
+                    wan("up", 864000, 12000000, 3000000),
+                    [gateway(30, "UDM Pro", "UDM-Pro", "ONLINE", "online",
+                             864000, 12000000, 3000000)],
+                    counts(900, 300, 0,
+                           cls(online=300),
+                           cls(online=1), cls(online=201), cls(online=99)),
+                    [],
+                ), [warning("devices_truncated",
+                            "The device list is truncated; see the total.",
+                            {"listed": 0, "total": 300}),
+                    warning("clients_truncated",
+                            "The client list is truncated; see the total.",
+                            {"listed": 0, "total": 900})])))
 
     return out
 
@@ -874,6 +1083,55 @@ def reject_cases():
          "byClass.down + byClass.impaired is 2 while offlineTotal says 0.",
          mutate(ok, **{"data.counts.byClass": {"online": 3, "transitional": 0,
                                                "down": 1, "impaired": 1, "unknown": 0}}))
+
+    # ---- DATA-B01 / DATA-B02 ---------------------------------------------
+    listed = [device_record(60 + i, "d%d" % i, "USW-Lite-8-PoE", "ONLINE",
+                            "online", ["switching"]) for i in range(6)]
+    case("list_exceeds_total", "list_exceeds_total",
+         "Six devices listed while devicesTotal says 5. A bounded array may be "
+         "SHORTER than its total — that is what the bound is for — but never "
+         "longer. Longer means the total is understating the site, which is the "
+         "one thing REQ-010's independent-count rule exists to prevent.",
+         mutate(ok, **{"data.devices": listed}))
+    case("list_exceeds_total_clients", "list_exceeds_total",
+         "Two clients listed while counts.clients says 1. The same rule on the "
+         "other array; `counts.clients` is nullable, so the check must not fire "
+         "when it is null — success_optional_gaps is the fixture that proves it "
+         "does not.",
+         mutate(ok, **{"data.counts.clients": 1,
+                       "data.clients": [client_record(70, "a", "WIRED"),
+                                        client_record(71, "b", "WIRED")]}))
+    case("data_schema_violation_device_class", "data_schema_violation",
+         "A device whose `class` is \"flapping\", outside REQ-000's five.",
+         mutate(ok, **{"data.devices": [
+             mutate(device_record(60, "d", "USW-Lite-8-PoE", "ONLINE", "online",
+                                  ["switching"]), **{"class": "flapping"})]}))
+    case("data_schema_violation_device_role", "data_schema_violation",
+         "A device reporting a role outside the three REQ-009 counts.",
+         mutate(ok, **{"data.devices": [
+             device_record(60, "d", "USW-Lite-8-PoE", "ONLINE", "online",
+                           ["switching", "firewalling"])]}))
+    case("data_schema_violation_device_detail_absent", "data_schema_violation",
+         "A device with NO `detail` key at all. Absent and null are different "
+         "statements — 'the producer forgot' versus 'the producer did not ask' "
+         "— and only the second is acceptable, so the key is required and its "
+         "value is nullable rather than the other way round.",
+         mutate(ok, **{"data.devices": [
+             {k: v for k, v in device_record(
+                 60, "d", "USW-Lite-8-PoE", "ONLINE", "online",
+                 ["switching"]).items() if k != "detail"}]}))
+    case("data_schema_violation_client_type", "data_schema_violation",
+         "A client whose `type` is null. Unrecognised types are accepted on "
+         "purpose (a client type decides nothing); a MISSING one is not, because "
+         "the row has nothing to render.",
+         mutate(ok, **{"data.counts.clients": 9,
+                       "data.clients": [
+                           mutate(client_record(70, "a", "WIRED"), type=None)]}))
+    case("bound_exceeded_ports", "bound_exceeded",
+         "A device with 65 ports, one past PORTS_PER_DEVICE_MAX.",
+         mutate(ok, **{"data.devices": [
+             device_record(60, "d", "USW-Pro-48-PoE", "ONLINE", "online",
+                           ["switching"], detail=device_detail(ports=65))]}))
 
     # ---- failure shape ---------------------------------------------------
     fail = valid_failure()

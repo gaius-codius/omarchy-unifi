@@ -389,6 +389,27 @@
       "rule": "DATA-005 / DATA-006 / DATA-008",
       "verdict": "accept"
     },
+    "envelopes/accept/success_browse_empty_lists": {
+      "enforcedBy": "service and helper",
+      "errorKind": null,
+      "note": "DATA-B04's boundary: the budget admitted nothing, so both arrays are empty while the totals are not. This must render as 'showing 0 of 300', never as 'no devices' — which is what a consumer reading the array length instead of the count says.",
+      "rule": "DATA-005 / DATA-006 / DATA-008",
+      "verdict": "accept"
+    },
+    "envelopes/accept/success_browse_full": {
+      "enforcedBy": "service and helper",
+      "errorKind": null,
+      "note": "REQ-B01/B03: every device and client listed. `detail` is present on three devices and null on two IN THE SAME ENVELOPE, because 'not fetched' and 'fetched and empty' render differently (REQ-B14) and a corpus where every device is alike lets a consumer conflate them. Also carries a featureless device, an unnamed client, and a client type outside the observed two.",
+      "rule": "DATA-005 / DATA-006 / DATA-008",
+      "verdict": "accept"
+    },
+    "envelopes/accept/success_browse_truncated": {
+      "enforcedBy": "service and helper",
+      "errorKind": null,
+      "note": "DATA-B04: both arrays are shorter than their totals and say so. A consumer that computed the remainder from `devices.length` rather than from `counts` would report 2 devices on a site of 300 and call it complete.",
+      "rule": "DATA-005 / DATA-006 / DATA-008",
+      "verdict": "accept"
+    },
     "envelopes/accept/success_console_without_gateway_feature": {
       "enforcedBy": "service and helper",
       "errorKind": null,
@@ -519,6 +540,14 @@
       "rule": "DATA-008 / bound_exceeded",
       "verdict": "reject"
     },
+    "envelopes/reject/bound_exceeded_ports": {
+      "enforcedBy": "service",
+      "note": "A device with 65 ports, one past PORTS_PER_DEVICE_MAX.",
+      "publishedAs": "malformed_response",
+      "rejectionClass": "bound_exceeded",
+      "rule": "DATA-008 / bound_exceeded",
+      "verdict": "reject"
+    },
     "envelopes/reject/byclass_offline_mismatch": {
       "enforcedBy": "service",
       "note": "byClass.down + byClass.impaired is 2 while offlineTotal says 0.",
@@ -533,6 +562,38 @@
       "publishedAs": "malformed_response",
       "rejectionClass": "byclass_sum_mismatch",
       "rule": "DATA-008 / byclass_sum_mismatch",
+      "verdict": "reject"
+    },
+    "envelopes/reject/data_schema_violation_client_type": {
+      "enforcedBy": "service",
+      "note": "A client whose `type` is null. Unrecognised types are accepted on purpose (a client type decides nothing); a MISSING one is not, because the row has nothing to render.",
+      "publishedAs": "malformed_response",
+      "rejectionClass": "data_schema_violation",
+      "rule": "DATA-008 / data_schema_violation",
+      "verdict": "reject"
+    },
+    "envelopes/reject/data_schema_violation_device_class": {
+      "enforcedBy": "service",
+      "note": "A device whose `class` is \"flapping\", outside REQ-000's five.",
+      "publishedAs": "malformed_response",
+      "rejectionClass": "data_schema_violation",
+      "rule": "DATA-008 / data_schema_violation",
+      "verdict": "reject"
+    },
+    "envelopes/reject/data_schema_violation_device_detail_absent": {
+      "enforcedBy": "service",
+      "note": "A device with NO `detail` key at all. Absent and null are different statements — 'the producer forgot' versus 'the producer did not ask' — and only the second is acceptable, so the key is required and its value is nullable rather than the other way round.",
+      "publishedAs": "malformed_response",
+      "rejectionClass": "data_schema_violation",
+      "rule": "DATA-008 / data_schema_violation",
+      "verdict": "reject"
+    },
+    "envelopes/reject/data_schema_violation_device_role": {
+      "enforcedBy": "service",
+      "note": "A device reporting a role outside the three REQ-009 counts.",
+      "publishedAs": "malformed_response",
+      "rejectionClass": "data_schema_violation",
+      "rule": "DATA-008 / data_schema_violation",
       "verdict": "reject"
     },
     "envelopes/reject/data_schema_violation_missing_class": {
@@ -653,6 +714,22 @@
       "publishedAs": "malformed_response",
       "rejectionClass": "failure_observed_at_not_null",
       "rule": "DATA-008 / failure_observed_at_not_null",
+      "verdict": "reject"
+    },
+    "envelopes/reject/list_exceeds_total": {
+      "enforcedBy": "service",
+      "note": "Six devices listed while devicesTotal says 5. A bounded array may be SHORTER than its total — that is what the bound is for — but never longer. Longer means the total is understating the site, which is the one thing REQ-010's independent-count rule exists to prevent.",
+      "publishedAs": "malformed_response",
+      "rejectionClass": "list_exceeds_total",
+      "rule": "DATA-008 / list_exceeds_total",
+      "verdict": "reject"
+    },
+    "envelopes/reject/list_exceeds_total_clients": {
+      "enforcedBy": "service",
+      "note": "Two clients listed while counts.clients says 1. The same rule on the other array; `counts.clients` is nullable, so the check must not fire when it is null — success_optional_gaps is the fixture that proves it does not.",
+      "publishedAs": "malformed_response",
+      "rejectionClass": "list_exceeds_total",
+      "rule": "DATA-008 / list_exceeds_total",
       "verdict": "reject"
     },
     "envelopes/reject/meta_helper_version_missing": {
@@ -829,13 +906,13 @@
     "protocol": "docs/protocol-v1.md"
   },
   "coverage": {
-    "accept": 54,
+    "accept": 57,
     "errorKinds": 19,
-    "reject": 55,
+    "reject": 62,
     "rejectEnforcedByHelper": 13,
-    "rejectEnforcedByService": 42,
-    "rejectionClasses": 36,
-    "total": 109
+    "rejectEnforcedByService": 49,
+    "rejectionClasses": 37,
+    "total": 119
   },
   "generatedBy": "tests/tools/gen_index.py",
   "privacy": {

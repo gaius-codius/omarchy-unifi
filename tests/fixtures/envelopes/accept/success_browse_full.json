@@ -1,0 +1,474 @@
+{
+  "attemptedAt": "2026-01-15T12:00:00Z",
+  "data": {
+    "applicationVersion": "9.1.0",
+    "clients": [
+      {
+        "accessType": "DEFAULT",
+        "connectedAt": "2026-01-12T09:14:00Z",
+        "id": "00000000-0000-5000-9000-000000000028",
+        "ipAddress": "192.168.20.40",
+        "macAddress": "02:00:00:00:01:28",
+        "name": "workshop-pi",
+        "type": "WIRED",
+        "uplinkDeviceId": "00000000-0000-5000-9000-00000000001f"
+      },
+      {
+        "accessType": "DEFAULT",
+        "connectedAt": "2026-01-12T09:14:00Z",
+        "id": "00000000-0000-5000-9000-000000000029",
+        "ipAddress": "192.168.20.41",
+        "macAddress": "02:00:00:00:01:29",
+        "name": "phone",
+        "type": "WIRELESS",
+        "uplinkDeviceId": "00000000-0000-5000-9000-000000000020"
+      },
+      {
+        "accessType": "DEFAULT",
+        "connectedAt": null,
+        "id": "00000000-0000-5000-9000-00000000002a",
+        "ipAddress": null,
+        "macAddress": null,
+        "name": null,
+        "type": "WIRELESS",
+        "uplinkDeviceId": "00000000-0000-5000-9000-000000000020"
+      },
+      {
+        "accessType": "DEFAULT",
+        "connectedAt": "2026-01-12T09:14:00Z",
+        "id": "00000000-0000-5000-9000-00000000002b",
+        "ipAddress": "192.168.20.43",
+        "macAddress": null,
+        "name": "road-laptop",
+        "type": "TELEPORT",
+        "uplinkDeviceId": null
+      }
+    ],
+    "counts": {
+      "accessPoints": {
+        "down": 0,
+        "impaired": 0,
+        "online": 2,
+        "transitional": 0,
+        "unknown": 0
+      },
+      "byClass": {
+        "down": 1,
+        "impaired": 0,
+        "online": 4,
+        "transitional": 0,
+        "unknown": 0
+      },
+      "clients": 4,
+      "devicesTotal": 5,
+      "gateways": {
+        "down": 0,
+        "impaired": 0,
+        "online": 1,
+        "transitional": 0,
+        "unknown": 0
+      },
+      "offlineTotal": 1,
+      "switches": {
+        "down": 1,
+        "impaired": 0,
+        "online": 1,
+        "transitional": 0,
+        "unknown": 0
+      }
+    },
+    "devices": [
+      {
+        "class": "down",
+        "detail": {
+          "ports": [
+            {
+              "connector": "RJ45",
+              "idx": 1,
+              "maxSpeedMbps": 1000,
+              "poe": {
+                "enabled": false,
+                "standard": "802.3at",
+                "state": "OFF"
+              },
+              "state": "DOWN"
+            },
+            {
+              "connector": "RJ45",
+              "idx": 2,
+              "maxSpeedMbps": 1000,
+              "poe": {
+                "enabled": true,
+                "standard": "802.3at",
+                "state": "GOOD"
+              },
+              "state": "UP"
+            },
+            {
+              "connector": "RJ45",
+              "idx": 3,
+              "maxSpeedMbps": 1000,
+              "poe": {
+                "enabled": true,
+                "standard": "802.3at",
+                "state": "GOOD"
+              },
+              "state": "UP"
+            },
+            {
+              "connector": "RJ45",
+              "idx": 4,
+              "maxSpeedMbps": 1000,
+              "poe": {
+                "enabled": true,
+                "standard": "802.3at",
+                "state": "GOOD"
+              },
+              "state": "UP"
+            },
+            {
+              "connector": "RJ45",
+              "idx": 5,
+              "maxSpeedMbps": 1000,
+              "poe": {
+                "enabled": true,
+                "standard": "802.3at",
+                "state": "GOOD"
+              },
+              "state": "UP"
+            },
+            {
+              "connector": "RJ45",
+              "idx": 6,
+              "maxSpeedMbps": 1000,
+              "poe": {
+                "enabled": true,
+                "standard": "802.3at",
+                "state": "GOOD"
+              },
+              "state": "UP"
+            },
+            {
+              "connector": "RJ45",
+              "idx": 7,
+              "maxSpeedMbps": 1000,
+              "poe": {
+                "enabled": true,
+                "standard": "802.3at",
+                "state": "GOOD"
+              },
+              "state": "UP"
+            },
+            {
+              "connector": "RJ45",
+              "idx": 8,
+              "maxSpeedMbps": 1000,
+              "poe": {
+                "enabled": true,
+                "standard": "802.3at",
+                "state": "GOOD"
+              },
+              "state": "UP"
+            },
+            {
+              "connector": "RJ45",
+              "idx": 9,
+              "maxSpeedMbps": 1000,
+              "poe": {
+                "enabled": true,
+                "standard": "802.3at",
+                "state": "GOOD"
+              },
+              "state": "UP"
+            },
+            {
+              "connector": "RJ45",
+              "idx": 10,
+              "maxSpeedMbps": 1000,
+              "poe": null,
+              "state": "UP"
+            }
+          ],
+          "provisionedAt": "2026-01-02T08:00:00Z",
+          "radios": []
+        },
+        "firmwareUpdatable": true,
+        "firmwareVersion": "9.1.0",
+        "id": "00000000-0000-5000-9000-00000000001f",
+        "ipAddress": "192.168.10.31",
+        "macAddress": "02:00:00:00:00:1f",
+        "metrics": {
+          "cpuUtilizationPct": null,
+          "downloadBps": null,
+          "memoryUtilizationPct": null,
+          "uploadBps": null,
+          "uptimeSec": null
+        },
+        "model": "USW-Lite-8-PoE",
+        "name": "Garage Switch",
+        "roles": [
+          "switching"
+        ],
+        "state": "OFFLINE",
+        "uplinkDeviceId": "00000000-0000-5000-9000-00000000001e"
+      },
+      {
+        "class": "online",
+        "detail": {
+          "ports": [
+            {
+              "connector": "RJ45",
+              "idx": 1,
+              "maxSpeedMbps": 1000,
+              "poe": {
+                "enabled": false,
+                "standard": "802.3at",
+                "state": "OFF"
+              },
+              "state": "DOWN"
+            },
+            {
+              "connector": "RJ45",
+              "idx": 2,
+              "maxSpeedMbps": 1000,
+              "poe": {
+                "enabled": true,
+                "standard": "802.3at",
+                "state": "GOOD"
+              },
+              "state": "UP"
+            },
+            {
+              "connector": "RJ45",
+              "idx": 3,
+              "maxSpeedMbps": 1000,
+              "poe": {
+                "enabled": true,
+                "standard": "802.3at",
+                "state": "GOOD"
+              },
+              "state": "UP"
+            },
+            {
+              "connector": "RJ45",
+              "idx": 4,
+              "maxSpeedMbps": 1000,
+              "poe": {
+                "enabled": true,
+                "standard": "802.3at",
+                "state": "GOOD"
+              },
+              "state": "UP"
+            },
+            {
+              "connector": "RJ45",
+              "idx": 5,
+              "maxSpeedMbps": 1000,
+              "poe": {
+                "enabled": true,
+                "standard": "802.3at",
+                "state": "GOOD"
+              },
+              "state": "UP"
+            },
+            {
+              "connector": "RJ45",
+              "idx": 6,
+              "maxSpeedMbps": 1000,
+              "poe": {
+                "enabled": true,
+                "standard": "802.3at",
+                "state": "GOOD"
+              },
+              "state": "UP"
+            },
+            {
+              "connector": "RJ45",
+              "idx": 7,
+              "maxSpeedMbps": 1000,
+              "poe": {
+                "enabled": true,
+                "standard": "802.3at",
+                "state": "GOOD"
+              },
+              "state": "UP"
+            },
+            {
+              "connector": "RJ45",
+              "idx": 8,
+              "maxSpeedMbps": 1000,
+              "poe": {
+                "enabled": true,
+                "standard": "802.3at",
+                "state": "GOOD"
+              },
+              "state": "UP"
+            },
+            {
+              "connector": "RJ45",
+              "idx": 9,
+              "maxSpeedMbps": 1000,
+              "poe": {
+                "enabled": true,
+                "standard": "802.3at",
+                "state": "GOOD"
+              },
+              "state": "UP"
+            },
+            {
+              "connector": "RJ45",
+              "idx": 10,
+              "maxSpeedMbps": 1000,
+              "poe": null,
+              "state": "UP"
+            }
+          ],
+          "provisionedAt": "2026-01-02T08:00:00Z",
+          "radios": []
+        },
+        "firmwareUpdatable": false,
+        "firmwareVersion": "9.1.0",
+        "id": "00000000-0000-5000-9000-00000000001e",
+        "ipAddress": "192.0.2.1",
+        "macAddress": "02:00:00:00:00:1e",
+        "metrics": {
+          "cpuUtilizationPct": 4.5,
+          "downloadBps": 12000000,
+          "memoryUtilizationPct": 38.0,
+          "uploadBps": 3000000,
+          "uptimeSec": 864000
+        },
+        "model": "UDM-Pro",
+        "name": "UDM Pro",
+        "roles": [
+          "gateway",
+          "switching"
+        ],
+        "state": "ONLINE",
+        "uplinkDeviceId": null
+      },
+      {
+        "class": "online",
+        "detail": {
+          "ports": [],
+          "provisionedAt": "2026-01-02T08:00:00Z",
+          "radios": [
+            {
+              "frequencyGHz": 2.4,
+              "txRetriesPct": 1.5
+            },
+            {
+              "frequencyGHz": 5.0,
+              "txRetriesPct": 2.5
+            }
+          ]
+        },
+        "firmwareUpdatable": false,
+        "firmwareVersion": "9.1.0",
+        "id": "00000000-0000-5000-9000-000000000020",
+        "ipAddress": "192.168.10.32",
+        "macAddress": "02:00:00:00:00:20",
+        "metrics": {
+          "cpuUtilizationPct": 11.0,
+          "downloadBps": 900000,
+          "memoryUtilizationPct": 44.5,
+          "uploadBps": 400000,
+          "uptimeSec": 432000
+        },
+        "model": "U6-Pro",
+        "name": "Attic AP",
+        "roles": [
+          "accessPoint"
+        ],
+        "state": "ONLINE",
+        "uplinkDeviceId": "00000000-0000-5000-9000-00000000001e"
+      },
+      {
+        "class": "online",
+        "detail": null,
+        "firmwareUpdatable": false,
+        "firmwareVersion": "9.1.0",
+        "id": "00000000-0000-5000-9000-000000000021",
+        "ipAddress": "192.168.10.33",
+        "macAddress": "02:00:00:00:00:21",
+        "metrics": null,
+        "model": "U6-Lite",
+        "name": "Shed AP",
+        "roles": [
+          "accessPoint"
+        ],
+        "state": "ONLINE",
+        "uplinkDeviceId": null
+      },
+      {
+        "class": "online",
+        "detail": null,
+        "firmwareUpdatable": false,
+        "firmwareVersion": "9.1.0",
+        "id": "00000000-0000-5000-9000-000000000022",
+        "ipAddress": null,
+        "macAddress": null,
+        "metrics": null,
+        "model": "UNKNOWN-DEV",
+        "name": "Unknown Device",
+        "roles": [],
+        "state": "ONLINE",
+        "uplinkDeviceId": null
+      }
+    ],
+    "gateways": [
+      {
+        "class": "online",
+        "downloadBps": 12000000,
+        "id": "00000000-0000-5000-9000-00000000001e",
+        "model": "UDM-Pro",
+        "name": "UDM Pro",
+        "state": "ONLINE",
+        "uploadBps": 3000000,
+        "uptimeSec": 864000
+      }
+    ],
+    "offlineDevices": [
+      {
+        "class": "down",
+        "id": "00000000-0000-5000-9000-00000000001f",
+        "model": "USW-Lite-8-PoE",
+        "name": "Garage Switch",
+        "state": "OFFLINE"
+      }
+    ],
+    "site": {
+      "id": "00000000-0000-5000-9000-000000000001",
+      "name": "Home"
+    },
+    "wan": {
+      "downloadBps": 12000000,
+      "status": "up",
+      "uploadBps": 3000000,
+      "uptimeSec": 864000
+    }
+  },
+  "error": null,
+  "meta": {
+    "allowInsecureTls": false,
+    "apiRootHost": "192.168.1.1",
+    "commitGeneration": 7,
+    "customCaInUse": false,
+    "helperVersion": "0.1.0",
+    "siteId": "00000000-0000-5000-9000-000000000001"
+  },
+  "nonce": "b7c1d4e9f2a68035",
+  "observedAt": "2026-01-15T12:00:02Z",
+  "ok": true,
+  "protocolVersion": 1,
+  "warnings": [
+    {
+      "code": "device_detail_truncated",
+      "detail": {
+        "fetched": 3,
+        "total": 5
+      },
+      "message": "Details were fetched for some devices only; see the total."
+    }
+  ]
+}

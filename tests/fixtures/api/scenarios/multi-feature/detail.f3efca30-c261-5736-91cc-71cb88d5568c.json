@@ -1,0 +1,26 @@
+{
+  "configurationId": "20928eb0-3eb8-57d7-981a-0ead7100b497",
+  "firmwareUpdatable": false,
+  "firmwareVersion": "9.1.0",
+  "id": "f3efca30-c261-5736-91cc-71cb88d5568c",
+  "interfaces": {
+    "radios": [
+      {
+        "frequencyGHz": 2.4
+      },
+      {
+        "frequencyGHz": 5.0
+      }
+    ]
+  },
+  "ipAddress": "192.168.10.4",
+  "macAddress": "02:00:00:00:00:03",
+  "model": "UNKNOWN-DEV",
+  "name": "Featureless",
+  "provisionedAt": "2026-01-15T12:00:00Z",
+  "state": "ONLINE",
+  "supported": true,
+  "uplink": {
+    "deviceId": "bce4de35-f69b-5c47-90f9-6ab9243d5ef8"
+  }
+}

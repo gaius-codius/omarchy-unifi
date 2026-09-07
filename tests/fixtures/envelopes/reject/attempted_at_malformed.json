@@ -9,6 +9,7 @@
     "attemptedAt": "2026-01-15 12:00:00",
     "data": {
       "applicationVersion": "9.1.0",
+      "clients": [],
       "counts": {
         "accessPoints": {
           "down": 0,
@@ -42,6 +43,7 @@
           "unknown": 0
         }
       },
+      "devices": [],
       "gateways": [
         {
           "class": "online",

@@ -75,12 +75,21 @@ ROUTES = {
         "params": ("siteId",),
         "paginated": True,
     },
-    "wans": {
-        "template": "sites/{siteId}/wans",
-        "params": ("siteId",),
-        "paginated": True,
+    # SPEC-v1.1-browse.md §4. A superset of the list record: per-port state and
+    # PoE, `uplink.deviceId`, `provisionedAt`. Not paginated — it addresses one
+    # device by id.
+    "device": {
+        "template": "sites/{siteId}/devices/{deviceId}",
+        "params": ("siteId", "deviceId"),
+        "paginated": False,
     },
 }
+
+# `wans` was here. DEV-5, resolved 2026-09-07 as Option B: the route returns
+# `{id, name}` and nothing else — confirmed against hardware at Phase 12a — so
+# it could never contribute to DATA-006, and it cost two HTTPS requests per
+# batch because DATA-009a re-reads page 0 at the end of every collection.
+# `wans_unavailable` is retired with it.
 
 ROUTE_NAMES = tuple(sorted(ROUTES))
 

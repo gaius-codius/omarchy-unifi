@@ -14,11 +14,29 @@ assertion tautological, which is the failure mode this whole corpus exists to
 prevent.
 
 Only what `normalize.py` reads is populated. A device's `macAddress`,
-`ipAddress`, `firmwareVersion` and the rest are part of the API schema and are
-irrelevant to the model, so they are omitted rather than invented — an omitted
+`ipAddress`, `firmwareVersion` and the rest were part of the API schema and
+irrelevant to the model, so they were omitted rather than invented — an omitted
 field that mattered would show up as a mismatch.
+
+**SPEC-v1.1-browse.md changed which of those matter.** `macAddress`,
+`firmwareVersion` and `firmwareUpdatable` are now read by DATA-B01, so the
+browse cases populate them through `browse_device()`. Every pre-v1.1 case still
+uses `device()` and still omits them, which is deliberate: those inputs must
+keep producing byte-identical envelopes, and that is a stronger statement than
+"the new fields default to null".
 """
 
+
+import os
+import sys
+
+# `browse_order` is REQ-B11's rule and lives in the module under test.
+# Importing it rather than restating it is the point: an input authored
+# against a COPY of the ordering would agree with a wrong copy.
+sys.path.insert(0, os.path.join(
+    os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+    "helper"))
+from unifi import normalize  # noqa: E402
 
 def uid(suffix):
     """The same synthetic UUID namespace gen_envelopes.py uses (SEC-011)."""
@@ -41,10 +59,77 @@ def device(index, state, features, name=None, model=None, ip=None):
     return body
 
 
-def stats(uptime=None, rx=None, tx=None):
+def browse_device(index, state, features, name=None, model=None, ip=None,
+                  mac=None, firmware="9.1.0", updatable=False):
+    """A device record carrying the fields DATA-B01 reads.
+
+    Separate from `device()` on purpose. Every pre-v1.1 input omits
+    `ipAddress`, `macAddress` and the firmware pair entirely, and that shape has
+    to keep producing exactly the envelope it produced before — which is a
+    stronger statement than "the new fields default to null" and is the one the
+    byte-for-byte corpus check makes.
+    """
+    body = device(index, state, features, name=name, model=model, ip=ip)
+    if mac is not None:
+        body["macAddress"] = mac
+    body["firmwareVersion"] = firmware
+    body["firmwareUpdatable"] = updatable
+    return body
+
+
+def detail(ports=0, radios=0, uplink=None,
+           provisioned="2026-01-02T08:00:00Z"):
+    """A route-6 body, as the controller returns it.
+
+    Authored in the API's shape and not the model's, so `normalize` has to do
+    the mapping the corpus asserts — the same rule the rest of this file
+    follows. A helper that emitted the model shape would make the test compare
+    the fixture against itself.
+    """
+    body = {"provisionedAt": provisioned, "interfaces": {}}
+    if uplink is not None:
+        body["uplink"] = {"deviceId": uplink}
+    if ports:
+        body["interfaces"]["ports"] = [
+            {"idx": i + 1, "connector": "RJ45",
+             "state": "UP" if i else "DOWN", "maxSpeedMbps": 1000,
+             "poe": ({"enabled": bool(i), "standard": "802.3at",
+                      "state": "GOOD" if i else "OFF", "type": 4}
+                     if i < ports - 1 else None)}
+            for i in range(ports)
+        ]
+    if radios:
+        body["interfaces"]["radios"] = [
+            {"frequencyGHz": 2.4 if i == 0 else 5.0, "txRetriesPct": 1.5 + i}
+            for i in range(radios)
+        ]
+    return body
+
+
+def client(index, name, kind, ip=None, mac=None, uplink=None,
+           connected="2026-01-12T09:14:00Z", access="DEFAULT"):
+    body = {"id": uid(index), "name": name, "type": kind}
+    if access is not None:
+        body["access"] = {"type": access}
+    if ip is not None:
+        body["ipAddress"] = ip
+    if mac is not None:
+        body["macAddress"] = mac
+    if uplink is not None:
+        body["uplinkDeviceId"] = uplink
+    if connected is not None:
+        body["connectedAt"] = connected
+    return body
+
+
+def stats(uptime=None, rx=None, tx=None, cpu=None, memory=None):
     body = {"interfaces": {"radios": []}}
     if uptime is not None:
         body["uptimeSec"] = uptime
+    if cpu is not None:
+        body["cpuUtilizationPct"] = cpu
+    if memory is not None:
+        body["memoryUtilizationPct"] = memory
     if rx is not None or tx is not None:
         body["uplink"] = {}
         if rx is not None:
@@ -255,6 +340,91 @@ def cases():
         "devices": [device(10, "OFFLINE", GATEWAY, *UDM)] + bulk,
         "clients": 0,
         "statistics": {},
+        "applicationVersion": "9.1.0",
+    }
+
+    # --- SPEC-v1.1-browse.md ------------------------------------------------
+    #
+    # The devices are authored in a DELIBERATELY WRONG order — online first,
+    # alphabetically — so that reproducing the fixture requires `browse_order`
+    # to actually reorder them. Authoring them pre-sorted would let a build()
+    # that ignored REQ-B11 entirely pass byte for byte.
+    browse_devices = [
+        browse_device(32, "ONLINE", ACCESS_POINT, "Attic AP", "U6-Pro",
+                      ip="192.168.10.32", mac="02:00:00:00:00:20"),
+        browse_device(34, "ONLINE", [], "Unknown Device", "UNKNOWN-DEV"),
+        browse_device(30, "ONLINE", ["gateway", "switching"], "UDM Pro",
+                      "UDM-Pro", ip="192.0.2.1", mac="02:00:00:00:00:1e"),
+        browse_device(33, "ONLINE", ACCESS_POINT, "Shed AP", "U6-Lite",
+                      ip="192.168.10.33", mac="02:00:00:00:00:21"),
+        browse_device(31, "OFFLINE", SWITCH, "Garage Switch", "USW-Lite-8-PoE",
+                      ip="192.168.10.31", mac="02:00:00:00:00:1f",
+                      updatable=True),
+    ]
+    browse_details = {
+        uid(30): detail(ports=10),
+        uid(31): detail(ports=10, uplink=uid(30)),
+        uid(32): detail(radios=2, uplink=uid(30)),
+        # 33 and 34 are past REQ-B02's bound: no entry, so `detail` is null.
+    }
+    browse_stats = {
+        uid(30): stats(864000, 12000000, 3000000, cpu=4.5, memory=38.0),
+        uid(31): stats(cpu=None, memory=None),
+        uid(32): stats(432000, 900000, 400000, cpu=11.0, memory=44.5),
+    }
+    browse_clients = [
+        client(40, "workshop-pi", "WIRED", ip="192.168.20.40",
+               mac="02:00:00:00:01:28", uplink=uid(31)),
+        client(41, "phone", "WIRELESS", ip="192.168.20.41",
+               mac="02:00:00:00:01:29", uplink=uid(32)),
+        client(42, None, "WIRELESS", uplink=uid(32), connected=None),
+        client(43, "road-laptop", "TELEPORT", ip="192.168.20.43", uplink=None,
+               access="DEFAULT"),
+    ]
+    out["success_browse_full"] = {
+        "site": {"id": uid(1), "name": "Home"},
+        "devices": browse_devices,
+        "clients": 4,
+        "statistics": browse_stats,
+        "details": browse_details,
+        "listedDevices": normalize.browse_order(browse_devices),
+        "clientRecords": browse_clients,
+        "applicationVersion": "9.1.0",
+    }
+
+    # Truncation. The COUNTS describe a 300-device site while the lists hold two
+    # devices and one client: the arrays are a bounded selection and the counts
+    # are not derived from them. A build() that computed `devicesTotal` from
+    # `len(devices)` would report 2 here, which is the defect DATA-B04 exists to
+    # make impossible.
+    bulk_300 = ([browse_device(30, "ONLINE", ["gateway", "switching"], "UDM Pro",
+                               "UDM-Pro", ip="192.0.2.1", mac="02:00:00:00:00:1e")]
+                + [browse_device(200 + i, "ONLINE", SWITCH,
+                                 "Bulk %03d" % i, "USW-Lite-8-PoE")
+                   for i in range(200)]
+                + [browse_device(500 + i, "ONLINE", ACCESS_POINT,
+                                 "AP %03d" % i, "U6-Lite") for i in range(99)])
+    ordered_300 = normalize.browse_order(bulk_300)
+    out["success_browse_truncated"] = {
+        "site": {"id": uid(1), "name": "Home"},
+        "devices": bulk_300,
+        "clients": 900,
+        "statistics": {uid(30): stats(864000, 12000000, 3000000)},
+        # No `details` at all. REQ-B02b: on a site this size the byte budget is
+        # spent before route 6 is reached, so every `detail` is null while
+        # `metrics` — one cheap request for the gateway — survives. The two
+        # bounds are independent and this is the case that shows it.
+        "listedDevices": ordered_300[:2],
+        "clientRecords": browse_clients[:1],
+        "applicationVersion": "9.1.0",
+    }
+
+    # The boundary: the budget admitted nothing at all.
+    out["success_browse_empty_lists"] = {
+        "site": {"id": uid(1), "name": "Home"},
+        "devices": bulk_300,
+        "clients": 900,
+        "statistics": {uid(30): stats(864000, 12000000, 3000000)},
         "applicationVersion": "9.1.0",
     }
     return out

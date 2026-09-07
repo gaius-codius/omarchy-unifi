@@ -1,0 +1,26 @@
+{
+  "configurationId": "07a5996b-b5f6-51af-ba5d-f934193f0dc5",
+  "firmwareUpdatable": false,
+  "firmwareVersion": "9.1.0",
+  "id": "f648a25e-acb1-53b5-8baf-96f92d4dc4fe",
+  "interfaces": {
+    "radios": [
+      {
+        "frequencyGHz": 2.4
+      },
+      {
+        "frequencyGHz": 5.0
+      }
+    ]
+  },
+  "ipAddress": "192.168.10.3",
+  "macAddress": "02:00:00:00:00:02",
+  "model": "U6-Pro",
+  "name": "Ap Only",
+  "provisionedAt": "2026-01-15T12:00:00Z",
+  "state": "ONLINE",
+  "supported": true,
+  "uplink": {
+    "deviceId": "bce4de35-f69b-5c47-90f9-6ab9243d5ef8"
+  }
+}

@@ -1,0 +1,155 @@
+{
+  "attemptedAt": "2026-01-15T12:00:00Z",
+  "data": {
+    "applicationVersion": "9.1.0",
+    "clients": [
+      {
+        "accessType": "DEFAULT",
+        "connectedAt": "2026-01-12T09:14:00Z",
+        "id": "00000000-0000-5000-9000-000000000028",
+        "ipAddress": "192.168.20.40",
+        "macAddress": "02:00:00:00:01:28",
+        "name": "workshop-pi",
+        "type": "WIRED",
+        "uplinkDeviceId": "00000000-0000-5000-9000-00000000001f"
+      }
+    ],
+    "counts": {
+      "accessPoints": {
+        "down": 0,
+        "impaired": 0,
+        "online": 99,
+        "transitional": 0,
+        "unknown": 0
+      },
+      "byClass": {
+        "down": 0,
+        "impaired": 0,
+        "online": 300,
+        "transitional": 0,
+        "unknown": 0
+      },
+      "clients": 900,
+      "devicesTotal": 300,
+      "gateways": {
+        "down": 0,
+        "impaired": 0,
+        "online": 1,
+        "transitional": 0,
+        "unknown": 0
+      },
+      "offlineTotal": 0,
+      "switches": {
+        "down": 0,
+        "impaired": 0,
+        "online": 201,
+        "transitional": 0,
+        "unknown": 0
+      }
+    },
+    "devices": [
+      {
+        "class": "online",
+        "detail": null,
+        "firmwareUpdatable": false,
+        "firmwareVersion": "9.1.0",
+        "id": "00000000-0000-5000-9000-00000000001e",
+        "ipAddress": "192.0.2.1",
+        "macAddress": "02:00:00:00:00:1e",
+        "metrics": {
+          "cpuUtilizationPct": null,
+          "downloadBps": 12000000,
+          "memoryUtilizationPct": null,
+          "uploadBps": 3000000,
+          "uptimeSec": 864000
+        },
+        "model": "UDM-Pro",
+        "name": "UDM Pro",
+        "roles": [
+          "gateway",
+          "switching"
+        ],
+        "state": "ONLINE",
+        "uplinkDeviceId": null
+      },
+      {
+        "class": "online",
+        "detail": null,
+        "firmwareUpdatable": false,
+        "firmwareVersion": "9.1.0",
+        "id": "00000000-0000-5000-9000-0000000001f4",
+        "ipAddress": null,
+        "macAddress": null,
+        "metrics": null,
+        "model": "U6-Lite",
+        "name": "AP 000",
+        "roles": [
+          "accessPoint"
+        ],
+        "state": "ONLINE",
+        "uplinkDeviceId": null
+      }
+    ],
+    "gateways": [
+      {
+        "class": "online",
+        "downloadBps": 12000000,
+        "id": "00000000-0000-5000-9000-00000000001e",
+        "model": "UDM-Pro",
+        "name": "UDM Pro",
+        "state": "ONLINE",
+        "uploadBps": 3000000,
+        "uptimeSec": 864000
+      }
+    ],
+    "offlineDevices": [],
+    "site": {
+      "id": "00000000-0000-5000-9000-000000000001",
+      "name": "Home"
+    },
+    "wan": {
+      "downloadBps": 12000000,
+      "status": "up",
+      "uploadBps": 3000000,
+      "uptimeSec": 864000
+    }
+  },
+  "error": null,
+  "meta": {
+    "allowInsecureTls": false,
+    "apiRootHost": "192.168.1.1",
+    "commitGeneration": 7,
+    "customCaInUse": false,
+    "helperVersion": "0.1.0",
+    "siteId": "00000000-0000-5000-9000-000000000001"
+  },
+  "nonce": "b7c1d4e9f2a68035",
+  "observedAt": "2026-01-15T12:00:02Z",
+  "ok": true,
+  "protocolVersion": 1,
+  "warnings": [
+    {
+      "code": "devices_truncated",
+      "detail": {
+        "listed": 2,
+        "total": 300
+      },
+      "message": "The device list is truncated; see the total."
+    },
+    {
+      "code": "clients_truncated",
+      "detail": {
+        "listed": 1,
+        "total": 900
+      },
+      "message": "The client list is truncated; see the total."
+    },
+    {
+      "code": "envelope_truncated",
+      "detail": {
+        "dropped": "clients"
+      },
+      "message": "The reading was too large to send whole and was shortened."
+    }
+  ]
+}

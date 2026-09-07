@@ -31,6 +31,13 @@ const NONCE_MIN_CHARS = 1
 const NONCE_MAX_CHARS = 128
 const OFFLINE_DEVICES_MAX = 10
 const GATEWAYS_MAX = 64
+// SPEC-v1.1-browse.md. These mirror `helper/unifi/bounds.py` and are duplicated
+// rather than shared for the usual reason (HC-16); `consistency.test.js` is
+// what stops the two drifting.
+const DEVICES_LISTED_MAX = 200
+const CLIENTS_LISTED_MAX = 500
+const PORTS_PER_DEVICE_MAX = 64
+const RADIOS_PER_DEVICE_MAX = 8
 const WARNINGS_MAX = 32
 const STRING_MAX_CHARS = 512
 const MESSAGE_MAX_CHARS = 256
@@ -60,6 +67,11 @@ const ROLE_BUCKETS = ["gateways", "switches", "accessPoints"]
 // producer inventing data, and a present-and-null one is an invitation to
 // a future contributor to fill it in.
 const WAN_KEYS = ["status", "uptimeSec", "downloadBps", "uploadBps"]
+
+// REQ-000's roles, as they appear in `devices[].roles`. A closed set, for the
+// same reason the classes are: an unrecognised role would be counted nowhere
+// and rendered as nothing.
+const ROLES = ["gateway", "switching", "accessPoint"]
 
 const TRANSIENT_HTTP_STATUSES = [500, 502, 503, 504]
 
@@ -466,6 +478,122 @@ function checkData(data, reasons) {
       }
     }
   }
+
+  checkBrowseLists(data, counts, reasons)
+}
+
+// SPEC-v1.1-browse.md REQ-B01 / REQ-B03. The two browsable arrays.
+//
+// The invariant worth stating out loud is the last one: an array may be SHORTER
+// than its total, because it is bounded, but it may never be LONGER. A bound is
+// allowed to hide records; it is not allowed to make the total a lie. This is
+// REQ-010's rule about `offlineTotal` — the one that stops "and N more" from
+// being computed off a truncated array — generalised to the two arrays that can
+// actually get big.
+function checkBrowseLists(data, counts, reasons) {
+  if (!checkListShape(data.devices, "devices", DEVICES_LISTED_MAX, reasons)) return
+  if (!checkListShape(data.clients, "clients", CLIENTS_LISTED_MAX, reasons)) return
+
+  for (let i = 0; i < data.devices.length; i++) {
+    checkDeviceRecord(data.devices[i], i, reasons)
+  }
+  for (let j = 0; j < data.clients.length; j++) {
+    const client = data.clients[j]
+    if (!isObject(client) || typeof client.id !== "string" || client.id === "") {
+      reject(reasons, "data_schema_violation", "clients[" + j + "]: no string id")
+    } else if (typeof client.type !== "string" || client.type === "") {
+      // `type` is deliberately NOT checked against a closed set. The observed
+      // values are WIRED and WIRELESS, the published schema adds VPN and
+      // TELEPORT, and a future controller may add more — and unlike a device
+      // `state`, a client type decides nothing, so an unrecognised one is
+      // rendered as itself rather than being a protocol error.
+      reject(reasons, "data_schema_violation", "clients[" + j + "].type: not a string")
+    }
+  }
+
+  if (!isObject(counts)) return
+  if (isCount(counts.devicesTotal) && data.devices.length > counts.devicesTotal) {
+    reject(reasons, "list_exceeds_total",
+      "devices: " + data.devices.length + " entries but devicesTotal="
+        + counts.devicesTotal)
+  }
+  if (isCount(counts.clients) && data.clients.length > counts.clients) {
+    reject(reasons, "list_exceeds_total",
+      "clients: " + data.clients.length + " entries but counts.clients="
+        + counts.clients)
+  }
+}
+
+function checkListShape(value, name, bound, reasons) {
+  if (!Array.isArray(value)) {
+    reject(reasons, "data_schema_violation", name + ": not an array")
+    return false
+  }
+  if (value.length > bound) {
+    reject(reasons, "bound_exceeded",
+      name + ": " + value.length + " entries exceeds " + bound)
+    return false
+  }
+  return true
+}
+
+function checkDeviceRecord(device, index, reasons) {
+  const at = "devices[" + index + "]"
+  if (!isObject(device)) {
+    reject(reasons, "data_schema_violation", at + ": not an object")
+    return
+  }
+  if (typeof device.id !== "string" || device.id === "") {
+    reject(reasons, "data_schema_violation", at + ": no string id")
+  }
+  if (!contains(CLASSES, device.class)) {
+    reject(reasons, "data_schema_violation",
+      at + ".class: " + JSON.stringify(device.class) + " is outside REQ-000")
+  }
+  if (!Array.isArray(device.roles)) {
+    reject(reasons, "data_schema_violation", at + ".roles: not an array")
+  } else {
+    for (let i = 0; i < device.roles.length; i++) {
+      if (!contains(ROLES, device.roles[i])) {
+        reject(reasons, "data_schema_violation",
+          at + ".roles: " + JSON.stringify(device.roles[i]) + " is not a role")
+      }
+    }
+  }
+  // `null` means NOT FETCHED and is the common case under REQ-B02's bound. An
+  // ABSENT key is a different statement — "the producer forgot" rather than
+  // "the producer did not ask" — and is not accepted.
+  //
+  // No explicit `hasOwnProperty` test is needed for that, and an earlier
+  // version had one that was unreachable: a missing key reads as `undefined`,
+  // which is neither `null` nor an object, so the type check below already
+  // rejects it. Mutation testing found the dead branch — removing it changed
+  // no verdict. Saying so here, because "absent is rejected" is a real
+  // requirement and the line that looked like it enforced it is gone.
+  if (device.detail !== null) {
+    if (!isObject(device.detail)) {
+      reject(reasons, "data_schema_violation",
+        at + ".detail: neither an object nor an explicit null")
+    } else {
+      checkBoundedArray(device.detail.ports, at + ".detail.ports",
+        PORTS_PER_DEVICE_MAX, reasons)
+      checkBoundedArray(device.detail.radios, at + ".detail.radios",
+        RADIOS_PER_DEVICE_MAX, reasons)
+    }
+  }
+  if (device.metrics !== null && !isObject(device.metrics)) {
+    reject(reasons, "data_schema_violation",
+      at + ".metrics: neither an object nor an explicit null")
+  }
+}
+
+function checkBoundedArray(value, name, bound, reasons) {
+  if (!Array.isArray(value)) {
+    reject(reasons, "data_schema_violation", name + ": not an array")
+  } else if (value.length > bound) {
+    reject(reasons, "bound_exceeded",
+      name + ": " + value.length + " entries exceeds " + bound)
+  }
 }
 
 // DATA-007 / DATA-007a.
@@ -832,6 +960,11 @@ if (typeof module !== "undefined") module.exports = {
   NONCE_MIN_CHARS: NONCE_MIN_CHARS,
   NONCE_MAX_CHARS: NONCE_MAX_CHARS,
   OFFLINE_DEVICES_MAX: OFFLINE_DEVICES_MAX,
+  DEVICES_LISTED_MAX: DEVICES_LISTED_MAX,
+  CLIENTS_LISTED_MAX: CLIENTS_LISTED_MAX,
+  PORTS_PER_DEVICE_MAX: PORTS_PER_DEVICE_MAX,
+  RADIOS_PER_DEVICE_MAX: RADIOS_PER_DEVICE_MAX,
+  ROLES: ROLES,
   GATEWAYS_MAX: GATEWAYS_MAX,
   WARNINGS_MAX: WARNINGS_MAX,
   STRING_MAX_CHARS: STRING_MAX_CHARS,

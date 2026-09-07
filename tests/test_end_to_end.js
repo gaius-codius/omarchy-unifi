@@ -273,7 +273,10 @@ test("AC-009: a broken committed set yields uncommitted and sends NOTHING", () =
 test("AC-051: an optional gap succeeds; a required gap does not", () => {
   // BIZ-004's whole point: a device-health indicator must not be disabled by an
   // unavailable throughput metric.
-  for (const route of ["clients", "wans", "device_statistics"]) {
+  // Two optional collections since DEV-5 retired `/wans`. The loop is kept
+  // rather than inlined: AC-051 is a claim about the CLASS of optional routes,
+  // and a future third one should join a list, not need a new test.
+  for (const route of ["clients", "device_statistics"]) {
     const { result, envelope } = acceptedEnvelope("healthy", { failRoute: route })
     assert.strictEqual(result.exitCode, 0, route + " failed the batch")
     assert.strictEqual(envelope.ok, true, route)

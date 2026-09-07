@@ -1,0 +1,24 @@
+{
+  "cpuUtilizationPct": 6.0,
+  "interfaces": {
+    "radios": [
+      {
+        "frequencyGHz": 2.4,
+        "txRetriesPct": 1.5
+      },
+      {
+        "frequencyGHz": 5.0,
+        "txRetriesPct": 2.25
+      }
+    ]
+  },
+  "loadAverage15Min": 0.12,
+  "loadAverage1Min": 0.2,
+  "loadAverage5Min": 0.16,
+  "memoryUtilizationPct": 24.0,
+  "uplink": {
+    "rxRateBps": 12002000,
+    "txRateBps": 3002000
+  },
+  "uptimeSec": 871200
+}
