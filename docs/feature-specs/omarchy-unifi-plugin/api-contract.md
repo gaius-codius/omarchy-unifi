@@ -291,3 +291,91 @@ requests — DATA-009a fetches it twice — and its body was discarded, exactly 
 DEV-5 predicted from the specification. Nothing in the response can be joined to
 `gateways`, so option C (render WAN identity in the panel) has no data to render
 beyond a name.
+
+## §12b — route discovery probe, 2026-09-07
+
+Read-only GETs against the same console (Network **10.6.101**), with the user's
+approval, to establish what the integration API actually exposes rather than
+what its published subset documents. **Field names only were recorded**; no
+values, so nothing identifying entered this file or any transcript. The probe
+scripts were shredded and nothing was written to the repository.
+
+Full findings and their consequences are in `SPEC-v1.1-browse.md` §3. Recorded
+here because they are API facts and this is the file that owns them.
+
+### Routes that exist and were not in the published subset
+
+| Route | Result |
+|---|---|
+| `GET /v1/sites/{siteId}/devices/{deviceId}` | 200 — a **superset** of the list record |
+| `GET /v1/sites/{siteId}/clients/{clientId}` | 200 — **identical** to the list record |
+| `GET /v1/sites/{siteId}/networks` | 200 — `{default, enabled, id, management, metadata, name, vlanId, zoneId}` |
+| `GET /v1/sites/{siteId}/firewall/policies` | 200 |
+| `GET /v1/sites/{siteId}/hotspot/vouchers` | 200 |
+
+`GET /devices/{deviceId}` adds `configurationId`, `provisionedAt`,
+`uplink.deviceId`, `features.switching.lags[]` and
+`interfaces.ports[].{idx, connector, maxSpeedMbps, state, poe.{enabled, standard, state, type}}`.
+
+`uplink.deviceId` is **topology** — what each device is plugged into. Nothing in
+the published subset carries it.
+
+### Route 4 is not gateway-only
+
+`statistics/latest` returns 200 for **every** adopted device, not only gateways:
+`uptimeSec`, `cpuUtilizationPct`, `memoryUtilizationPct`,
+`loadAverage{1,5,15}Min`, `lastHeartbeatAt`, `nextHeartbeatAt`,
+`uplink.{rxRateBps, txRateBps}`, plus `interfaces.radios[].{frequencyGHz,
+txRetriesPct}` on access points.
+
+The field map above describes this route under "Route 4 returns uptime and
+uplink throughput", in a section reached from the gateway discussion. That
+framing was an inference, and REQ-008a's four-gateway cap inherited it. The
+route is per-device.
+
+### The device list record carries more than the field map states
+
+`features[]`, `firmwareVersion`, `firmwareUpdatable`, `supported`, `id`,
+`ipAddress`, `macAddress`, `model`, `name`, `state`, and `interfaces` — the last
+**as a list of strings** (`["ports"]`, `["radios"]`), a capability hint rather
+than data. Detail requires the per-device GET.
+
+### The client record is eight fields, and that is all there is
+
+`id`, `name`, `type`, `access.type`, `ipAddress`, `macAddress`,
+`uplinkDeviceId`, `connectedAt`. Types observed: `WIRED`, `WIRELESS`. There is
+no signal strength, no byte counter, no satisfaction score. **`GET /clients/{id}`
+returns nothing the list does not already carry**, which is why
+`SPEC-v1.1-browse.md` §4 declines to add it to the allowlist.
+
+### Limitations 1, 2 and 4 are now observed rather than inferred
+
+`/v1/sites/{siteId}/events`, `/alarms`, `/health`, `/statistics`,
+`/isp-metrics` and `/wan-metrics` all return **404**. So do `/v2/info` and
+`/v2/sites`. No OpenAPI or Swagger document is served at any of the five
+plausible paths.
+
+**There is no history, no latency and no packet loss on this API.** Not
+"undocumented" — absent.
+
+### The private controller API is present and credential-gated
+
+`/proxy/network/api/s/default/stat/health`, `/proxy/network/api/self/sites` and
+`/proxy/network/v2/api/site/default/dashboard` all return **401, not 404**. It
+exists on this console. **No login was attempted** and no field of it has been
+observed; every description of its contents elsewhere in these documents is from
+general knowledge and is explicitly unverified. See `SPEC-v1.1-browse.md` §11.
+
+### Measured request cost
+
+Nine devices, local console, sequential, each request its own handshake
+(`Connection: close`):
+
+```
+GET /devices/{id}                    n=9  mean 13ms  max 15ms  total 0.12s
+GET /devices/{id}/statistics/latest  n=9  mean 12ms  max 15ms  total 0.11s
+a current-shape 6-request batch                                total 0.09s
+```
+
+Against REQ-017's 25 s budget this is negligible here, and the bound in
+`SPEC-v1.1-browse.md` REQ-B02 exists for consoles that are not.

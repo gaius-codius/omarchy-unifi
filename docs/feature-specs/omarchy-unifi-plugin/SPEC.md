@@ -8,6 +8,11 @@ Related issues / PRs: none — greenfield repository
 Supersedes: `PLAN.md` at the repository root (the pre-skill design document, retained as the origin record)
 Supporting documents: `api-contract.md`, `unifi-network-v1-readonly-subset.json` (this directory)
 
+**Extended by `SPEC-v1.1-browse.md` (2026-09-07).** The Devices and Clients
+views add requirements in a separate `REQ-B` / `AC-B` / `DATA-B` number space
+and do not edit anything below. The one exception is the route allowlist in §9,
+which that addendum changes in membership but not in size — see its §4.
+
 ## 2. Problem
 A UniFi site owner running Omarchy has no ambient signal of network health on
 the desktop. Discovering that the gateway dropped, that an access point went
