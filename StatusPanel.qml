@@ -247,18 +247,4 @@ Column {
       }
     }
   }
-
-  // AC-025. The role rows deliberately sum to more than the unique total,
-  // because a device is counted in every role it reports. Without this line the
-  // panel reads as a bug in the panel.
-  Text {
-    visible: text !== ""
-    width: root.width
-    text: root.vm ? root.vm.roleCountsNote : ""
-    color: root.dim
-    font.family: root.fontFamily
-    font.pixelSize: Style.font.caption
-    textFormat: Text.PlainText
-    wrapMode: Text.WordWrap
-  }
 }

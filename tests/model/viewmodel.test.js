@@ -693,22 +693,31 @@ test("REQ-009: role rows carry their non-empty classes in a fixed order", () => 
   assert.strictEqual(ViewModel.countRows(null).length, 0)
 })
 
-test("AC-025: the not-a-partition note names the unique total", () => {
+test("AC-025: the flag is exposed, and the panel carries the unique total", () => {
+  // AC-025 asks for two things: the model exposes `roleCountsAreNotAPartition`,
+  // and the panel label carries the unique total. Both still hold — the total is
+  // its own labelled row ("Adopted devices"), which is where it always was.
+  //
+  // What AC-025 never asked for is the SENTENCE that used to sit under the role
+  // rows explaining the arithmetic. It was removed at the user's request
+  // (N-125), so there is nothing left to assert about its wording.
   const counts = JSON.parse(JSON.stringify(HEALTHY.counts))
   counts.devicesTotal = 3
   counts.accessPoints.online = 3
   const model = ViewModel.build({ snapshot: Object.assign({}, HEALTHY,
     { counts: counts }), level: { level: "green" } })
   assert.strictEqual(model.roleCountsAreNotAPartition, true)
-  assert.ok(model.roleCountsNote.indexOf("3 adopted devices") !== -1,
-    "the note must name the total the rows do not sum to: " + model.roleCountsNote)
-  // Silent when the rows do happen to agree, so it never explains away a
-  // discrepancy that is not there.
+  assert.strictEqual(model.devicesTotalText, "3")
+  // The rows really do out-total it, which is what makes the flag true rather
+  // than a constant.
+  const summed = model.countRows.reduce((n, row) => n + row.total, 0)
+  assert.ok(summed > 3, "the role rows must out-total the unique count: " + summed)
+  // And false when they do agree, so it is not simply always on.
   assert.strictEqual(build().roleCountsAreNotAPartition, false)
-  assert.strictEqual(build().roleCountsNote, "")
-  const one = { devicesTotal: 1, gateways: { online: 2 } }
-  assert.ok(ViewModel.roleCountsNote(one).indexOf("1 adopted device.") !== -1,
-    "singular: " + ViewModel.roleCountsNote(one))
+  // The removed sentence is gone from the model, not merely unbound in the QML.
+  assert.strictEqual(model.roleCountsNote, undefined)
+  assert.strictEqual(typeof ViewModel.roleCountsNote, "undefined")
+  assert.strictEqual(JSON.stringify(model).indexOf("counted in every role"), -1)
 })
 
 test("REQ-010: an offline row carries the words the panel prints", () => {

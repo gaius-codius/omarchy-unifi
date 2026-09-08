@@ -1181,9 +1181,32 @@ ShellRoot {
         check("its code is on screen", true, panelTextContains("offline_list_truncated"))
 
         // AC-025: the role rows sum to 13 over 12 unique devices.
+        //
+        // This used to look for "12 adopted device" — the sentence under the
+        // role rows that explained the arithmetic, removed at the user's
+        // request (N-125). What AC-025 actually asks is that the model expose
+        // the flag and that the PANEL LABEL carry the unique total, and the
+        // total has its own labelled row, where it always was.
+        //
+        // The value is matched EXACTLY against the collected strings rather
+        // than by containment: "12" is a substring of a great many numbers on
+        // this panel, and a containment check would pass on any of them.
         check("the role rows are not a partition", true, model.roleCountsAreNotAPartition)
-        check("the note names the unique total", true,
-              panelTextContains("12 adopted device"))
+        var panelStrings = collectText(panelWidget, [], 0)
+        var totalOnScreen = false
+        var noteOnScreen = false
+        for (var ts = 0; ts < panelStrings.length; ts++) {
+          if (String(panelStrings[ts]) === "12") totalOnScreen = true
+          if (String(panelStrings[ts]).indexOf("counted in every role") !== -1) {
+            noteOnScreen = true
+          }
+        }
+        check("the unique total is labelled on screen", true,
+              panelTextContains("Adopted devices"))
+        check("and its value is rendered beside the label", true, totalOnScreen)
+        // The removed sentence is gone from the SCREEN, not merely from the
+        // model — the whole point of a tree walk over visible items.
+        check("the removed note is not rendered", false, noteOnScreen)
 
         // UX-009 / AC-070: driven by meta, present for the whole session, and
         // with no dismiss handler anywhere in the file.

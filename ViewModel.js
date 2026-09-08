@@ -409,16 +409,6 @@ function countRows(counts) {
   return rows
 }
 
-// AC-025: the label the not-a-partition flag is attached to. It names the unique
-// total, because "these rows do not sum to the total" is only useful next to the
-// number they do not sum to.
-function roleCountsNote(counts) {
-  if (!counts) return ""
-  const total = typeof counts.devicesTotal === "number" ? counts.devicesTotal : 0
-  return "A device is counted in every role it reports, so these rows total more "
-    + "than the " + total + " adopted device" + (total === 1 ? "" : "s") + "."
-}
-
 // --- AC-052 / DATA-006a: the meta rows -----------------------------------
 // Rendered as "unknown" rather than omitted, so an `unconfigured` failure — the
 // case with the least information and the most need for it — still shows the
@@ -1659,7 +1649,6 @@ const EMPTY_MODEL = {
   devicesTotalText: "unknown",
   offline: { devices: [], total: 0, truncated: false, moreLabel: "" },
   roleCountsAreNotAPartition: false,
-  roleCountsNote: "",
   warnings: [],
   warningRows: [],
   sites: [],
@@ -1780,8 +1769,11 @@ function build(input) {
     clientsText: formatOptional(counts ? counts.clients : null),
     devicesTotalText: formatOptional(counts ? counts.devicesTotal : null),
     offline: offlineList(snapshot),
+    // AC-025 requires the model to EXPOSE this, and it does. Nothing binds to
+    // it: the panel used to carry a sentence explaining that the role rows
+    // deliberately out-total the unique count, and the sentence was removed as
+    // unnecessary (N-125). The flag stays because the criterion names it.
     roleCountsAreNotAPartition: roleCountsAreNotAPartition(counts),
-    roleCountsNote: roleCountsAreNotAPartition(counts) ? roleCountsNote(counts) : "",
     warnings: warnings,
     warningRows: warningRows(warnings),
     sites: sitesFromWarnings(warnings),
@@ -1925,7 +1917,6 @@ if (typeof module !== "undefined") module.exports = {
   wanRows: wanRows,
   gatewayRows: gatewayRows,
   countRows: countRows,
-  roleCountsNote: roleCountsNote,
   metaRows: metaRows,
   warningRows: warningRows,
   hasWarning: hasWarning,
