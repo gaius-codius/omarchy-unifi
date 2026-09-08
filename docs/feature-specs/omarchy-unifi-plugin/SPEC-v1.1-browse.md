@@ -259,6 +259,14 @@ a browse.
 **REQ-B10a.** Overview's role-count rows are entry points. Activating
 "Access points — 3 online, 1 down" opens Devices filtered to access points.
 
+*Amended by SPEC-AMD-8, 2026-09-09:* a filtered page **names its filter on
+screen** and offers a way to clear it. As first built the filter was invisible
+whenever it matched anything — the matched count was computed and rendered
+nowhere, and the only string naming the role appeared solely on an *empty*
+list — so a filtered page was indistinguishable from a small site. The affordance
+is not a Tab stop and Escape's meaning is unchanged (REQ-B15); the existing
+keyboard route out is any page change, which clears the filter.
+
 **REQ-B11 — device ordering.** Total and stable, applied by the helper:
 `down`, `impaired`, `unknown`, `transitional`, `online`; within a class,
 gateways first, then by name case-insensitively, then by `id`. The list exists

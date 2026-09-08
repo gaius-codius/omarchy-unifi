@@ -1262,6 +1262,10 @@ function deviceListModel(snapshot, ui) {
     matched: rows.length,
     searchText: term,
     role: role,
+    // Non-empty exactly when the page is filtered. The view binds `visible` to
+    // that, which is the idiom every other conditional string in this list
+    // model already uses.
+    filterText: roleFilterText(role),
     truncated: total > listed.length,
     truncationText: truncationText(listed.length, total, "device"),
     emptyText: rows.length === 0
@@ -1296,6 +1300,11 @@ function clientListModel(snapshot, ui) {
     matched: rows.length,
     searchText: term,
     role: "",
+    // The Clients page has no filter dimension. The key is carried anyway,
+    // because both pages are rendered by one `BrowseList` and a key present on
+    // one model and not the other is a binding that reads `undefined` on one of
+    // the two pages — which is what the "identical shapes" case exists to stop.
+    filterText: "",
     truncated: total > listed.length,
     truncationText: truncationText(listed.length, total, "client"),
     emptyText: rows.length === 0
@@ -1316,6 +1325,32 @@ function searchTerm(value) {
 // from `counts`, an independently carried integer, and NEVER from the array's
 // length. A site of 412 devices whose list was bounded at 200 must not be able
 // to say "showing 200 of 200".
+// REQ-B10a, made visible.
+//
+// Activating a role count on Overview opens Devices filtered to that role — and
+// the page it landed on was indistinguishable from an unfiltered one. `matched`
+// was computed by the model and rendered nowhere, and `emptyText` is the only
+// string that ever named the role, which appears ONLY when the list is empty.
+// So the filter was silent in exactly the case it is normally on for: when it
+// matched something. A short list read as a small site.
+//
+// It clears itself on any page change (`Panel.setView`), so it could never
+// strand the user — but "you cannot get stuck" is not the same as "you can tell
+// what you are looking at".
+//
+// `own` rather than `ROLE_PLURAL[role]`: `role` reaches this from the panel's
+// state, and an unrecognised one must produce no chip rather than the string
+// "function valueOf() { [native code] } only".
+// No `typeof role === "string"` guard, deliberately. One was written and a
+// mutation pass removed it with every test still green — `own` already answers
+// `undefined` for "", for null, for a number and for an object, because none of
+// them is an own key of `ROLE_PLURAL`. The guard was three ways of saying what
+// the next line says once.
+function roleFilterText(role) {
+  const plural = own(ROLE_PLURAL, role)
+  return plural === undefined ? "" : wordCase(plural) + " only"
+}
+
 function truncationText(listedCount, total, noun) {
   if (total <= listedCount) return ""
   return "showing " + listedCount + " of " + total + " "
@@ -1380,6 +1415,7 @@ function emptyBrowseList() {
     matched: 0,
     searchText: "",
     role: "",
+    filterText: "",
     truncated: false,
     truncationText: "",
     emptyText: "",
@@ -1976,6 +2012,7 @@ if (typeof module !== "undefined") module.exports = {
   deviceListModel: deviceListModel,
   clientListModel: clientListModel,
   truncationText: truncationText,
+  roleFilterText: roleFilterText,
   emptyText: emptyText,
   emptyBrowseList: emptyBrowseList,
   browseView: browseView,

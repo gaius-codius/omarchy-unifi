@@ -655,6 +655,11 @@ Panel {
             onTabRequested: function (direction) { root.moveFocus(direction) }
             onEscapeRequested: root.escapePressed()
             onCursorHovered: function (index) { root.hoverList(index) }
+            // REQ-B10a. Wired on BOTH pages though only Devices can raise it:
+            // the two blocks are deliberately parallel, and a handler that
+            // exists on one of them is the asymmetry that gets missed when a
+            // second filter dimension is added.
+            onFilterCleared: root.roleFilter = ""
           }
 
           BrowseList {
@@ -677,6 +682,11 @@ Panel {
             onTabRequested: function (direction) { root.moveFocus(direction) }
             onEscapeRequested: root.escapePressed()
             onCursorHovered: function (index) { root.hoverList(index) }
+            // REQ-B10a. Wired on BOTH pages though only Devices can raise it:
+            // the two blocks are deliberately parallel, and a handler that
+            // exists on one of them is the asymmetry that gets missed when a
+            // second filter dimension is added.
+            onFilterCleared: root.roleFilter = ""
           }
 
           StatusPanel {

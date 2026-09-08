@@ -55,7 +55,8 @@ shows its firmware and whether an update is waiting, its address, CPU, memory
 and throughput, what it plugs into and what plugs into it, how many clients sit
 behind it, and its port table or its radio bands; a client shows its address,
 MAC, access type and when it connected. Activating a per-role count on Overview
-opens Devices filtered to that role.
+opens Devices filtered to that role — and the filtered page says which role it
+is showing, with a click to clear it.
 
 The whole panel is keyboard-driven: Tab walks the controls, Left/Right move
 between the three pages, `/` jumps to the search field, Up/Down move the list

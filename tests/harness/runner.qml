@@ -1900,10 +1900,24 @@ ShellRoot {
         check("every listed device holds the role", 0, offRole)
         check("and the filter is not empty", true, listed.length > 0)
 
+        // REQ-B10a, the part that was missing: the filtered page SAYS it is
+        // filtered. Everything above this asserts the filter works, and all of
+        // it passed while the page was indistinguishable on screen from an
+        // unfiltered one — `matched` was computed and rendered nowhere, and
+        // `emptyText` names the role only when the list is EMPTY, which is the
+        // one case the chip is not needed for.
+        //
+        // Through the tree walk, which skips invisible subtrees, so this is
+        // "reached the screen" and not "a binding evaluated".
+        var chip = ViewModel.roleFilterText(role)
+        check("the model produced a chip for this role", true, chip !== "")
+        check("and the filtered page renders it", true, panelTextContains(chip))
+
         // Leaving the page drops the filter: one that outlived the row that set
         // it would show an empty Devices page with nothing saying why.
         panelWidget.setView("devices")
         check("switching pages clears the filter", "", panelWidget.vm.deviceList.role)
+        check("and the chip goes with it", false, panelTextContains(chip))
       }
     })
 

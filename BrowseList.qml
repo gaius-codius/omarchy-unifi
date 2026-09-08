@@ -48,9 +48,13 @@ Column {
   signal toggleRequested(string id)
   signal cursorHovered(int index)
   signal copyRequested(string key, string text)
+  // REQ-B10a. Emitted by the filter chip below; the panel owns `roleFilter` and
+  // is the only thing that may clear it.
+  signal filterCleared()
 
   readonly property var rows: list ? list.rows : []
   readonly property color _tertiary: emphasis ? emphasis.tertiary : foreground
+  readonly property string filterText: list && list.filterText ? list.filterText : ""
 
   // The scrollbar overlays the viewport rather than sitting beside it, so
   // without a reserved gutter it lands on top of the right-hand end of every
@@ -81,6 +85,38 @@ Column {
   readonly property string searchText: searchField.text
 
   spacing: Style.spacing.sm
+
+  // REQ-B10a's filter, said out loud.
+  //
+  // ABOVE the search field, because it is a condition on the whole page rather
+  // than a modifier of the search — it survives typing, and clearing the search
+  // does not clear it.
+  //
+  // An `Ui/Button` and not a hand-rolled chip. Host-contract §7 says never write
+  // a `MouseArea` for a BUTTON, and unlike the list rows (§7's carve-out, N-100)
+  // this is a button in every sense: one word, one action, and it wants the
+  // kit's hover fill, border tokens and tooltip rather than a private imitation
+  // of them.
+  //
+  // The `✕` is composed here rather than in the model. It is punctuation for an
+  // affordance, not a statement — the same reasoning as `BrowseRow`'s `·`
+  // separator — and keeping it out of `filterText` leaves the model asserting a
+  // sentence rather than a glyph.
+  //
+  // NOT a Tab stop. Adding one would change REQ-B15's focus order, which is a
+  // spec amendment; the keyboard route to clearing already exists and is the
+  // one that set the filter in the first place — any page change clears it
+  // (`Panel.setView`). What was missing was never the way out, only the sign.
+  Button {
+    visible: root.filterText !== ""
+    text: root.filterText + "   ✕"
+    tooltipText: "Show all devices"
+    foreground: root.foreground
+    fontFamily: root.fontFamily
+    fontSize: Style.font.caption
+    bordered: true
+    onClicked: root.filterCleared()
+  }
 
   TextField {
     id: searchField

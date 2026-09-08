@@ -1946,6 +1946,85 @@ test("REQ-B10: a model with no snapshot still has both list shapes", () => {
     ViewModel.build({}).clientList)
 })
 
+test("REQ-B10a: a filtered page says so, and an unfiltered one says nothing", () => {
+  // The gap this closes: `matched` was computed and rendered nowhere, and
+  // `emptyText` — the only string that ever named the role — appears ONLY when
+  // the list is empty. So the filter was silent in exactly the case it is
+  // normally on for, and a filtered page looked like a small site.
+  assert.strictEqual(ViewModel.roleFilterText("gateway"), "Gateways only")
+  assert.strictEqual(ViewModel.roleFilterText("switching"), "Switches only")
+  assert.strictEqual(ViewModel.roleFilterText("accessPoint"), "Access points only")
+
+  // Silent when there is no filter — the chip must not be a permanent fixture
+  // reading "Devices only".
+  assert.strictEqual(ViewModel.roleFilterText(""), "")
+  assert.strictEqual(ViewModel.roleFilterText(null), "")
+  assert.strictEqual(ViewModel.roleFilterText(undefined), "")
+  assert.strictEqual(ViewModel.roleFilterText(7), "")
+
+  // `own`, not `ROLE_PLURAL[role]`. The role arrives from panel state, and
+  // `ROLE_PLURAL["valueOf"]` is a function — which would render as a chip
+  // reading "function valueOf() { [native code] } only".
+  for (const poison of ["constructor", "toString", "valueOf", "__proto__",
+                        "hasOwnProperty", "isPrototypeOf"]) {
+    assert.strictEqual(ViewModel.roleFilterText(poison), "", poison)
+  }
+
+  // Every role the Overview rows can actually emit produces a chip. This is the
+  // coupling that matters: `ROLE_FOR_COUNT_KEY` is what `roleActivated` sends.
+  for (const key of Object.keys(ViewModel.ROLE_FOR_COUNT_KEY)) {
+    const role = ViewModel.ROLE_FOR_COUNT_KEY[key]
+    assert.notStrictEqual(ViewModel.roleFilterText(role), "",
+      key + " -> " + role + " produces no chip, so its filtered page is silent")
+  }
+})
+
+test("REQ-B10a: the chip reaches the model the page is actually built from", () => {
+  // Through `deviceListModel`, not the helper alone — the helper being right
+  // and the field being unset is the defect this is for.
+  const snapshot = snapshotWith([
+    device({ id: "gw", name: "Gateway", roles: ["gateway"] }),
+    device({ id: "ap", name: "attic-ap", roles: ["accessPoint"] })
+  ], [])
+  const filtered = ViewModel.deviceListModel(snapshot, { role: "accessPoint" })
+  assert.strictEqual(filtered.filterText, "Access points only")
+  // And it really is filtered, so the chip is not describing a page that shows
+  // everything anyway.
+  assert.strictEqual(filtered.rows.length, 1)
+  assert.strictEqual(filtered.rows[0].nameText, "attic-ap")
+
+  assert.strictEqual(ViewModel.deviceListModel(snapshot, {}).filterText, "")
+  assert.strictEqual(ViewModel.deviceListModel(snapshot, {}).rows.length, 2)
+
+  // The Clients page has no filter dimension, and carries the key regardless —
+  // one `BrowseList` renders both, and a key on one model and not the other
+  // reads as `undefined` on one of the two pages.
+  assert.strictEqual(ViewModel.clientListModel(snapshot, {}).filterText, "")
+  // Including with no service at all, which is the first frame (REQ-013b).
+  const empty = ViewModel.forNullService()
+  assert.strictEqual(empty.deviceList.filterText, "")
+  assert.strictEqual(empty.clientList.filterText, "")
+})
+
+test("REQ-B10a: the chip survives typing, because it is not a search modifier", () => {
+  // The filter is a condition on the page and the search is a condition on the
+  // rows. Clearing one must not clear the other — which is why the chip is
+  // rendered above the field rather than beside it.
+  const snapshot = snapshotWith([
+    device({ id: "a", name: "attic-ap", roles: ["accessPoint"] }),
+    device({ id: "b", name: "barn-ap", roles: ["accessPoint"] }),
+    device({ id: "gw", name: "Gateway", roles: ["gateway"] })
+  ], [])
+  const both = ViewModel.deviceListModel(snapshot, { role: "accessPoint", search: "barn" })
+  assert.strictEqual(both.filterText, "Access points only")
+  assert.strictEqual(both.rows.length, 1)
+  assert.strictEqual(both.searchText, "barn")
+  // Search cleared, filter still on.
+  const filterOnly = ViewModel.deviceListModel(snapshot, { role: "accessPoint" })
+  assert.strictEqual(filterOnly.filterText, "Access points only")
+  assert.strictEqual(filterOnly.rows.length, 2)
+})
+
 test("REQ-B10: the two list models have identical shapes", () => {
   // They are rendered by the same delegate machinery in Phase B3. A key present
   // on one and not the other is a binding that silently reads undefined on one
