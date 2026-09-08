@@ -320,6 +320,15 @@ is unknown, not zero — applied to a container.
 }
 ```
 
+**Every field's declared type is enforced (DEV-7).** A nullable field accepts
+its type or an explicit `null`; an ABSENT key is rejected, the same rule
+`detail` and `metrics` already followed — "the producer forgot" and "the
+producer did not ask" are different statements. `connectedAt` is checked as a
+**string**, not against the RFC 3339 grammar: the type is what this document
+declares, and the panel renders an unparseable instant as "unknown", so
+rejecting a whole reading over an unusual-but-valid timestamp would be the
+consumer enforcing more than the contract says.
+
 Every field inside `detail` other than `ports` and `radios` is nullable;
 `ports` and `radios` are always arrays, possibly empty. `poe` is `null` on a
 port that reports none.
@@ -605,7 +614,7 @@ exists for each.
 | `success_observed_at_unordered` | not `attemptedAt <= observedAt <= receiptTime` |
 | `success_data_missing` | `ok: true` with `data` absent or `null` |
 | `success_data_empty` | `ok: true` with `data: {}` |
-| `data_schema_violation` | `data` fails the DATA-006 shape — missing `site.id`/`site.name`, a `wan.status` outside its domain, a missing count bucket, a missing class within a bucket, a negative or non-integer total, `offlineDevices` not an array; or the DATA-B01/B02 shape — a device with no `id`, a `class` outside REQ-000, a role outside the three, `detail`/`metrics` neither an object nor an explicit `null`, a client with no `id` or a non-string `type` |
+| `data_schema_violation` | `data` fails the DATA-006 shape — missing `site.id`/`site.name`, a `wan.status` outside its domain, a missing count bucket, a missing class within a bucket, a negative or non-integer total, `offlineDevices` not an array; or the DATA-B01/B02 shape — a device with no `id`, a `class` outside REQ-000, a role outside the three, `detail`/`metrics` neither an object nor an explicit `null`, a client with no `id` or a non-string `type`; or a **declared field type** — `state` absent or not a non-empty string, `firmwareUpdatable` neither a boolean nor an explicit `null`, or any nullable string field (`name`, `model`, `ipAddress`, `macAddress`, `firmwareVersion`, `uplinkDeviceId`, `accessType`, `connectedAt`) neither a string nor an explicit `null` |
 | `byclass_sum_mismatch` | `sum(byClass) != devicesTotal` |
 | `byclass_offline_mismatch` | `byClass.down + byClass.impaired != offlineTotal` |
 | `list_exceeds_total` | `devices` or `clients` holds MORE entries than `counts` says exist |

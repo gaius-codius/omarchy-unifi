@@ -699,6 +699,12 @@ function browseDeviceRow(device) {
     nameText: nameText,
     modelText: typeof entry.model === "string" && entry.model !== ""
       ? entry.model : "unknown model",
+    // The same name the client row uses for the same job — the second line of
+    // identity under the name — so Phase B3's row delegate is genuinely shared
+    // rather than two delegates that look alike. `modelText` stays beside it
+    // for anything that wants the field by its own name.
+    secondaryText: typeof entry.model === "string" && entry.model !== ""
+      ? entry.model : "unknown model",
     classText: wordCase(classWord(entry.class)),
     ipText: formatOptional(ip === "" ? null : ip),
     uptimeText: formatUptime(uptime),
@@ -752,6 +758,10 @@ function browseClientRow(client, uplinkName, nowWall) {
     type: entry.type,
     nameText: nameText,
     ipText: ipText,
+    // The same name the device row uses for the same job — the second line of
+    // identity under the name — so Phase B3's row delegate is genuinely shared
+    // rather than two delegates that look alike.
+    secondaryText: ipText,
     typeText: clientTypeWord(entry.type),
     uplinkText: uplinkName,
     connectedText: connected,
@@ -1154,6 +1164,56 @@ function emptyBrowseList() {
     expandedId: "",
     expandedDetail: null
   }
+}
+
+// --- REQ-B15: the focus order ---------------------------------------------
+//
+// Here rather than in `Panel.qml` for the reason the whole pure layer exists:
+// the order depends on which page is showing, wraps in both directions, and has
+// to survive a page change that removes the stop the cursor is on. That is a
+// state machine, and a state machine reachable only through a five-minute live
+// harness is one that gets tested once.
+//
+// The view still owns FOCUS itself — which item has `activeFocus`, and what a
+// `Ui/TextField` does with a keystroke. What is decided here is the order and
+// the arithmetic.
+
+// REQ-B15's order, verbatim: segmented control, search, list, Refresh, Open
+// UniFi, wrapping. Overview has no search field and no list, so it has three
+// stops rather than five.
+const FOCUS_SEGMENTS = "segments"
+const FOCUS_SEARCH = "search"
+const FOCUS_LIST = "list"
+const FOCUS_REFRESH = "refresh"
+const FOCUS_DASHBOARD = "dashboard"
+
+function focusStops(view) {
+  if (browseView(view) === "overview") {
+    return [FOCUS_SEGMENTS, FOCUS_REFRESH, FOCUS_DASHBOARD]
+  }
+  return [FOCUS_SEGMENTS, FOCUS_SEARCH, FOCUS_LIST, FOCUS_REFRESH, FOCUS_DASHBOARD]
+}
+
+// The stop `direction` places along, wrapping. Takes and returns a NAME rather
+// than an index: an index only means anything against one view's stop list, and
+// the thing this has to get right is surviving a view change that shortens the
+// list under the cursor.
+function nextFocus(view, stop, direction) {
+  const stops = focusStops(view)
+  const at = stops.indexOf(stop)
+  if (at === -1) return stops[0]
+  if (direction === 0) return stop
+  const step = direction > 0 ? 1 : -1
+  return stops[(at + step + stops.length) % stops.length]
+}
+
+// Where the cursor lands when the view changes. Keeping the same stop is right
+// when it still exists — switching Devices to Clients should not move focus out
+// of the list — and impossible when it does not, so Overview takes anything
+// that was on the search field or the list back to the segmented control, which
+// is the control that got the user here.
+function focusAfterViewChange(view, stop) {
+  return focusStops(view).indexOf(stop) === -1 ? FOCUS_SEGMENTS : stop
 }
 
 // REQ-B10. The panel's current page, defaulting to Overview — which is also
@@ -1670,5 +1730,13 @@ if (typeof module !== "undefined") module.exports = {
   truncationText: truncationText,
   emptyText: emptyText,
   emptyBrowseList: emptyBrowseList,
-  browseView: browseView
+  browseView: browseView,
+  FOCUS_SEGMENTS: FOCUS_SEGMENTS,
+  FOCUS_SEARCH: FOCUS_SEARCH,
+  FOCUS_LIST: FOCUS_LIST,
+  FOCUS_REFRESH: FOCUS_REFRESH,
+  FOCUS_DASHBOARD: FOCUS_DASHBOARD,
+  focusStops: focusStops,
+  nextFocus: nextFocus,
+  focusAfterViewChange: focusAfterViewChange
 }

@@ -1185,6 +1185,47 @@ def reject_cases():
          mutate(ok, **{"data.counts.clients": 9,
                        "data.clients": [
                            mutate(client_record(70, "a", "WIRED"), id="")]}))
+    # ---- DEV-7 (approved 2026-09-08): the declared-but-unchecked types ----
+    #
+    # DATA-B01/B02 declare a type for every field and five were checked. These
+    # four fixtures drive the three new check functions through the whole corpus
+    # path; `tests/model/protocol.test.js` covers every field in both lists,
+    # because a fixture per field would be twelve near-identical envelopes and
+    # what needs pinning per field is the ENUMERATION, not the path.
+    case("data_schema_violation_device_state_null", "data_schema_violation",
+         "A device whose `state` is null. DATA-B01 marks it NON-nullable and "
+         "nothing enforced that — the one field in the group where `null` is "
+         "not merely the wrong type but a value the contract forbids outright.",
+         mutate(ok, **{"data.devices": [
+             mutate(device_record(60, "d", "USW-Lite-8-PoE", "ONLINE", "online",
+                                  ["switching"]), state=None)]}))
+    case("data_schema_violation_device_firmware_updatable", "data_schema_violation",
+         "A device whose `firmwareUpdatable` is the STRING \"false\". This is "
+         "DEV-7's own story: `!!\"false\"` is true, so a consumer using "
+         "truthiness reports a firmware update on the strength of a word, and "
+         "three mutations to `!!` survived the whole suite because every value "
+         "the contract allows agrees with `=== true`.",
+         mutate(ok, **{"data.devices": [
+             mutate(device_record(60, "d", "USW-Lite-8-PoE", "ONLINE", "online",
+                                  ["switching"]), firmwareUpdatable="false")]}))
+    case("data_schema_violation_device_name_number", "data_schema_violation",
+         "A device whose `name` is a number — the nullable-string check, which "
+         "six device fields and six client fields share.",
+         mutate(ok, **{"data.devices": [
+             mutate(device_record(60, "d", "USW-Lite-8-PoE", "ONLINE", "online",
+                                  ["switching"]), name=5)]}))
+    case("data_schema_violation_client_connected_at", "data_schema_violation",
+         "A client whose `connectedAt` is an epoch NUMBER rather than a string. "
+         "Checked as a string and deliberately not against the RFC 3339 "
+         "grammar: the type is what DATA-B02 declares, and `formatInstant` "
+         "already renders an unparseable instant as \"unknown\" — rejecting a "
+         "whole reading over an unusual-but-valid timestamp would be the "
+         "consumer enforcing more than the contract says.",
+         mutate(ok, **{"data.counts.clients": 9,
+                       "data.clients": [
+                           mutate(client_record(70, "a", "WIRED"),
+                                  connectedAt=1768209240)]}))
+
     case("data_schema_violation_device_metrics", "data_schema_violation",
          "A device whose `metrics` is a number. `detail` had a fixture for this "
          "shape and `metrics` did not, so half the check was unexercised.",

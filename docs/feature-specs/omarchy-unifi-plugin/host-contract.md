@@ -444,6 +444,100 @@ callers bind `text` from outside `:14-16` (the file says so in its own comment).
 `Ui/PanelSeparator` (`Ui/PanelSeparator.qml`): `foreground` `:10`,
 `strength` `:11`; it takes its width from its parent `:13`.
 
+### The surface Phase B3 adds (verified 2026-09-08 against Omarchy 4.0.2-1)
+
+SPEC-v1.1-browse.md's Devices and Clients views. Written **before** any of these
+is used, which is §15's citation rule and the reason this section exists at all.
+`Ui/PanelKeyCatcher` is already cited above and is unchanged.
+
+`Ui/ButtonGroup` (`Ui/ButtonGroup.qml`, exported by `Ui/qmldir:9`) — REQ-B10's
+segmented control. A `Row` `:23` of `Ui/Button` chips.
+`options` `:26`, `value` `:27`, `foreground` `:28`, `background` `:29`,
+`accent` `:30`, `fontFamily` `:31`, `fontSize` `:32`, `focusable` `:33`,
+`cursorIndex` `:38`, `signal changed(string value)` `:45`,
+`signal hovered(int index, bool isHovered)` `:46`.
+
+`options` is either a plain `string[]` or an array of
+`{ value, label, icon?, tooltip? }` `:8-10`; mixing is permitted. `value` is the
+**selected** option's value and the component does not set it — `changed` is
+emitted and the caller assigns, which is what keeps the panel's view state in
+one place.
+
+Two facts decide how REQ-B15's Left/Right is wired, and they pull in opposite
+directions:
+
+* The group is **one Tab stop, not one per chip** `:11-14`, and when it holds
+  Tab focus it handles `h` / `l` / Left / Right and Enter / Space itself
+  `:88-105`, tracking an internal `_focusedIndex` `:43` that is reset to the
+  selected option on focus `:75-82`.
+* But the file states plainly that **the bar widget panels never give Tab focus
+  to a ButtonGroup**, so they only ever exercise the `cursorIndex` path
+  `:19-22`.
+
+The second is the tested path in this host and the one to follow. `cursorIndex`
+is driven by the panel's own cursor and `-1` disables the highlight `:35-38`, so
+REQ-B15's Left/Right within the control is the panel's `moveRequested(±1, 0)`
+moving its cursor and assigning through `changed` — not `activeFocusOnTab`.
+Taking the first path would put two independent notions of "which chip" on
+screen at once, which is exactly what `:19-22` warns about.
+
+`Ui/TextField` (`Ui/TextField.qml`, exported by `Ui/qmldir`) — REQ-B13's search
+field. It **subtypes QtQuick Controls `TextField`** `:18`, so the base type's
+API — `text`, `placeholderText`, `accepted`, `editingFinished`, `hovered`,
+`clear()` — is available without being re-exposed `:6-9`.
+Own properties: `foreground` `:21`, `accent` `:22`, `selectionTint` `:23`,
+`password` `:24`, `horizontalPadding` `:25`, `verticalPadding` `:26`,
+`hasCursor` `:33`.
+
+Two consequences worth stating before they are discovered:
+
+* **There is no `hovered` signal to connect** — the inherited *property* would
+  shadow it, so the file deliberately omits one and directs callers to
+  `onHoveredChanged` `:29-32`.
+* **Sizing is `font.pixelSize` + `verticalPadding`** `:15-17`, defaulting to a
+  30 px implicit height suited to dialog forms. An inline field in a panel row
+  drops `verticalPadding` to match a 22-26 px row, as wifi's embedded passphrase
+  prompt does.
+
+This is where REQ-B15's "the panel's own key handling is suspended while the
+search field holds focus" is satisfied: `PanelKeyCatcher.blocked` `:36` forwards
+every key to descendants without emitting a signal, and its own documentation
+names this exact case — "when a panel has an inline editor (wifi passphrase,
+gallery TextField demo) the panel must set `blocked: editor.activeFocus`"
+`:28-33`. Without it, typing "ap" drives the panel cursor instead of filtering.
+
+**The scrolling-list idiom** (REQ-B16, AC-B18). Not a `qs.Ui` type — a plain
+QtQuick `ListView` — but the shape is the host's and is cited because AC-B18
+asserts one specific line of it. `plugins/panels/bluetooth/Panel.qml:806-815`:
+
+```qml
+ListView {
+  width: parent.width
+  height: Math.min(contentHeight, Style.space(400))   // :809
+  clip: true                                          // :811
+  boundsBehavior: Flickable.StopAtBounds              // :812
+  interactive: contentHeight > height                 // :813
+  ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }   // :815
+}
+```
+
+`plugins/panels/network/Panel.qml:1481,1485` is the same shape at a 240 px cap,
+so this is the host's idiom and not one panel's choice.
+
+`interactive: contentHeight > height` is AC-B18's line: a list shorter than its
+viewport must not become a drag surface, because inside a `KeyboardPanel` — an
+open panel is a full-screen click sink, HC-20 — a list that swallows drags it
+has no use for is a panel that feels stuck. `ListView`, not `Flickable`,
+because it owns the scroll position: it keeps the current row visible on j/k and
+re-clamps when the list shortens `:802-805`.
+
+One caveat is recorded in the host source and applies here. Bluetooth defers
+`positionViewAtIndex` by a turn `:819-826`, because its model is rebuilt on
+every discovery report and swapping the model resets the view out from under the
+call; the comment notes network's list is stable enough not to need it. This
+plugin's lists are rebuilt on every poll and on every keystroke, so they are
+bluetooth's case rather than network's, and the deferral is required.
+
 ### HC-18: `qmllint` cannot see inside an inline `QtObject`
 
 Every grouped theme token in Omarchy is an unnamed `QtObject` sub-object —

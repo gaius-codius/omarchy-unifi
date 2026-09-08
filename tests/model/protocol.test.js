@@ -116,7 +116,7 @@ test("the accept corpus covers all nineteen DATA-007 kinds", () => {
 
 test("every reject fixture is rejected with the class the index names", async (t) => {
   const keys = casesUnder("envelopes/reject/")
-  assert.strictEqual(keys.length, 55, "the reject corpus changed size")
+  assert.strictEqual(keys.length, 59, "the reject corpus changed size")
 
   for (const key of keys) {
     await t.test(key.split("/").pop(), () => {
@@ -681,4 +681,234 @@ test("AC-046: no fixture in the corpus reaches the unexpected-exception backstop
         key + " produced an unexpected exception: " + reason.detail)
     }
   }
+})
+
+// =========================================================================
+// DEV-7 (approved 2026-09-08): the declared-but-unchecked field types
+// =========================================================================
+//
+// DATA-B01/B02 declare a type for every field; five were checked. The corpus
+// carries four fixtures driving the three new check functions end to end. What
+// the corpus cannot pin without twelve near-identical envelopes is the
+// ENUMERATION — which fields are in each list — and a field dropped from a list
+// is exactly how this gap arose in the first place. So that is pinned here,
+// against the field tables parsed out of `protocol-v1.md`.
+
+const PROTOCOL_DOC = fs.readFileSync(path.join(REPO, "docs/protocol-v1.md"), "utf8")
+
+// The `devices`/`clients` field tables, as `{ field: { type, nullable } }`.
+// Parsed rather than restated: a field added to DATA-B01 and not to
+// `checkDeviceRecord` is the defect DEV-7 records, and it should fail here on
+// the day the document changes rather than on the day someone notices.
+function fieldTable(heading) {
+  const section = new RegExp("### `" + heading
+    + "`[^\\n]*\\n([\\s\\S]*?)(?=\\n### |\\n## )").exec(PROTOCOL_DOC)
+  assert.ok(section, "protocol-v1.md: no `" + heading + "` section")
+  const rows = section[1].split("\n").filter((line) => /^\| `/.test(line))
+  assert.ok(rows.length > 0, "protocol-v1.md: no field rows under `" + heading + "`")
+  const table = {}
+  for (const row of rows) {
+    const cells = row.split("|").map((cell) => cell.trim())
+    table[cells[1].replace(/`/g, "")] = {
+      type: cells[2].replace(/`/g, ""),
+      nullable: cells[3] === "yes"
+    }
+  }
+  return table
+}
+
+// The declared types that are a JSON string on the wire.
+//
+// An explicit set, not a substring test. `uuid` and `RFC 3339 string` are
+// string-shaped and the consumer checks the JSON TYPE rather than the lexical
+// form — deliberately, for the reason the `connectedAt` case below states. A
+// type name this list does not know fails loudly here, which is the point: a
+// new nullable field in DATA-B01 should stop this build until someone has
+// decided whether `checkDeviceRecord` covers it.
+const STRING_SHAPED = ["string", "uuid", "RFC 3339 string"]
+
+// The nullable types that are checked somewhere OTHER than the shared
+// nullable-string helper, so they belong to a different test rather than to
+// this list. Named individually — a wildcard here would let a genuinely new
+// type through, which is the case this whole function exists to catch.
+const CHECKED_ELSEWHERE = ["boolean", "object | null"]
+
+function stringShaped(table) {
+  const fields = []
+  for (const field in table) {
+    if (!table[field].nullable) continue
+    const type = table[field].type
+    if (STRING_SHAPED.indexOf(type) !== -1) { fields.push(field); continue }
+    if (CHECKED_ELSEWHERE.indexOf(type) !== -1) continue
+    assert.fail("protocol-v1.md declares nullable `" + field + "` as `" + type
+      + "`, a type this test does not know how to classify")
+  }
+  return fields.sort()
+}
+
+function acceptedEnvelope() {
+  const fixture = load("envelopes/accept/success_browse_full")
+  return { envelope: fixture, batch: batchFor(fixture) }
+}
+
+// One field on ONE device, and the rest of the envelope untouched.
+//
+// The first version replaced `devices` with a single mutated record and reset
+// `devicesTotal` to 1, which broke the envelope on its own: `byClass` no longer
+// summed, the role buckets no longer matched, and `gateways[]`/`offlineDevices[]`
+// referred to devices that were gone. Every case below would then have been the
+// harness rejecting itself while the field checks went untested. The control
+// test above is what said so.
+//
+// The device chosen is the LAST one, which the fixture puts in neither
+// `gateways[]` nor `offlineDevices[]` — mutating a device that appears in both
+// representations would risk tripping DATA-B03's cross-check instead of the
+// field check, and the rejection class is the same, so it would pass for the
+// wrong reason.
+function withDevice(mutation) {
+  const input = acceptedEnvelope()
+  const devices = input.envelope.data.devices
+  const device = devices[devices.length - 1]
+  for (const key in mutation) device[key] = mutation[key]
+  return input
+}
+
+function withClient(mutation) {
+  const input = acceptedEnvelope()
+  const client = input.envelope.data.clients[0]
+  for (const key in mutation) client[key] = mutation[key]
+  return input
+}
+
+function rejectionOf(input) {
+  const result = Protocol.acceptEnvelope(input)
+  return result.accepted ? null : result.reasons.map((r) => r.detail).join("; ")
+}
+
+test("DEV-7: the harness above accepts the unmutated envelope", () => {
+  // The control every case below rests on, and it earned its place: the first
+  // version of `withDevice` broke the envelope by itself, so every rejection
+  // asserted below would have been the harness rejecting its own damage while
+  // the field checks went untested.
+  assert.strictEqual(rejectionOf(withDevice({})), null)
+  assert.strictEqual(rejectionOf(withClient({})), null)
+  // And the device it mutates is not the one the other representations name,
+  // or a field change could trip DATA-B03's cross-check instead — same
+  // rejection class, wrong reason.
+  const data = acceptedEnvelope().envelope.data
+  const target = data.devices[data.devices.length - 1].id
+  for (const other of data.gateways.concat(data.offlineDevices)) {
+    assert.notStrictEqual(other.id, target,
+      "the mutated device also appears in gateways[]/offlineDevices[]")
+  }
+})
+
+test("DEV-7: every nullable `devices[]` string rejects a non-string", async (t) => {
+  const table = fieldTable("devices")
+  const checked = ["name", "model", "ipAddress", "macAddress",
+    "firmwareVersion", "uplinkDeviceId"]
+  for (const field of checked) {
+    await t.test(field, () => {
+      assert.ok(table[field], "protocol-v1.md no longer declares devices." + field)
+      assert.strictEqual(table[field].nullable, true, field + " is not nullable")
+      // `null` is legal and must stay legal: it means unknown (BIZ-003), and a
+      // check that rejected it would grey the panel for every device the
+      // controller was quiet about.
+      assert.strictEqual(rejectionOf(withDevice({ [field]: null })), null,
+        field + ": an explicit null must be accepted")
+      for (const bad of [5, true, {}, [], undefined]) {
+        assert.ok(rejectionOf(withDevice({ [field]: bad })),
+          field + " accepted " + JSON.stringify(bad))
+      }
+    })
+  }
+  // The enumeration itself. A field declared nullable-string in DATA-B01 and
+  // missing from `checkDeviceRecord`'s list is the defect DEV-7 records.
+  assert.deepStrictEqual(stringShaped(table), checked.slice().sort())
+})
+
+test("DEV-7: `devices[].state` is non-nullable and says so", () => {
+  const table = fieldTable("devices")
+  assert.strictEqual(table.state.nullable, false)
+  // The one field in the group where `null` is not merely the wrong type but a
+  // value the contract forbids outright.
+  assert.ok(rejectionOf(withDevice({ state: null })))
+  assert.ok(rejectionOf(withDevice({ state: "" })))
+  assert.ok(rejectionOf(withDevice({ state: 5 })))
+  assert.strictEqual(rejectionOf(withDevice({ state: "ONLINE" })), null)
+})
+
+test("DEV-7: `devices[].firmwareUpdatable` is a boolean or an explicit null", () => {
+  // DEV-7's own story. `!!"false"` is true, so a consumer using truthiness
+  // reports a firmware update on the strength of a word — and three mutations
+  // to `!!` survived the whole suite, because every value the contract allows
+  // agrees with `=== true`.
+  for (const good of [true, false, null]) {
+    assert.strictEqual(rejectionOf(withDevice({ firmwareUpdatable: good })), null,
+      JSON.stringify(good))
+  }
+  for (const bad of ["false", "true", 0, 1, {}, undefined]) {
+    assert.ok(rejectionOf(withDevice({ firmwareUpdatable: bad })),
+      "accepted " + JSON.stringify(bad))
+  }
+})
+
+test("DEV-7: every nullable `clients[]` string rejects a non-string", async (t) => {
+  const table = fieldTable("clients")
+  const checked = ["name", "accessType", "ipAddress", "macAddress",
+    "uplinkDeviceId", "connectedAt"]
+  for (const field of checked) {
+    await t.test(field, () => {
+      assert.ok(table[field], "protocol-v1.md no longer declares clients." + field)
+      assert.strictEqual(table[field].nullable, true, field + " is not nullable")
+      assert.strictEqual(rejectionOf(withClient({ [field]: null })), null,
+        field + ": an explicit null must be accepted")
+      for (const bad of [5, true, {}, [], undefined]) {
+        assert.ok(rejectionOf(withClient({ [field]: bad })),
+          field + " accepted " + JSON.stringify(bad))
+      }
+    })
+  }
+  assert.deepStrictEqual(stringShaped(table), checked.slice().sort())
+})
+
+test("DEV-7: `connectedAt` is checked as a string and not against RFC 3339", () => {
+  // The type is what DATA-B02 declares. The grammar is handled gracefully by
+  // `ViewModel.formatInstant`, which renders anything it cannot parse as
+  // "unknown" — so rejecting a whole reading over an unusual-but-valid
+  // timestamp would be the consumer enforcing more than the contract says.
+  assert.strictEqual(rejectionOf(withClient({ connectedAt: "not a timestamp" })), null)
+  assert.strictEqual(rejectionOf(withClient({ connectedAt: "2026-01-12T09:14:00+05:30" })),
+    null)
+  assert.ok(rejectionOf(withClient({ connectedAt: 1768209240 })))
+})
+
+test("DEV-7: a rejection reason names the field and never the value", () => {
+  // REQ-B20. These six client fields are personal data, and a rejection reason
+  // reaches logs and `status` output. The reason must be able to say WHICH
+  // field was wrong without repeating what was in it.
+  // Named `clientName` and not `secret`: `tests/lint/secrets.sh` flags an
+  // assignment to a variable called `secret`, and it was right to — a rule that
+  // only fires on real credentials is a rule nobody finds out is broken.
+  const clientName = "kitchen-tablet-of-alice"
+  const detail = rejectionOf(withClient({ name: [clientName] }))
+  assert.ok(detail, "a non-string name is rejected")
+  assert.ok(detail.indexOf("name") !== -1, "the reason names the field: " + detail)
+  assert.strictEqual(detail.indexOf(clientName), -1,
+    "a client identifier reached a rejection reason: " + detail)
+})
+
+test("DEV-7: a broken devices array no longer hides a broken clients array", () => {
+  // Two independent guards, not one early return. The VERDICT was never wrong —
+  // the envelope is rejected either way — but the reason list is what a user
+  // sees and what a bug report carries, and an envelope broken in two places
+  // reported one.
+  const input = acceptedEnvelope()
+  input.envelope.data.devices = "not an array"
+  input.envelope.data.clients = [{ id: "", type: "WIRED" }]
+  const result = Protocol.acceptEnvelope(input)
+  assert.strictEqual(result.accepted, false)
+  const details = result.reasons.map((r) => r.detail).join("; ")
+  assert.ok(details.indexOf("devices") !== -1, details)
+  assert.ok(details.indexOf("clients") !== -1, details)
 })

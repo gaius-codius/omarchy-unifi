@@ -491,26 +491,28 @@ function checkData(data, reasons) {
 // being computed off a truncated array — generalised to the two arrays that can
 // actually get big.
 function checkBrowseLists(data, counts, reasons) {
-  if (!checkListShape(data.devices, "devices", DEVICES_LISTED_MAX, reasons)) return
-  if (!checkListShape(data.clients, "clients", CLIENTS_LISTED_MAX, reasons)) return
+  // Two independent guards, not one early return. A `devices` that is not an
+  // array used to skip the client checks and the total cross-checks entirely,
+  // so an envelope broken in two places reported one. The VERDICT was never
+  // wrong — it is rejected either way — but the reason list is what a user sees
+  // and what a bug report carries.
+  const devicesUsable = checkListShape(data.devices, "devices",
+    DEVICES_LISTED_MAX, reasons)
+  const clientsUsable = checkListShape(data.clients, "clients",
+    CLIENTS_LISTED_MAX, reasons)
 
-  for (let i = 0; i < data.devices.length; i++) {
-    checkDeviceRecord(data.devices[i], i, reasons)
+  if (devicesUsable) {
+    for (let i = 0; i < data.devices.length; i++) {
+      checkDeviceRecord(data.devices[i], i, reasons)
+    }
   }
-  for (let j = 0; j < data.clients.length; j++) {
-    const client = data.clients[j]
-    if (!isObject(client) || typeof client.id !== "string" || client.id === "") {
-      reject(reasons, "data_schema_violation", "clients[" + j + "]: no string id")
-    } else if (typeof client.type !== "string" || client.type === "") {
-      // `type` is deliberately NOT checked against a closed set. The observed
-      // values are WIRED and WIRELESS, the published schema adds VPN and
-      // TELEPORT, and a future controller may add more — and unlike a device
-      // `state`, a client type decides nothing, so an unrecognised one is
-      // rendered as itself rather than being a protocol error.
-      reject(reasons, "data_schema_violation", "clients[" + j + "].type: not a string")
+  if (clientsUsable) {
+    for (let j = 0; j < data.clients.length; j++) {
+      checkClientRecord(data.clients[j], j, reasons)
     }
   }
 
+  if (!devicesUsable || !clientsUsable) return
   if (!isObject(counts)) return
   if (isCount(counts.devicesTotal) && data.devices.length > counts.devicesTotal) {
     reject(reasons, "list_exceeds_total",
@@ -584,6 +586,95 @@ function checkDeviceRecord(device, index, reasons) {
   if (device.metrics !== null && !isObject(device.metrics)) {
     reject(reasons, "data_schema_violation",
       at + ".metrics: neither an object nor an explicit null")
+  }
+  // DEV-7, approved 2026-09-08. DATA-B01 declares a type for every field and
+  // until now five were checked. The eight below were not, and the gap was not
+  // theoretical: three mutations of `firmwareUpdatable === true` to
+  // `!!firmwareUpdatable` survived the whole suite, because the two agree on
+  // every value the contract allows and differ on `"false"` — a string nothing
+  // rejected, and one that `!!` makes true. A panel reporting a firmware update
+  // on the strength of a word.
+  //
+  // Rejection here is whole-envelope, so this trades "a wrong value renders"
+  // for "a wrong value costs the reading". That is only the right trade because
+  // the producer already guarantees these types — `normalize.py`'s `_as_bool`
+  // and `sanitize.clean` coerce every one to `None` rather than passing a wrong
+  // type through — so these rejections are unreachable from this helper and
+  // real for anything else. Which is what a backstop is.
+  checkRequiredString(device.state, at + ".state", reasons)
+  checkNullableBoolean(device.firmwareUpdatable, at + ".firmwareUpdatable", reasons)
+  const nullableStrings = ["name", "model", "ipAddress", "macAddress",
+    "firmwareVersion", "uplinkDeviceId"]
+  for (let i = 0; i < nullableStrings.length; i++) {
+    checkNullableString(device[nullableStrings[i]],
+      at + "." + nullableStrings[i], reasons)
+  }
+}
+
+// DATA-B02. The client half of DEV-7, and the same defect in the same function:
+// `id` and `type` were checked and the other six were not.
+//
+// Included with the approved device fix rather than left for a DEV-8, because
+// it is one gap. Closing eight of fourteen fields in one function and leaving
+// six would be an arbitrary line, and these six are the ones carrying personal
+// data (REQ-B20) — the fields most worth being certain about the shape of.
+function checkClientRecord(client, index, reasons) {
+  const at = "clients[" + index + "]"
+  if (!isObject(client) || typeof client.id !== "string" || client.id === "") {
+    reject(reasons, "data_schema_violation", at + ": no string id")
+    return
+  }
+  // `type` is deliberately NOT checked against a closed set. The observed
+  // values are WIRED and WIRELESS, the published schema adds VPN and TELEPORT,
+  // and a future controller may add more — and unlike a device `state`, a
+  // client type decides nothing, so an unrecognised one is rendered as itself
+  // rather than being a protocol error. Its TYPE is still the contract.
+  checkRequiredString(client.type, at + ".type", reasons)
+  // `connectedAt` is checked as a STRING and not against the RFC 3339 grammar.
+  // The type is what DATA-B02 declares; the grammar is handled gracefully by
+  // `ViewModel.formatInstant`, which renders anything it cannot parse as
+  // "unknown". Rejecting a whole reading over an unusual-but-valid timestamp
+  // would be the consumer being stricter than the contract it enforces.
+  const nullableStrings = ["name", "accessType", "ipAddress", "macAddress",
+    "uplinkDeviceId", "connectedAt"]
+  for (let i = 0; i < nullableStrings.length; i++) {
+    checkClientField(client, nullableStrings[i], at, reasons)
+  }
+}
+
+// Split out so the loop body names the field in the rejection reason. REQ-B20:
+// the reason carries the FIELD NAME and never the value, because a rejection
+// reason reaches logs and `status` output and these six are personal data.
+function checkClientField(client, field, at, reasons) {
+  checkNullableString(client[field], at + "." + field, reasons)
+}
+
+// DATA-B01/B02's nullable fields. An ABSENT key reads as `undefined`, which is
+// neither `null` nor the declared type, so it is rejected — the same rule
+// `detail` and `metrics` already follow, and for the same reason: "the producer
+// forgot" and "the producer did not ask" are different statements.
+function checkNullableString(value, at, reasons) {
+  if (value === null) return
+  if (typeof value !== "string") {
+    reject(reasons, "data_schema_violation",
+      at + ": neither a string nor an explicit null")
+  }
+}
+
+function checkNullableBoolean(value, at, reasons) {
+  if (value === null) return
+  if (typeof value !== "boolean") {
+    reject(reasons, "data_schema_violation",
+      at + ": neither a boolean nor an explicit null")
+  }
+}
+
+// The non-nullable ones. Empty counts as absent: a `state` of "" classifies as
+// `unknown` and would render as a device in a state nobody can look up, which
+// is the same nothing an absent field is.
+function checkRequiredString(value, at, reasons) {
+  if (typeof value !== "string" || value === "") {
+    reject(reasons, "data_schema_violation", at + ": not a non-empty string")
   }
 }
 
@@ -960,6 +1051,10 @@ if (typeof module !== "undefined") module.exports = {
   NONCE_MIN_CHARS: NONCE_MIN_CHARS,
   NONCE_MAX_CHARS: NONCE_MAX_CHARS,
   OFFLINE_DEVICES_MAX: OFFLINE_DEVICES_MAX,
+  checkClientRecord: checkClientRecord,
+  checkNullableString: checkNullableString,
+  checkNullableBoolean: checkNullableBoolean,
+  checkRequiredString: checkRequiredString,
   DEVICES_LISTED_MAX: DEVICES_LISTED_MAX,
   CLIENTS_LISTED_MAX: CLIENTS_LISTED_MAX,
   PORTS_PER_DEVICE_MAX: PORTS_PER_DEVICE_MAX,

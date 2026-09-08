@@ -1945,3 +1945,114 @@ test("REQ-B14: a device named after a prototype member still resolves as an upli
   const names = ViewModel.uplinkNames([device({ id: "toString", name: "Odd Switch" })])
   assert.strictEqual(ViewModel.uplinkNameFor(names, "toString"), "Odd Switch")
 })
+
+// --- REQ-B15: the focus order --------------------------------------------
+
+test("REQ-B15: Tab cycles the five stops in the order the spec states", () => {
+  // Parsed out of SPEC-v1.1-browse.md rather than restated, so reordering the
+  // requirement fails this build instead of leaving the panel walking an order
+  // the spec no longer asks for.
+  const rule = /\*\*REQ-B15 — keyboard[^*]*\*\*\s*Tab cycles ([^.]+)\./.exec(BROWSE_SPEC)
+  assert.ok(rule, "SPEC-v1.1-browse.md: could not locate REQ-B15's Tab order")
+  const named = rule[1].replace(/\s+and wraps$/, "").split("→").map((s) => s.trim())
+  assert.deepStrictEqual(named,
+    ["segmented control", "search", "list", "Refresh", "Open UniFi"])
+  assert.strictEqual(ViewModel.focusStops("devices").length, named.length)
+  assert.deepStrictEqual(ViewModel.focusStops("devices"),
+    ["segments", "search", "list", "refresh", "dashboard"])
+  assert.deepStrictEqual(ViewModel.focusStops("clients"),
+    ViewModel.focusStops("devices"))
+})
+
+test("REQ-B15: Overview has three stops, because it has no search and no list", () => {
+  assert.deepStrictEqual(ViewModel.focusStops("overview"),
+    ["segments", "refresh", "dashboard"])
+  // The default, and anything unrecognised, is Overview — so a junk view value
+  // cannot produce a stop list with a search field the panel is not drawing.
+  for (const junk of [null, undefined, "", "Devices", 7]) {
+    assert.deepStrictEqual(ViewModel.focusStops(junk),
+      ["segments", "refresh", "dashboard"], JSON.stringify(junk))
+  }
+})
+
+test("REQ-B15: Tab wraps in both directions", () => {
+  assert.strictEqual(ViewModel.nextFocus("devices", "dashboard", 1), "segments")
+  assert.strictEqual(ViewModel.nextFocus("devices", "segments", -1), "dashboard")
+  assert.strictEqual(ViewModel.nextFocus("overview", "dashboard", 1), "segments")
+  assert.strictEqual(ViewModel.nextFocus("overview", "segments", -1), "dashboard")
+  // A full cycle returns to where it started, in both directions, on both stop
+  // lists — which is what "wraps" means and what an off-by-one in the modulo
+  // would break without changing any single step.
+  for (const view of ["overview", "devices"]) {
+    for (const direction of [1, -1]) {
+      let stop = "segments"
+      const stops = ViewModel.focusStops(view)
+      const seen = []
+      for (let i = 0; i < stops.length; i++) {
+        seen.push(stop)
+        stop = ViewModel.nextFocus(view, stop, direction)
+      }
+      assert.strictEqual(stop, "segments", view + " " + direction)
+      assert.strictEqual(new Set(seen).size, stops.length,
+        view + " " + direction + " visited " + seen.join(","))
+    }
+  }
+})
+
+test("REQ-B15: a direction of zero does not move, and an unknown stop resets", () => {
+  assert.strictEqual(ViewModel.nextFocus("devices", "list", 0), "list")
+  // `PanelKeyCatcher.moveRequested` delivers (dx, dy) and one of them is always
+  // zero, so "zero does not move" is not a hypothetical — it is every arrow
+  // press on the other axis.
+  assert.strictEqual(ViewModel.nextFocus("devices", "nonsense", 1), "segments")
+  assert.strictEqual(ViewModel.nextFocus("overview", "search", 1), "segments")
+})
+
+test("REQ-B15: a view change keeps the stop when it survives and resets when it cannot", () => {
+  // Devices to Clients has the same five stops, so focus stays where it is —
+  // moving it would be the panel taking the cursor away from a user who
+  // switched pages to look at the same thing in a different list.
+  assert.strictEqual(ViewModel.focusAfterViewChange("clients", "list"), "list")
+  assert.strictEqual(ViewModel.focusAfterViewChange("devices", "search"), "search")
+  // Overview has neither, so both go back to the control that got them here.
+  assert.strictEqual(ViewModel.focusAfterViewChange("overview", "list"), "segments")
+  assert.strictEqual(ViewModel.focusAfterViewChange("overview", "search"), "segments")
+  // And the stops Overview does have are left alone.
+  assert.strictEqual(ViewModel.focusAfterViewChange("overview", "refresh"), "refresh")
+  assert.strictEqual(ViewModel.focusAfterViewChange("overview", "dashboard"), "dashboard")
+})
+
+test("REQ-B15: every stop name is a constant, so no caller spells one", () => {
+  // The names are compared with `===` in QML and a misspelling there is a stop
+  // that silently never matches — Tab would appear to skip it. Exported so
+  // `Panel.qml` binds to the constant rather than to a string literal.
+  const constants = [ViewModel.FOCUS_SEGMENTS, ViewModel.FOCUS_SEARCH,
+    ViewModel.FOCUS_LIST, ViewModel.FOCUS_REFRESH, ViewModel.FOCUS_DASHBOARD]
+  assert.deepStrictEqual(ViewModel.focusStops("devices"), constants)
+  assert.strictEqual(new Set(constants).size, constants.length)
+})
+
+test("REQ-B14: both row kinds carry the same secondary line, under the same name", () => {
+  // Phase B3 renders one delegate for both lists. `modelText` and `ipText`
+  // occupy the same place on screen and mean the same thing — the second line
+  // of identity — so the delegate binds one name and the two row builders
+  // decide what fills it.
+  const deviceRow = ViewModel.browseDeviceRow(
+    device({ id: "1", name: "Attic AP", model: "U6-Pro" }))
+  assert.strictEqual(deviceRow.secondaryText, "U6-Pro")
+  assert.strictEqual(deviceRow.secondaryText, deviceRow.modelText)
+
+  const clientRow = ViewModel.browseClientRow(
+    client({ id: "2", name: "pi", ipAddress: "192.0.2.40" }), "", null)
+  assert.strictEqual(clientRow.secondaryText, "192.0.2.40")
+  assert.strictEqual(clientRow.secondaryText, clientRow.ipText)
+
+  // Present on every row of both lists, so the delegate never binds undefined.
+  const data = snapshotOf("success_browse_full")
+  const model = ViewModel.build({ snapshot: data, nowWall: 1768209240 })
+  for (const list of [model.deviceList, model.clientList]) {
+    for (const row of list.rows) {
+      assert.strictEqual(typeof row.secondaryText, "string", row.id)
+    }
+  }
+})
