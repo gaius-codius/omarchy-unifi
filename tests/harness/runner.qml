@@ -242,6 +242,19 @@ ShellRoot {
   }
 
   function finish() {
+    // A run that asserted NOTHING is not a pass. `--only` cannot build the
+    // service — the cases that do are the ones it filters out — so every
+    // selected case returns early at its `if (service === null) return` guard
+    // and the runner printed "PASS 0 passed, 0 failed". That is the same shape
+    // as N-103, where six UI cases returned silently and the run stayed green
+    // with a lower count: a result whose only symptom is a number nobody is
+    // comparing to anything.
+    if (passes === 0 && failures === 0) {
+      console.log("HARNESS RESULT: FAIL 0 passed, 0 failed"
+                  + " -- no assertion ran, so this run proves nothing")
+      exitTimer.running = true
+      return
+    }
     console.log("HARNESS RESULT: " + (failures === 0 ? "PASS" : "FAIL")
                 + " " + passes + " passed, " + failures + " failed")
     exitTimer.running = true
@@ -1489,6 +1502,7 @@ ShellRoot {
       prepare: function () { writeScenario({ mode: "success", variant: "degraded" }) },
       assert: function () {
         if (panelWidget === null) return
+        ensurePanelOpen()
         panelWidget.resetBrowse()
         check("the panel opens on Overview", "overview", panelWidget.view)
         check("Overview is not a browse page", false, panelWidget.browsing)
@@ -1528,6 +1542,16 @@ ShellRoot {
       assert: function () {
         if (panelWidget === null) return
         if (service === null) return
+        // OPENED HERE, not inherited. A KeyboardPanel is a full-screen
+        // overlay and its `dismissArea` closes it on any press outside the bar
+        // (Ui/KeyboardPanel.qml:281, :331) — so a case that assumes the panel
+        // is still open from an earlier one is asserting that nobody touched
+        // the mouse. `ensurePanelOpen`'s own comment said exactly this and only
+        // `panelTextContains` was calling it; AC-B16 asserted `opened` while
+        // depending on AC-B15 having left it that way. It passed every B3 run
+        // and failed during the B4 live run, on an unchanged tree — which is
+        // the signature of a case whose result was never its own to decide.
+        ensurePanelOpen()
         panelWidget.resetBrowse()
         panelWidget.setView("devices")
         var all = panelWidget.vm.deviceList.rows.length
@@ -1594,6 +1618,7 @@ ShellRoot {
       setup: function () { if (panelWidget !== null) panelWidget.open() },
       assert: function () {
         if (panelWidget === null) return
+        ensurePanelOpen()
         panelWidget.resetBrowse()
         panelWidget.setView("devices")
         var order = ["segments", "search", "list", "refresh", "dashboard"]
@@ -1664,6 +1689,7 @@ ShellRoot {
       waitMs: 0,
       assert: function () {
         if (panelWidget === null) return
+        ensurePanelOpen()
         panelWidget.resetBrowse()
         panelWidget.setView("devices")
         var catcher = findByObjectName(panelWidget, "unifi-key-catcher", 0)
@@ -1701,6 +1727,7 @@ ShellRoot {
       waitMs: 0,
       assert: function () {
         if (panelWidget === null) return
+        ensurePanelOpen()
         panelWidget.resetBrowse()
         panelWidget.setView("devices")
         var list = findByObjectName(panelWidget, "unifi-browse-list", 0)
@@ -1735,6 +1762,7 @@ ShellRoot {
       assert: function () {
         if (panelWidget === null) return
         if (service === null) return
+        ensurePanelOpen()
         panelWidget.resetBrowse()
         var rows = panelWidget.vm.countRows
         if (rows.length === 0) { bad("the fixture site has role rows"); return }
@@ -1783,6 +1811,7 @@ ShellRoot {
       prepare: function () { writeScenario({ mode: "success", variant: "degraded" }) },
       assert: function () {
         if (panelWidget === null || service === null) return
+        ensurePanelOpen()
         panelWidget.resetBrowse()
         panelWidget.setView("devices")
         check("a reading is in hand", true, panelWidget.hasSnapshot)

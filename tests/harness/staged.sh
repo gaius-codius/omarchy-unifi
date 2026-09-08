@@ -273,6 +273,40 @@ printf '  (%s output(s) attached)\n' "$MONITORS"
 FIRST_ID="$(status_field instanceId)"
 if [[ -n $FIRST_ID ]]; then ok "the service reports an instance id ($FIRST_ID)"; else bad "the service reports an instance id"; fi
 
+# Held across a window in which the service is alive, both outputs are attached,
+# and nothing rewrites shell.json.
+#
+# The last clause is the whole point, and an earlier version of this check did
+# not have it: it captured the id here and compared it again after two
+# `layout_set` calls, then reported a difference as a failure. Under HC-3 the
+# service is tied to the bar ENTRY, so rewriting the layout destroys and
+# rebuilds it — legitimately, and this script asserts exactly that in AC-028.
+# The B4 run caught it; the CP8 run had passed it, because which of the
+# briefly-overlapping IpcHandlers answers a `status` call during a rebuild is a
+# race. The shell's own journal settled it: six `released wakeTimer` lines, one
+# per layout write, each id replacing the last.
+#
+# What AC-003 is actually about is one service across every OUTPUT, and the two
+# checks that carry that claim are the helper peak and the one-reload-one-helper
+# count below. This one adds that the identity is stable while the service runs.
+# Guarded on a NON-EMPTY id. `status_field` prints "" when the call fails, and
+# "" == "" would report a service that answered nothing twelve times as stable.
+if [[ -z $FIRST_ID ]]; then
+  bad "the id is stable across successive status calls (no id to compare)"
+else
+  ID_STABLE=1
+  for _ in $(seq 1 12); do
+    SEEN="$(status_field instanceId)"
+    [[ "$SEEN" == "$FIRST_ID" ]] || ID_STABLE=0
+    sleep 0.25
+  done
+  if (( ID_STABLE )); then
+    ok "the id is stable across 12 successive status calls ($MONITORS output(s) attached)"
+  else
+    bad "the id changed across successive status calls with no layout write"
+  fi
+fi
+
 # Sample the helper count every 200 ms across three refresh cycles. REQ-014
 # says per-monitor widgets never poll; two monitors polling would show here as
 # a count of two.
@@ -300,7 +334,14 @@ fi
 echo 0 > "$STATE/delay"
 layout_set bare
 wait_for 30 refreshIntervalSec 30 || true
-check "the instance id is stable across calls" "$FIRST_ID" "$(status_field instanceId)"
+# Deliberately NOT compared with $FIRST_ID. Two layout rewrites have happened
+# since, and each one rebuilds the service by design — see the note above.
+LATER_ID="$(status_field instanceId)"
+if [[ -n $LATER_ID ]]; then
+  ok "the rebuilt service reports an id of its own ($LATER_ID)"
+else
+  bad "the rebuilt service reports an id of its own"
+fi
 
 # One reload must produce ONE batch, not one per output. Counted as distinct
 # helper pids rather than as a generation, because `_reload` rebuilds the

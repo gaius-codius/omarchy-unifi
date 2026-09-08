@@ -5,18 +5,18 @@ the bar and a popup panel with WAN state, device counts, and which devices are
 offline. It is **read-only** — it uses six kinds of GET request and never changes
 anything on your controller.
 
-> **Status: pre-release.** Through Phase 12b and Phase B3 of
+> **Status: pre-release.** Through Phase 12b and Phase B4 of
 > `docs/feature-specs/omarchy-unifi-plugin/PLAN.md`. The helper, the service and
 > the panel are written, tested, and have been run installed in a real Omarchy
 > shell against a real UniFi controller (Network 10.6.101) — so the API key
 > header, the route set, the record shapes and the supported-version matrix are
 > confirmed against hardware rather than only against a stub.
 >
-> The v1.1 **Devices and Clients** views are built: the helper collects both
-> lists, the panel's contents are decided in the tested model layer, and the QML
-> draws them. What is left is Phase B4 — the same views against the real
-> controller and the real shell — and Phase 13, manual QA, packaging and
-> release.
+> The v1.1 **Devices and Clients** views are built and measured against that
+> controller: a full batch — both lists, plus per-device ports, radios and
+> statistics — completed in **under half a second** against a 25 s budget, with
+> detail fetched for every device. What is left is Phase 13: manual QA across
+> themes, packaging and release.
 
 ## What it shows
 

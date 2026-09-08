@@ -1,6 +1,7 @@
 # Spec addendum v1.1 — Devices and Clients
 
-**Status: CONFIRMED 2026-09-07. Phases B0, B1, B2 and B3 complete; B4 next.** Sections
+**Status: CONFIRMED 2026-09-07. Phases B0 … B4 complete; AC-B21 (MAN) is the
+one criterion outstanding, and it moves to Phase 13.** Sections
 marked "*Corrected during Phase B0*" record where implementation contradicted
 what was confirmed — each is a change to this document, made deliberately and
 with its reason stated. `SPEC.md` (spec-v1, frozen 2026-09-05) is unchanged by this
