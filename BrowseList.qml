@@ -74,6 +74,13 @@ Column {
   // focus" — `PanelKeyCatcher.blocked` is bound to this.
   readonly property bool editing: searchField.activeFocus
 
+  // REQ-B15 / UX-008. The panel scrolls to whichever of these the keyboard is
+  // on, and it cannot reach inside this component to find them — the two focus
+  // stops that live in here are named rather than guessed at from the child
+  // order, which a later edit would silently change.
+  readonly property Item searchItem: searchField
+  readonly property Item listItem: view
+
   function focusSearch() { searchField.forceActiveFocus() }
   function releaseSearch() { searchField.focus = false }
 

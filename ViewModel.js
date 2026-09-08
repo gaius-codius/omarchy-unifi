@@ -1530,6 +1530,53 @@ function emptyBrowseList() {
   }
 }
 
+// REQ-B15 / UX-008. Where the panel must scroll to so that the control the
+// keyboard just moved to is actually on screen.
+//
+// Tab reached every stop in the right order and the panel never followed it, so
+// on a long device list Tab from the search field put the cursor on Refresh —
+// correctly, invisibly, three hundred pixels below the bottom edge. AC-B17
+// asserts Tab "reaches every control", and it did; a control the user cannot
+// see is reached in every sense but the one that matters.
+//
+// Pure arithmetic, and here rather than in the QML for the reason the whole
+// model layer exists: "above the viewport, below it, taller than it, or already
+// inside" is four cases and two clamps, and a mistake in any of them is a panel
+// that jumps somewhere surprising — which is not a thing a five-minute live
+// harness catches reliably, and is a thing 20 node assertions catch in 3 ms.
+//
+// Every argument is a number that QML computes during layout, where `NaN` and
+// `undefined` are both ordinary intermediate states. A NaN reaching `contentY`
+// scrolls the panel to nowhere and it never comes back, so the guard returns
+// the position unchanged rather than trusting the arithmetic to be harmless.
+function scrollToReveal(top, height, contentY, viewportHeight, contentHeight, margin) {
+  const at = num(contentY, 0)
+  if (!isNum(top) || !isNum(height) || !isNum(viewportHeight)
+      || !isNum(contentHeight)) return at
+  const max = contentHeight - viewportHeight
+  // Nothing scrolls, so nothing to reveal — and the top is the only honest
+  // answer, because a non-zero `contentY` on a panel that fits is already wrong.
+  if (max <= 0) return 0
+  const gap = isNum(margin) && margin > 0 ? margin : 0
+  const wantTop = top - gap
+  const wantBottom = top + height + gap
+  let next = at
+  // Above the viewport, OR taller than it: align the top. Aligning the bottom
+  // of an over-tall item pushes its first line off the top of the panel, and
+  // the first line is the one carrying the label.
+  if (wantTop < at || wantBottom - wantTop > viewportHeight) next = wantTop
+  else if (wantBottom > at + viewportHeight) next = wantBottom - viewportHeight
+  return Math.max(0, Math.min(next, max))
+}
+
+function isNum(value) {
+  return typeof value === "number" && isFinite(value)
+}
+
+function num(value, fallback) {
+  return isNum(value) ? value : fallback
+}
+
 // --- REQ-B15: the focus order ---------------------------------------------
 //
 // Here rather than in `Panel.qml` for the reason the whole pure layer exists:
@@ -2125,6 +2172,7 @@ if (typeof module !== "undefined") module.exports = {
   emptyText: emptyText,
   emptyBrowseList: emptyBrowseList,
   browseView: browseView,
+  scrollToReveal: scrollToReveal,
   FOCUS_SEGMENTS: FOCUS_SEGMENTS,
   FOCUS_SEARCH: FOCUS_SEARCH,
   FOCUS_LIST: FOCUS_LIST,

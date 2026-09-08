@@ -361,6 +361,13 @@ closes the panel. While the search field holds focus the panel's own key
 handling is suspended, or typing "ap" drives the panel cursor instead of
 filtering.
 
+*Corrected 2026-09-09.* The panel **scrolls to the control the keyboard moves
+to**. Tab walked the order correctly from the first implementation and the
+panel never followed it, so on a long device list Tab from the search field put
+the cursor on Refresh some hundreds of pixels below the visible edge. AC-B17
+asserts Tab "reaches every control" and it did — this is that criterion's
+evident intent rather than a change to it, so no amendment.
+
 *Amended by SPEC-AMD-9, 2026-09-09, extended by SPEC-AMD-10:* `f` cycles the
 filter of whichever browse page is showing — the Devices page's role filter or
 the Clients page's connection-type filter — wrapping — and wrapping past the last role is how the keyboard clears it. It is

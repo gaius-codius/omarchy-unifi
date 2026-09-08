@@ -2189,6 +2189,78 @@ test("REQ-B15 (SPEC-AMD-10): f cycles the client types too", () => {
   assert.strictEqual(ViewModel.nextFilter(chips, "WIRELESS"), "")
 })
 
+test("REQ-B15 / UX-008: the panel scrolls to the control the keyboard is on", () => {
+  // The defect: Tab reached Refresh correctly and invisibly, three hundred
+  // pixels below the bottom edge of a long device list. AC-B17 asserts Tab
+  // "reaches every control" and it did — a control the user cannot see is
+  // reached in every sense but the one that matters.
+  const reveal = ViewModel.scrollToReveal
+  const VIEW = 400
+  const CONTENT = 1000
+  const MARGIN = 10
+
+  // Already fully inside: do not move. A reveal that always scrolls turns every
+  // Tab into a jump, which is worse than the bug it fixes.
+  assert.strictEqual(reveal(200, 30, 100, VIEW, CONTENT, MARGIN), 100)
+  // Flush against the margin on both edges, still inside.
+  assert.strictEqual(reveal(110, 30, 100, VIEW, CONTENT, MARGIN), 100)
+  assert.strictEqual(reveal(460, 30, 100, VIEW, CONTENT, MARGIN), 100)
+
+  // Below: scroll down by the least that reveals it, plus the margin.
+  assert.strictEqual(reveal(500, 30, 100, VIEW, CONTENT, MARGIN), 140)
+  // Above: scroll up to its top, less the margin.
+  assert.strictEqual(reveal(50, 30, 100, VIEW, CONTENT, MARGIN), 40)
+
+  // Clamped at both ends — never past the top, never past the end of the
+  // content, which on a Flickable shows blank space that cannot be scrolled
+  // back from.
+  assert.strictEqual(reveal(0, 30, 100, VIEW, CONTENT, MARGIN), 0)
+  assert.strictEqual(reveal(5, 30, 100, VIEW, CONTENT, MARGIN), 0)
+  assert.strictEqual(reveal(980, 20, 0, VIEW, CONTENT, MARGIN), CONTENT - VIEW)
+
+  // Taller than the viewport: align the TOP. Aligning the bottom would push its
+  // first line off the top of the panel, and the first line carries the label.
+  assert.strictEqual(reveal(300, 500, 0, VIEW, CONTENT, MARGIN), 290)
+  assert.strictEqual(reveal(300, 500, 600, VIEW, CONTENT, MARGIN), 290)
+
+  // Nothing scrolls, so the top is the only honest answer: a non-zero position
+  // on a panel that fits is already wrong.
+  assert.strictEqual(reveal(200, 30, 50, VIEW, 300, MARGIN), 0)
+  assert.strictEqual(reveal(200, 30, 50, VIEW, VIEW, MARGIN), 0)
+
+  // No margin asked for, none applied.
+  assert.strictEqual(reveal(500, 30, 100, VIEW, CONTENT, 0), 130)
+  assert.strictEqual(reveal(500, 30, 100, VIEW, CONTENT, undefined), 130)
+})
+
+test("REQ-B15 / UX-008: a measurement mid-layout never moves the panel", () => {
+  // Every argument is a number QML computes during layout, where NaN and
+  // undefined are ordinary intermediate states — a Repeater's delegate has no
+  // height for a frame, and `mapToItem` on an unparented item returns NaN.
+  //
+  // A NaN reaching `contentY` scrolls the panel to nowhere and it does not come
+  // back, so the guard returns the CURRENT position rather than trusting the
+  // arithmetic to fail harmlessly.
+  const reveal = ViewModel.scrollToReveal
+  for (const bad of [NaN, undefined, null, "300", {}, Infinity, -Infinity]) {
+    assert.strictEqual(reveal(bad, 30, 120, 400, 1000, 10), 120, "top " + String(bad))
+    assert.strictEqual(reveal(300, bad, 120, 400, 1000, 10), 120, "height " + String(bad))
+    assert.strictEqual(reveal(300, 30, 120, bad, 1000, 10), 120, "viewport " + String(bad))
+    assert.strictEqual(reveal(300, 30, 120, 400, bad, 10), 120, "content " + String(bad))
+    // A bad MARGIN is not a reason to refuse: it is the one argument with a
+    // sane default, so it falls back to none and the scroll still happens.
+    assert.strictEqual(reveal(500, 30, 100, 400, 1000, bad), 130, "margin " + String(bad))
+  }
+  // A bad CURRENT position cannot be preserved, so it becomes the top rather
+  // than propagating.
+  assert.strictEqual(reveal(NaN, 30, NaN, 400, 1000, 10), 0)
+  // And every good path returns a real number, never NaN.
+  for (const top of [0, 50, 300, 980]) {
+    const out = reveal(top, 30, 100, 400, 1000, 10)
+    assert.ok(Number.isFinite(out), "top " + top + " gave " + out)
+  }
+})
+
 test("REQ-B10: the two list models have identical shapes", () => {
   // They are rendered by the same delegate machinery in Phase B3. A key present
   // on one and not the other is a binding that silently reads undefined on one

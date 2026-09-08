@@ -1705,6 +1705,34 @@ ShellRoot {
         check("Tab walks REQ-B15's five stops", order.join(","), walked.join(","))
         check("and wraps to the first", "segments", panelWidget.focusStop)
 
+        // REQ-B15 / UX-008: every stop names an item the panel can scroll to.
+        //
+        // Tab reached all five above and the panel never followed, so on a long
+        // list the cursor landed on Refresh correctly and invisibly, below the
+        // bottom edge. WHERE to scroll is arithmetic and lives in the model,
+        // where node covers its four cases; what cannot be checked there is
+        // this — that each stop maps to a real, VISIBLE item. A stop added
+        // later with no mapping fails here rather than silently not scrolling.
+        var unmapped = []
+        for (var f = 0; f < order.length; f++) {
+          panelWidget.focusStop = order[f]
+          var item = panelWidget.focusedItem()
+          if (item === null || item === undefined || !item.visible) {
+            unmapped.push(order[f])
+          }
+        }
+        check("every focus stop maps to a visible item", "", unmapped.join(","))
+
+        // Overview has three stops and no search or list, so those two must map
+        // to nothing rather than to a hidden page's widgets — scrolling to an
+        // invisible item is how a panel jumps somewhere with nothing in it.
+        panelWidget.setView("overview")
+        panelWidget.focusStop = "search"
+        check("a stop that does not exist on this page maps to nothing", true,
+              panelWidget.focusedItem() === null)
+        panelWidget.setView("devices")
+        panelWidget.focusStop = "segments"
+
         if (service === null) return
         // Up/Down move the LIST cursor, not the focus, while the list is
         // focused — the one place the two axes mean different things.

@@ -123,7 +123,17 @@ Panel {
   }
 
   // Every exit from the state the confirmation describes.
-  onViewChanged: copiedKey = ""
+  // Two things on one signal, because QML permits exactly one handler per
+  // signal and a second `onViewChanged` further down the file is not a second
+  // handler — it is "Property value set multiple times", which loads as an
+  // error and takes the whole panel with it.
+  onViewChanged: {
+    copiedKey = ""
+    // REQ-B15 / UX-008: a page change can move the focus stop without changing
+    // it (the same stop on a taller page sits somewhere else), so the reveal is
+    // driven from here as well as from `onFocusStopChanged`.
+    Qt.callLater(revealFocused)
+  }
   onExpandedDeviceIdChanged: copiedKey = ""
   onExpandedClientIdChanged: copiedKey = ""
 
@@ -301,6 +311,42 @@ Panel {
     var list = view === "devices" ? vm.deviceList : vm.clientList
     setFilter(ViewModel.nextFilter(list.filterChips, currentFilter()))
   }
+
+  // REQ-B15 / UX-008. The item the keyboard is on, or null.
+  //
+  // By stop rather than by `activeFocus`: this panel drives its cursor with a
+  // string and never gives Qt focus to most of these controls (the segmented
+  // control is `focusable: false`), so `Window.activeFocusItem` would be the
+  // search field or nothing at all.
+  function focusedItem() {
+    if (focusStop === ViewModel.FOCUS_SEGMENTS) return segmentsFrame
+    if (focusStop === ViewModel.FOCUS_REFRESH) return refreshButton
+    if (focusStop === ViewModel.FOCUS_DASHBOARD) return dashboardButton
+    var browse = activeBrowse()
+    if (browse === null) return null
+    if (focusStop === ViewModel.FOCUS_SEARCH) return browse.searchItem
+    if (focusStop === ViewModel.FOCUS_LIST) return browse.listItem
+    return null
+  }
+
+  // Scroll the panel so the focused control is on screen. WHERE to scroll to is
+  // `ViewModel.scrollToReveal` — the four cases and two clamps are arithmetic,
+  // and this file decides nothing (REQ-014). All this does is measure.
+  function revealFocused() {
+    var item = focusedItem()
+    if (item === null || item === undefined || !item.visible) return
+    var pos = item.mapToItem(panelFlick.contentItem, 0, 0)
+    panelFlick.contentY = ViewModel.scrollToReveal(
+      pos.y, item.height, panelFlick.contentY, panelFlick.height,
+      panelFlick.contentHeight, Style.spacing.md)
+  }
+
+  // Deferred a turn, for the reason the list's own `keepCurrentVisible` is
+  // (bluetooth/Panel.qml records the same): a stop change often arrives WITH a
+  // page change, and on that frame the page being revealed has not been laid
+  // out — its `visible` is still false and every position is stale. Measuring
+  // then scrolls to where the control used to be.
+  onFocusStopChanged: Qt.callLater(revealFocused)
 
   // REQ-B14: one row expanded at a time, and activating the open row closes it.
   function toggleExpanded(id) {
@@ -531,6 +577,7 @@ Panel {
           // is, the chip fill says which page you are on, and neither moves
           // when the other changes.
           Item {
+            id: segmentsFrame
             width: parent.width
             visible: root.vm.hasSnapshot
             implicitHeight: segments.implicitHeight
@@ -817,6 +864,7 @@ Panel {
             spacing: Style.spacing.controlGap
 
             Button {
+              id: refreshButton
               text: "Refresh"
               enabled: root.vm.refreshEnabled
               opacity: enabled ? 1.0 : 0.45
@@ -828,6 +876,7 @@ Panel {
             }
 
             Button {
+              id: dashboardButton
               text: "Open UniFi"
               enabled: root.vm.dashboard ? root.vm.dashboard.accepted : false
               opacity: enabled ? 1.0 : 0.45
