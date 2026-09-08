@@ -26,6 +26,7 @@ Item {
   readonly property color dim: Qt.darker(foreground, 1.4)
 
   signal toggleRequested()
+  signal hoverRequested()
 
   implicitHeight: layout.implicitHeight
   height: implicitHeight
@@ -48,7 +49,12 @@ Item {
     width: parent.width
     spacing: Style.spacing.xs
 
+    // The header, and the only part that toggles. The click target covers this
+    // Item and not the whole row: a target over the expanded detail would
+    // collapse the row when the user clicked in the port table they had just
+    // opened to read.
     Item {
+      id: header
       width: parent.width
       implicitHeight: Math.max(primary.implicitHeight, secondary.implicitHeight)
 
@@ -82,6 +88,7 @@ Item {
     }
 
     Text {
+      id: metaLine
       width: parent.width
       visible: text !== ""
       text: root.row ? root.row.metaText : ""
@@ -148,16 +155,30 @@ Item {
     }
   }
 
-  // Never a MouseArea (host-contract §7): `Ui/WidgetButton` owns hover, cursor
-  // and click dispatch. A row is a button whose chrome is its own text, so the
-  // button is transparent and sits over the layout rather than wrapping it.
-  WidgetButton {
-    anchors.fill: parent
-    text: ""
-    foreground: root.foreground
-    fontFamily: root.fontFamily
-    onPressed: function (buttonCode) {
-      if (buttonCode === Qt.LeftButton) root.toggleRequested()
-    }
+  // A `MouseArea`, and host-contract §7's "never write a MouseArea" does not
+  // reach here: that rule is about BAR BUTTONS, where `Ui/WidgetButton` owns
+  // hover, tooltip and click dispatch. For a list ROW the host writes a plain
+  // MouseArea itself — bluetooth/Panel.qml:933-957 — and this is that shape,
+  // hover-to-cursor sync included.
+  //
+  // `WidgetButton` is in fact unusable here, which is worth recording because
+  // it looks like the right type: it is `visible: hasVisualContent || keepSpace`
+  // and `hasVisualContent` is `text !== ""` (`Ui/WidgetButton.qml:29,67`), so a
+  // transparent one with no text is INVISIBLE — and an invisible item takes no
+  // mouse events at all. The row would simply not have been clickable.
+  //
+  // It covers the header and the meta line only. A target over the expanded
+  // detail would collapse the row when the user clicked in the port table they
+  // had just opened to read.
+  MouseArea {
+    anchors.left: layout.left
+    anchors.right: layout.right
+    anchors.top: layout.top
+    height: header.height + (metaLine.visible ? metaLine.height + layout.spacing : 0)
+    hoverEnabled: true
+    acceptedButtons: Qt.LeftButton
+    cursorShape: Qt.PointingHandCursor
+    onContainsMouseChanged: if (containsMouse) root.hoverRequested()
+    onClicked: root.toggleRequested()
   }
 }

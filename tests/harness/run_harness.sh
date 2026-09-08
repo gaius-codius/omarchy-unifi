@@ -47,11 +47,23 @@ fi
 # `ViewModel.js` through the implicit directory import and a relative `.js`
 # import, and both of those resolve against the config root. Testing the view
 # from anywhere else would test a layout that never ships.
-MODULES=(
-  Service.qml Health.js Protocol.js Schedule.js Settings.js ViewModel.js
-  Panel.qml BarItem.qml HealthColor.qml UnifiGlyph.qml StatusPanel.qml
-  DeviceList.qml WarningList.qml
-)
+# DERIVED, not listed. This was a hand-maintained array and it rotted the first
+# time it was asked to: Phase B3 added BrowseList, BrowseRow, DetailRows and
+# PortTable, the array did not, and the harness reported
+# `BrowseList is not a type` — so every UI case ran against a `panelWidget` that
+# had failed to load, and returned silently rather than failing.
+#
+# The repository root IS the plugin folder, so its `*.qml` and `*.js` are
+# exactly what ships and exactly what the harness must stage. A glob cannot
+# disagree with that; a list can, and did.
+shopt -s nullglob
+MODULES=()
+for path in "$REPO"/*.qml "$REPO"/*.js; do
+  MODULES+=("$(basename "$path")")
+done
+shopt -u nullglob
+[[ ${#MODULES[@]} -gt 0 ]] || {
+  echo "run_harness.sh: no QML/JS found in $REPO — nothing to stage" >&2; exit 2; }
 
 SHELL_TREE=/usr/share/omarchy/shell
 
@@ -115,7 +127,13 @@ printf '{"repoRoot":"%s","stubRoot":"%s","only":"%s"}\n' \
 # on a local-time rendering if they are given the same locality. The runner
 # asserts the pin took effect; a missing tzdata would make local time equal UTC
 # in both engines, and they would agree on the wrong answer.
-out="$(TZ=Asia/Kolkata QML_XHR_ALLOW_FILE_READ=1 timeout 420 quickshell -p "$QML_ROOT/runner.qml" 2>&1)"
+# 600, raised from 420 at Phase B3. Several assertions are ABOUT durations of
+# 17, 26 and 31 seconds and cannot be shortened without testing something else,
+# so the run only ever grows — and by B3 it was finishing at ~6:30 against a
+# 7:00 cap, which is a suite that fails intermittently under load and tells you
+# nothing about the code when it does. The cap exists to stop a HANG, and a hang
+# is minutes past this, not seconds.
+out="$(TZ=Asia/Kolkata QML_XHR_ALLOW_FILE_READ=1 timeout 600 quickshell -p "$QML_ROOT/runner.qml" 2>&1)"
 status=$?
 
 # Quickshell prefixes every console.log with a colourised level tag.

@@ -16,6 +16,11 @@ Column {
   property color foreground: Color.foreground
   property color urgent: Color.urgent
   property string fontFamily: Style.font.family
+
+  // REQ-B10a. Emitted with the role value `devices[].roles` uses, for the panel
+  // to turn into a filtered Devices page. This component does not know what a
+  // page is, which is why it emits rather than navigating.
+  signal roleActivated(string role)
   readonly property color dim: Qt.darker(foreground, 1.4)
 
   readonly property var model: vm ? vm : null
@@ -177,10 +182,16 @@ Column {
 
   Repeater {
     model: root.vm ? root.vm.countRows : []
-    delegate: Column {
+    delegate: Item {
       id: roleRow
       required property var modelData
       width: root.width
+      implicitHeight: roleColumn.implicitHeight
+      height: implicitHeight
+
+      Column {
+      id: roleColumn
+      width: parent.width
       spacing: 0
 
       Text {
@@ -208,6 +219,27 @@ Column {
             textFormat: Text.PlainText
           }
         }
+      }
+      }
+
+      // REQ-B10a. The row is an entry point: activating it opens Devices
+      // filtered to this role. `modelData.role` carries the value
+      // `devices[].roles` uses — decided in ViewModel.js, because the count
+      // buckets are plural nouns and the roles are the API's feature names, and
+      // a view translating between them is the one place a typo produces an
+      // always-empty list rather than an error.
+      //
+      // A `MouseArea`, as the host's own panel rows use
+      // (bluetooth/Panel.qml:933-957). §7's "never write a MouseArea" is about
+      // BAR BUTTONS; `Ui/WidgetButton` is additionally unusable for an
+      // invisible target, being `visible: hasVisualContent || keepSpace` with
+      // `hasVisualContent: text !== ""`.
+      MouseArea {
+        anchors.fill: parent
+        hoverEnabled: true
+        acceptedButtons: Qt.LeftButton
+        cursorShape: Qt.PointingHandCursor
+        onClicked: root.roleActivated(roleRow.modelData.role)
       }
     }
   }

@@ -463,13 +463,11 @@ ShellRoot {
           snapshot: snapshot, level: { level: "amber", rule: 3 },
           settings: {}, warnings: [], nowWall: 1768209240,
           browse: {
-            view: "devices",
             expandedDeviceId: withDetail.id,
             expandedClientId: snapshot.clients[0].id
           }
         })
 
-        check("the view is the one asked for", "devices", model.view)
         check("REQ-B11: the helper's order survives the model",
               -1, ViewModel.firstBrowseOrderViolation(snapshot.devices))
         check("REQ-B12: the client order survives too",
@@ -1431,27 +1429,378 @@ ShellRoot {
 
     // --- UX-008 -------------------------------------------------------------
     pending.push({
-      name: "UX-008: Tab cycles the two actions and Enter activates the focused one",
+      name: "UX-008: Tab cycles the actions and Enter activates the focused one",
       waitMs: 0,
       assert: function () {
         if (panelWidget === null) return
-        panelWidget.focusIndex = 0
+        // REQ-B15 replaced the two-stop `focusIndex` with a named stop list
+        // that depends on the page. On Overview it is three long, and the two
+        // actions keep the last two places — which is what UX-008 asserted and
+        // still asserts.
+        panelWidget.view = "overview"
+        panelWidget.focusStop = "refresh"
         panelWidget.moveFocus(1)
-        check("Tab moves to Open UniFi", 1, panelWidget.focusIndex)
+        check("Tab moves to Open UniFi", "dashboard", panelWidget.focusStop)
         panelWidget.moveFocus(1)
-        check("Tab wraps back to Refresh", 0, panelWidget.focusIndex)
+        check("Tab wraps to the segmented control", "segments", panelWidget.focusStop)
+        panelWidget.moveFocus(1)
+        check("Tab reaches Refresh", "refresh", panelWidget.focusStop)
         panelWidget.moveFocus(-1)
-        check("Backtab wraps the other way", 1, panelWidget.focusIndex)
+        check("Backtab wraps the other way", "segments", panelWidget.focusStop)
         openedUrls = []
+        panelWidget.focusStop = "dashboard"
         check("Enter on Open UniFi tries the dashboard", "rejected",
               panelWidget.activateFocused())
-        panelWidget.focusIndex = 0
+        panelWidget.focusStop = "refresh"
         check("Enter on Refresh reaches the refresh path", "disabled",
               panelWidget.activateFocused())
       }
     })
 
+    // --- SPEC-v1.1-browse.md: AC-B15 … AC-B19 -------------------------------
+    //
+    // The panel's own state machine, driven through the same functions
+    // `PanelKeyCatcher` calls. Keystrokes are not synthesised: what these
+    // assert is the panel's response to a key, and `Qt.Key_Tab` arriving at
+    // `onTabRequested` is the host's business and is covered by the host's own
+    // tests. What is NOT covered anywhere else is what this panel does with it.
+    pending.push({
+      name: "AC-B15: the segmented control switches views and the pages follow",
+      // Long enough for the batch this case's setup launches to finish. The
+      // first version reset the service with `waitMs: 0`, so every assertion
+      // here and in the four cases after it ran against a panel with no
+      // snapshot — which is not a browse page at all, and reported as five
+      // separate failures with one cause.
+      waitMs: 2500,
+      // Guarded, because `--only` skips the cases that build these. Without it
+      // a filtered run fails in `setup` and reports nothing about the case it
+      // was asked to run — which is how this guard came to be written.
+      setup: function () {
+        if (service === null) return
+        resetService(30)
+        service.requestRefresh()
+      },
+      // The DEGRADED variant, not the healthy one. `success_data()` carries
+      // `devices: []` and `clients: []` on purpose — it models a fully
+      // budget-truncated reading — so every browse assertion written against it
+      // compared two empty arrays and passed for that reason. The degraded stub
+      // is the one with something in every list the panel can draw, which is
+      // what its own comment says it exists for.
+      prepare: function () { writeScenario({ mode: "success", variant: "degraded" }) },
+      assert: function () {
+        if (panelWidget === null) return
+        panelWidget.resetBrowse()
+        check("the panel opens on Overview", "overview", panelWidget.view)
+        check("Overview is not a browse page", false, panelWidget.browsing)
+
+        panelWidget.setView("devices")
+        check("the view switched", "devices", panelWidget.view)
+        // AC-B15's real assertion: the page renders from `vm` and computes
+        // nothing. The rows the panel is about to draw are the rows the model
+        // published, object for object — and there ARE some, which the healthy
+        // stub's empty lists let this pass without.
+        check("the device page has rows to render", true,
+              panelWidget.vm.deviceList.rows.length > 0)
+        check("the device rows come from vm", panelWidget.vm.deviceList.rows,
+              panelWidget.activeList.rows)
+
+        panelWidget.setView("clients")
+        check("the client page follows too", "clients", panelWidget.view)
+        check("the client page has rows to render", true,
+              panelWidget.vm.clientList.rows.length > 0)
+        check("the client rows come from vm", panelWidget.vm.clientList.rows,
+              panelWidget.activeList.rows)
+
+        // A junk value cannot produce a fourth page.
+        panelWidget.setView("nonsense")
+        check("an unrecognised view falls back to Overview", "overview",
+              panelWidget.view)
+
+        if (service === null) return
+        check("the control is on screen while there is a reading", true,
+              panelWidget.hasSnapshot)
+      }
+    })
+
+    pending.push({
+      name: "AC-B16: typing filters the list and does not drive the panel cursor",
+      waitMs: 0,
+      assert: function () {
+        if (panelWidget === null) return
+        if (service === null) return
+        panelWidget.resetBrowse()
+        panelWidget.setView("devices")
+        var all = panelWidget.vm.deviceList.rows.length
+        if (all === 0) { bad("the fixture site has devices to filter"); return }
+
+        var name = panelWidget.vm.deviceList.rows[0].nameText
+        panelWidget.setSearch(name)
+        check("the search text reached the model", name.toLowerCase(),
+              panelWidget.vm.deviceList.searchText)
+        check("the list narrowed", true,
+              panelWidget.vm.deviceList.rows.length < all
+              || all === 1)
+
+        // A term matching nothing yields the empty list and says so — never
+        // the unfiltered list, which is the reflex this guards against.
+        panelWidget.setSearch("zzz-no-such-device")
+        check("nothing matches", 0, panelWidget.vm.deviceList.rows.length)
+        check("and the panel says why", true,
+              panelWidget.vm.deviceList.emptyText.indexOf("zzz-no-such-device") !== -1)
+
+        // REQ-B15: Escape clears a non-empty search BEFORE it closes.
+        var field = panelWidget.activeBrowse()
+        if (field === null) { bad("the device page has a search field"); return }
+        check("Escape clears the search first", "cleared", panelWidget.escapePressed())
+        check("the search is empty", "", panelWidget.vm.deviceList.searchText)
+        // The FIELD too, not only the model. It is uncontrolled — its `text` is
+        // not bound to `list.searchText`, so a panel that cleared the model
+        // alone would leave the user's text on screen above a list no longer
+        // filtered by it.
+        check("and the field itself is empty", "", field.searchText)
+        check("the panel is still open", true, panelWidget.opened)
+        check("Escape again closes", "closed", panelWidget.escapePressed())
+        check("the panel closed", false, panelWidget.opened)
+        // REQ-B10: closing returns to Overview and clears the search — the
+        // widget's job is health, and reopening it should answer that question
+        // rather than resume a browse.
+        check("closing returned to Overview", "overview", panelWidget.view)
+        // REOPENED first. The Escape sequence above closed it, so a `close()`
+        // here would be a no-op — `onOpenedChanged` would never fire and the
+        // reset this is about would never run, while the assertion below read
+        // the state left by the Escape and passed.
+        panelWidget.open()
+        panelWidget.setView("devices")
+        panelWidget.setSearch("router")
+        panelWidget.activeBrowse().setSearchText("router")
+        check("the search is in hand before closing", "router",
+              panelWidget.vm.deviceList.searchText)
+        panelWidget.close()
+        check("closing cleared the model's search", "",
+              panelWidget.vm.deviceList.searchText)
+        // Reached BY NAME. `activeBrowse()` is null here, because closing has
+        // already returned the panel to Overview — so a check written through
+        // it would read "" from the null branch and pass whether or not the
+        // field was ever cleared.
+        var closed = panelWidget.browseFor("devices")
+        if (closed === null) { bad("the device page is reachable by name"); return }
+        check("closing cleared the field", "", closed.searchText)
+      }
+    })
+
+    pending.push({
+      name: "AC-B17: Tab reaches every control in REQ-B15's order and wraps",
+      waitMs: 0,
+      setup: function () { if (panelWidget !== null) panelWidget.open() },
+      assert: function () {
+        if (panelWidget === null) return
+        panelWidget.resetBrowse()
+        panelWidget.setView("devices")
+        var order = ["segments", "search", "list", "refresh", "dashboard"]
+        var walked = []
+        panelWidget.focusStop = "segments"
+        for (var i = 0; i < order.length; i++) {
+          walked.push(panelWidget.focusStop)
+          panelWidget.moveFocus(1)
+        }
+        check("Tab walks REQ-B15's five stops", order.join(","), walked.join(","))
+        check("and wraps to the first", "segments", panelWidget.focusStop)
+
+        if (service === null) return
+        // Up/Down move the LIST cursor, not the focus, while the list is
+        // focused — the one place the two axes mean different things.
+        panelWidget.focusStop = "list"
+        panelWidget.deviceCursor = 0
+        panelWidget.moveCursor(0, 1)
+        check("Down moves the list cursor", 1, panelWidget.deviceCursor)
+        check("and does not move the focus stop", "list", panelWidget.focusStop)
+        panelWidget.moveCursor(0, -1)
+        check("Up moves it back", 0, panelWidget.deviceCursor)
+        // Clamped, not wrapped: a list cursor that wraps from the last row to
+        // the first while the viewport stays put reads as the list jumping.
+        panelWidget.moveCursor(0, -1)
+        check("the cursor stops at the top", 0, panelWidget.deviceCursor)
+
+        // Enter expands the focused row, and exactly one row is open.
+        var first = panelWidget.vm.deviceList.rows[0].id
+        check("Enter expands the focused row", "toggled", panelWidget.activateFocused())
+        check("the model reports it expanded", first,
+              panelWidget.vm.deviceList.expandedId)
+        panelWidget.moveCursor(0, 1)
+        panelWidget.activateFocused()
+        check("expanding another closes the first",
+              panelWidget.vm.deviceList.rows[1].id,
+              panelWidget.vm.deviceList.expandedId)
+        panelWidget.activateFocused()
+        check("Enter on the open row closes it", "",
+              panelWidget.vm.deviceList.expandedId)
+
+        // Left/Right on the segmented control move between pages. From
+        // OVERVIEW, stated explicitly: this case sets the view to Devices at
+        // the top, and a first version assumed otherwise and read the step from
+        // Devices to Clients as a failure.
+        panelWidget.setView("overview")
+        panelWidget.focusStop = "segments"
+        panelWidget.moveCursor(1, 0)
+        check("Right moves to the next page", "devices", panelWidget.view)
+        panelWidget.moveCursor(1, 0)
+        check("Right again reaches the last page", "clients", panelWidget.view)
+        // Clamped at both ends rather than wrapping, so the three chips read as
+        // a row and not a carousel — and the ends are where a modulo would
+        // differ from a clamp.
+        panelWidget.moveCursor(1, 0)
+        check("Right at the last chip stays", "clients", panelWidget.view)
+        panelWidget.moveCursor(-1, 0)
+        check("Left moves back", "devices", panelWidget.view)
+        panelWidget.moveCursor(-1, 0)
+        check("Left reaches Overview", "overview", panelWidget.view)
+        panelWidget.moveCursor(-1, 0)
+        check("Left at the first chip stays", "overview", panelWidget.view)
+      }
+    })
+
+    pending.push({
+      name: "AC-B16: the panel's key handling is suspended while the field has focus",
+      waitMs: 0,
+      assert: function () {
+        if (panelWidget === null) return
+        panelWidget.resetBrowse()
+        panelWidget.setView("devices")
+        var catcher = findByObjectName(panelWidget, "unifi-key-catcher", 0)
+        if (catcher === null) { bad("the key catcher is reachable"); return }
+
+        // REQ-B15's actual mechanism, not a proxy for it. Without `blocked`,
+        // typing "ap" into the search box drives the panel cursor: "a" is not
+        // bound, but `PanelKeyCatcher` forwards every unhandled single
+        // character to `textKey`, where this panel reads "r" as Refresh — so a
+        // user searching for "router" would fire a refresh on the third letter.
+        check("nothing is being edited to start with", false,
+              panelWidget.searchHasFocus)
+        check("so the catcher is live", false, catcher.blocked)
+
+        var field = panelWidget.activeBrowse()
+        if (field === null) { bad("the device page has a search field"); return }
+        field.focusSearch()
+        check("the field took focus", true, panelWidget.searchHasFocus)
+        check("and the catcher is suspended", true, catcher.blocked)
+
+        field.releaseSearch()
+        check("releasing the field revives the catcher", false, catcher.blocked)
+        check("and the panel knows it", false, panelWidget.searchHasFocus)
+
+        // The suspension is BOUND to where the caret is, not tracked alongside
+        // it — the two cannot disagree, which is what a tracked flag would
+        // eventually do.
+        check("blocked is the caret's own state", panelWidget.searchHasFocus,
+              catcher.blocked)
+      }
+    })
+
+    pending.push({
+      name: "AC-B18: a list shorter than its viewport is not a drag surface",
+      waitMs: 0,
+      assert: function () {
+        if (panelWidget === null) return
+        panelWidget.resetBrowse()
+        panelWidget.setView("devices")
+        var list = findByObjectName(panelWidget, "unifi-browse-list", 0)
+        if (list === null) { bad("the device list is on screen"); return }
+
+        // The harness cannot meaningfully drag a list, so what it asserts is
+        // the property that decides whether a drag would do anything. Inside a
+        // KeyboardPanel — a full-screen click sink, HC-20 — a short list that
+        // swallowed drags would be a panel that feels stuck.
+        //
+        // Both directions, and the RULE rather than one particular fit: how
+        // many of the stub's devices happen to fit a 320 px viewport is not
+        // something this criterion is about, and pinning it would make the
+        // case fail on a font change.
+        check("whatever the list's size, the rule is the height comparison", true,
+              list.interactive === (list.contentHeight > list.height))
+
+        // A search that empties the list must not leave a live drag surface
+        // behind — the boundary the comparison has to get right.
+        panelWidget.setSearch("zzz-no-such-device")
+        check("an emptied list has no content", 0, list.contentHeight)
+        check("and is not interactive", false, list.interactive)
+        panelWidget.setSearch("")
+        check("and the rule still holds once it refills", true,
+              list.interactive === (list.contentHeight > list.height))
+      }
+    })
+
+    pending.push({
+      name: "AC-B19: an Overview role row opens Devices filtered to that role",
+      waitMs: 0,
+      assert: function () {
+        if (panelWidget === null) return
+        if (service === null) return
+        panelWidget.resetBrowse()
+        var rows = panelWidget.vm.countRows
+        if (rows.length === 0) { bad("the fixture site has role rows"); return }
+
+        // The role travels with the row. The count buckets are plural nouns and
+        // `devices[].roles` holds the API's feature names; a view translating
+        // between them is the one place a typo yields an always-empty list
+        // instead of an error.
+        var role = rows[0].role
+        check("the count row carries a role", true,
+              typeof role === "string" && role !== "")
+        panelWidget.setView("devices", role)
+        check("the page switched", "devices", panelWidget.view)
+        check("the filter reached the model", role, panelWidget.vm.deviceList.role)
+
+        var listed = panelWidget.vm.deviceList.rows
+        var offRole = 0
+        for (var i = 0; i < listed.length; i++) {
+          var has = false
+          for (var j = 0; j < listed[i].roles.length; j++) {
+            if (listed[i].roles[j] === role) has = true
+          }
+          if (!has) offRole++
+        }
+        check("every listed device holds the role", 0, offRole)
+        check("and the filter is not empty", true, listed.length > 0)
+
+        // Leaving the page drops the filter: one that outlived the row that set
+        // it would show an empty Devices page with nothing saying why.
+        panelWidget.setView("devices")
+        check("switching pages clears the filter", "", panelWidget.vm.deviceList.role)
+      }
+    })
+
     // --- DATA-011 / UX-004 --------------------------------------------------
+    pending.push({
+      name: "REQ-B10: losing the snapshot while browsing returns to Overview",
+      // LAST of the browse cases, and deliberately so. It discards the snapshot
+      // as its whole point, and an earlier version of this ran inside AC-B15 —
+      // where it left the four cases after it browsing a site with no reading,
+      // and reported four failures with one cause.
+      waitMs: 2500,
+      // Degraded, like the browse cases above it: leaving the healthy stub in
+      // place here would hand the NEXT batch a reading with empty lists, and
+      // the cases after this one would inherit it.
+      prepare: function () { writeScenario({ mode: "success", variant: "degraded" }) },
+      assert: function () {
+        if (panelWidget === null || service === null) return
+        panelWidget.resetBrowse()
+        panelWidget.setView("devices")
+        check("a reading is in hand", true, panelWidget.hasSnapshot)
+
+        // The segmented control is hidden when there is no reading — Devices
+        // and Clients over no snapshot are two empty pages and a third that
+        // explains why. Which would strand the user on an empty page with the
+        // only way back hidden. DATA-011's reload does exactly this, on
+        // purpose, so the panel has to come back by itself.
+        //
+        // `_reload()` — the internal one. `reload()` belongs to the IpcHandler,
+        // not to the service root.
+        service._reload()
+        check("the reload discarded the snapshot", false, panelWidget.hasSnapshot)
+        check("and the panel came back to Overview", "overview", panelWidget.view)
+      }
+    })
+
     pending.push({
       name: "DATA-011: a snapshot is in hand before the reload",
       waitMs: 1200,

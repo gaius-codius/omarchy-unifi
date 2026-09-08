@@ -5,17 +5,18 @@ the bar and a popup panel with WAN state, device counts, and which devices are
 offline. It is **read-only** — it uses six kinds of GET request and never changes
 anything on your controller.
 
-> **Status: pre-release.** Through Phase 12b and Phase B2 of
+> **Status: pre-release.** Through Phase 12b and Phase B3 of
 > `docs/feature-specs/omarchy-unifi-plugin/PLAN.md`. The helper, the service and
 > the panel are written, tested, and have been run installed in a real Omarchy
 > shell against a real UniFi controller (Network 10.6.101) — so the API key
 > header, the route set, the record shapes and the supported-version matrix are
 > confirmed against hardware rather than only against a stub.
 >
-> The v1.1 **Devices and Clients** views are written through the model layer:
-> the helper collects both lists and the panel's contents are decided and
-> tested. What is left is the QML that draws them (`SPEC-v1.1-browse.md`, phases
-> B3-B4), and Phase 13 — manual QA, packaging and release.
+> The v1.1 **Devices and Clients** views are built: the helper collects both
+> lists, the panel's contents are decided in the tested model layer, and the QML
+> draws them. What is left is Phase B4 — the same views against the real
+> controller and the real shell — and Phase 13, manual QA, packaging and
+> release.
 
 ## What it shows
 
@@ -45,6 +46,25 @@ fetch raised, each with its code so it is searchable.
 When something is wrong, the panel says which of twenty-four conditions it is
 and names the single action that fixes it. A metric the controller did not
 report reads "unknown" — never `0`.
+
+**Devices and Clients.** A segmented control at the top switches between
+Overview and two browsable lists: every adopted device, and every connected
+client. Each is searchable — case-insensitive substring, never fuzzy, so you can
+always say why a row matched — and each row expands to a detail block. A device
+shows its firmware and whether an update is waiting, its uplink, CPU, memory and
+throughput, and the port or radio table; a client shows its MAC, access type and
+when it connected. Activating a per-role count on Overview opens Devices
+filtered to that role.
+
+The whole panel is keyboard-driven: Tab walks the controls, `/` jumps to the
+search field, Up/Down move the list cursor, Enter expands a row, and Escape
+clears a search before it closes the panel. MAC addresses are shown only in an
+expanded row, and appear in no log, warning or `status` output.
+
+A bounded list says so — "showing 200 of 412 devices", counted from a figure the
+helper carries separately and never from the length of the list you are looking
+at. A search that finds nothing on a bounded list says that too, rather than
+answering with a confident "no".
 
 ## Requirements
 

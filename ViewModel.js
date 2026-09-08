@@ -45,6 +45,37 @@ const CLASS_WORD = {
 // is not required to agree between V4 and V8.
 const CLASS_ORDER = ["online", "transitional", "down", "impaired", "unknown"]
 
+// REQ-B10a. Overview's count rows are entry points into a filtered Devices
+// list, so each row must carry the role value `devices[].roles` actually uses.
+// The two vocabularies differ — the counter's buckets are plural nouns and the
+// device's roles are the API's feature names — and a view left to map between
+// them would be computing (REQ-014), in the one place a typo produces an
+// always-empty list rather than an error.
+//
+// Declared HERE, beside the other vocabularies, and not down with the rest of
+// the browse code where it was written. `countRows` is several hundred lines
+// above that point, and V4 warned:
+//
+//   qt.qml.usedbeforedeclared: ViewModel.js:375 Variable "ROLE_FOR_COUNT_KEY"
+//   is used before its declaration at 521
+//
+// It worked, because a `const` is initialised when the module is evaluated and
+// `countRows` is only ever CALLED afterwards. But it worked by luck of call
+// order, in a file whose whole premise is that two engines run it unchanged —
+// and V8 says nothing at all about it, so the warning would only ever have been
+// seen by whoever next read a live QML log.
+const ROLE_FOR_COUNT_KEY = {
+  gateways: "gateway",
+  switches: "switching",
+  accessPoints: "accessPoint"
+}
+
+const ROLE_PLURAL = {
+  gateway: "gateways",
+  switching: "switches",
+  accessPoint: "access points"
+}
+
 const WAN_STATUS_WORD = {
   up: "Up",
   down: "Down",
@@ -510,24 +541,6 @@ const BROWSE_CLASS_RANK = {
   unknown: 2,
   transitional: 3,
   online: 4
-}
-
-// REQ-B10a. Overview's count rows are entry points into a filtered Devices
-// list, so each row must carry the role value `devices[].roles` actually uses.
-// The two vocabularies differ — the counter's buckets are plural nouns and the
-// device's roles are the API's feature names — and a view left to map between
-// them would be computing (REQ-014), in the one place a typo produces an
-// always-empty list rather than an error.
-const ROLE_FOR_COUNT_KEY = {
-  gateways: "gateway",
-  switches: "switching",
-  accessPoints: "accessPoint"
-}
-
-const ROLE_PLURAL = {
-  gateway: "gateways",
-  switching: "switches",
-  accessPoint: "access points"
 }
 
 // The observed values are WIRED and WIRELESS; the published schema also lists
@@ -1430,12 +1443,18 @@ const EMPTY_MODEL = {
   metaRows: [],
   insecureTls: false,
   customCaInUse: false,
-  // REQ-B10's three pages. `deviceList` and `clientList` rather than `devices`
+  // REQ-B10's two pages. `deviceList` and `clientList` rather than `devices`
   // and `clients`, because the snapshot already has fields by those names
   // holding the RAW arrays — and a widget binding to the wrong one of the two
   // would get an array of records where it expected a list model, which reads
   // as an empty page rather than as an error.
-  view: "overview",
+  //
+  // WHICH page is showing is deliberately NOT here. It was, and it was a second
+  // source of truth for something the panel already owns: with no service the
+  // model is `forNullService()`, so `vm.view` sat at "overview" while the panel
+  // was on Devices, and the two disagreed with nothing to reconcile them. That
+  // is the shape of both bugs in N-102. The panel owns which page is showing,
+  // `browseView()` sanitises it, and the model owns what each page contains.
   deviceList: emptyBrowseList(),
   clientList: emptyBrowseList()
 }
@@ -1550,7 +1569,6 @@ function build(input) {
     // in which the row quietly becomes undefined instead of false.
     insecureTls: meta ? meta.allowInsecureTls === true : false,
     customCaInUse: meta ? meta.customCaInUse === true : false,
-    view: browseView(browse.view),
     deviceList: deviceListModel(snapshot, {
       search: browse.deviceSearch,
       role: browse.role,

@@ -506,6 +506,21 @@ names this exact case — "when a panel has an inline editor (wifi passphrase,
 gallery TextField demo) the panel must set `blocked: editor.activeFocus`"
 `:28-33`. Without it, typing "ap" drives the panel cursor instead of filtering.
 
+**A clickable list ROW is a `MouseArea`, and §7's "never write a `MouseArea`"
+does not reach it.** That rule is stated under *Buttons* and is about bar
+buttons, where `Ui/WidgetButton` owns hover, cursor, tooltip and click dispatch.
+For a list row the host writes a plain `MouseArea` itself —
+`plugins/panels/bluetooth/Panel.qml:933-957`, with `hoverEnabled`,
+`cursorShape: Qt.PointingHandCursor`, `onContainsMouseChanged` moving the
+panel's cursor onto the row, and `onClicked` acting.
+
+`Ui/WidgetButton` is in fact **unusable** as an invisible click target, which is
+worth recording because it looks like the right type. It is
+`visible: hasVisualContent || keepSpace` `:67` with
+`hasVisualContent: text !== ""` `:29`, so a transparent one carrying no text is
+`visible: false` — and an invisible item receives no mouse events at all. A row
+built that way is not clickable, silently, and nothing about the code says so.
+
 **The scrolling-list idiom** (REQ-B16, AC-B18). Not a `qs.Ui` type — a plain
 QtQuick `ListView` — but the shape is the host's and is cited because AC-B18
 asserts one specific line of it. `plugins/panels/bluetooth/Panel.qml:806-815`:

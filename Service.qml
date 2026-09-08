@@ -80,6 +80,20 @@ Item {
   // there being one service, rather than of every widget agreeing.
   property var viewModel: ViewModel.forNullService()
 
+  // REQ-B10's UI state, pushed in by the panel: which page is showing, what is
+  // typed in each search field, which row is open.
+  //
+  // It lives here rather than in `Panel.qml` for one reason — `_recompute` is
+  // the single composition site (see the comment on it), and deriving the two
+  // browse lists in the panel would make a second one. The panel would then be
+  // calling the pure layer directly, which is the arrangement REQ-014 exists to
+  // prevent: one place decides what the panel shows, and it is not the panel.
+  //
+  // It is genuinely the panel's state, so the panel writes it and this file
+  // never reads it except to pass it through.
+  property var browse: ({})
+  onBrowseChanged: if (_started) _recompute()
+
   // --- readiness (DATA-003, REQ-023b) --------------------------------------
   //
   // One derived predicate, and REQ-023b's "immediately" anchors on its RISING
@@ -754,6 +768,7 @@ Item {
       isStale: stale,
       settings: _settings,
       pollingSuspended: pollingSuspended,
+      browse: browse,
       nextAttemptAt: _schedule.nextAttemptAt,
       // SPEC-AMD-4. `retry-wait` is the ONE state in which the countdown is
       // information: the scheduler has failed at least once and is deliberately

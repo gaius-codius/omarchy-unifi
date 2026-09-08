@@ -1836,13 +1836,25 @@ test("REQ-B10: the view defaults to Overview and rejects anything else", () => {
   }
 })
 
-test("REQ-B10: build publishes both lists and the current view", () => {
+test("REQ-B10: the model carries what each page contains, not which is showing", () => {
+  // `view` was published here and is not any more. It was a second source of
+  // truth for something the panel owns: with no service the model is
+  // `forNullService()`, so it read "overview" while the panel was on Devices,
+  // and nothing could reconcile them. `browseView` still sanitises the value —
+  // the panel calls it — so the rule stays in the model layer and only the
+  // STATE moved out.
+  assert.strictEqual(ViewModel.EMPTY_MODEL.view, undefined)
+  assert.strictEqual(ViewModel.build({}).view, undefined)
+  assert.strictEqual(typeof ViewModel.browseView, "function")
+  assert.strictEqual(ViewModel.browseView("devices"), "devices")
+})
+
+test("REQ-B10: build publishes both lists", () => {
   const data = snapshotOf("success_browse_full")
   const model = ViewModel.build({
     snapshot: data, level: { level: "amber" }, nowWall: 1768209240,
     browse: { view: "devices", deviceSearch: "ap", expandedDeviceId: null }
   })
-  assert.strictEqual(model.view, "devices")
   assert.ok(model.deviceList.rows.length > 0)
   assert.strictEqual(model.deviceList.searchText, "ap")
   assert.ok(model.clientList.rows.length > 0)
@@ -1860,7 +1872,6 @@ test("REQ-B10: a model with no snapshot still has both list shapes", () => {
   for (const model of [ViewModel.forNullService(), ViewModel.build({})]) {
     assert.deepStrictEqual(Object.keys(model.deviceList).sort(), keys)
     assert.deepStrictEqual(Object.keys(model.clientList).sort(), keys)
-    assert.strictEqual(model.view, "overview")
   }
   // A fresh object per call: one shared default behind both keys would make a
   // mutation through either visible through the other.

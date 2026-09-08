@@ -57,9 +57,71 @@ Panel {
   // qmllint enable missing-property
   readonly property color dim: Qt.darker(foreground, 1.4)
 
-  // UX-008: Tab cycles Refresh and Open UniFi, Enter activates.
-  property int focusIndex: 0
-  readonly property int actionCount: 2
+  // REQ-B15 (extending UX-008). The stop ORDER, the wrap and what happens to
+  // the cursor when a page change removes the stop it is on all live in
+  // `ViewModel.js` as pure functions — a state machine reachable only through a
+  // five-minute live harness is one that gets tested once. What is here is the
+  // current stop and what each stop does when activated.
+  property string focusStop: ViewModel.FOCUS_SEGMENTS
+
+  // REQ-B10's view state, passed into `build` rather than held by it. The panel
+  // owns it because it is the panel's: which page is showing, what is typed in
+  // each search field, which row is open, and which row the cursor is on.
+  property string view: "overview"
+  property string deviceSearch: ""
+  property string clientSearch: ""
+  property string roleFilter: ""
+  property string expandedDeviceId: ""
+  property string expandedClientId: ""
+  property int deviceCursor: 0
+  property int clientCursor: 0
+
+  readonly property bool browsing: view !== "overview"
+
+  // The segmented control is hidden when there is no reading, because Devices
+  // and Clients over no snapshot are two empty pages and a third that explains
+  // why — and the explanation is the one worth being on.
+  //
+  // Which means losing the snapshot while browsing would strand the user on an
+  // empty page with the only way back hidden. A reload (DATA-011) does exactly
+  // that, on purpose. So the panel goes back to Overview itself.
+  readonly property bool hasSnapshot: vm.hasSnapshot
+  onHasSnapshotChanged: if (!hasSnapshot && browsing) setView("overview")
+
+  // Bound rather than tracked, so it cannot disagree with where the caret
+  // actually is. `PanelKeyCatcher.blocked` reads this.
+  readonly property bool searchHasFocus: (deviceBrowse && deviceBrowse.editing)
+    || (clientBrowse && clientBrowse.editing)
+  readonly property var activeList: view === "devices" ? vm.deviceList
+    : view === "clients" ? vm.clientList : null
+  readonly property int activeCursor: view === "devices" ? deviceCursor : clientCursor
+
+  // Pushed to the service, which is the single composition site: one place
+  // decides what the panel shows and it is not the panel (REQ-014). A computed
+  // object, so each of the five properties it names is a dependency and none
+  // can change without the model being rebuilt from it.
+  //
+  // What is deliberately ABSENT is as considered as what is here. The two
+  // cursors decide which row is highlighted, which is the view's business, and
+  // listing them would rebuild the whole model on every arrow key for a change
+  // no model field reflects. `view` is absent for the same reason once it
+  // stopped being published (N-104): both lists are built on every recompute
+  // regardless of which is on screen, so a page switch changes nothing the
+  // model would compute differently — and `role`, which a page switch CAN
+  // carry, is listed.
+  readonly property var browseState: ({
+    deviceSearch: deviceSearch,
+    clientSearch: clientSearch,
+    role: roleFilter,
+    expandedDeviceId: expandedDeviceId,
+    expandedClientId: expandedClientId
+  })
+
+  onBrowseStateChanged: if (unifiService) unifiService.browse = browseState
+  // The service may arrive after the panel does — `serviceFor` is null on the
+  // first frame (REQ-013b) — so the push is repeated when it appears rather
+  // than only when the state changes.
+  onUnifiServiceChanged: if (unifiService) unifiService.browse = browseState
 
   // The bar sizes its slot from the button, and the button sizes itself from
   // `slotSize` before the icon component has been loaded — so REQ-005's compact
@@ -96,11 +158,148 @@ Panel {
 
   function moveFocus(direction) {
     if (direction === 0) return
-    focusIndex = (focusIndex + direction + actionCount) % actionCount
+    focusStop = ViewModel.nextFocus(view, focusStop, direction)
+  }
+
+  // REQ-B15: Left/Right move within the segmented control, Up/Down within the
+  // list. Which axis does what depends on where the cursor is, so the dispatch
+  // is here and the arithmetic is not.
+  function moveCursor(dx, dy) {
+    if (focusStop === ViewModel.FOCUS_SEGMENTS && dx !== 0) {
+      var views = ViewModel.BROWSE_VIEWS
+      var at = views.indexOf(view)
+      var to = Math.min(views.length - 1, Math.max(0, (at < 0 ? 0 : at) + dx))
+      setView(views[to])
+      return
+    }
+    if (focusStop === ViewModel.FOCUS_LIST && dy !== 0) {
+      moveListCursor(dy)
+      return
+    }
+    // Anywhere else, an arrow is a Tab. The vertical axis, because the panel is
+    // a column and Up/Down between the two buttons at its foot is what a reader
+    // expects; horizontal falls through to the same thing rather than doing
+    // nothing, which would read as the key being broken.
+    moveFocus(dy !== 0 ? dy : dx)
+  }
+
+  // The mouse landing on a row puts the panel cursor there, so the two never
+  // point at different rows. It moves the focus STOP too: pressing Enter after
+  // pointing at a row should open the row that was pointed at.
+  function hoverList(index) {
+    if (!browsing) return
+    focusStop = ViewModel.FOCUS_LIST
+    if (view === "devices") deviceCursor = index
+    else clientCursor = index
+  }
+
+  function moveListCursor(delta) {
+    if (!activeList) return
+    var count = activeList.rows.length
+    if (count === 0) return
+    var next = Math.min(count - 1, Math.max(0, activeCursor + delta))
+    if (view === "devices") deviceCursor = next
+    else clientCursor = next
+  }
+
+  // REQ-B10 / REQ-B10a. Switching pages moves the focus stop only when the one
+  // it is on does not exist on the new page, and clears the role filter unless
+  // the caller is setting one — a filter that outlived the row that set it
+  // would show an empty Devices page with nothing saying why.
+  function setView(next, role) {
+    var wanted = ViewModel.browseView(next)
+    view = wanted
+    roleFilter = role === undefined ? "" : role
+    focusStop = ViewModel.focusAfterViewChange(wanted, focusStop)
+  }
+
+  // REQ-B14: one row expanded at a time, and activating the open row closes it.
+  function toggleExpanded(id) {
+    if (view === "devices") {
+      expandedDeviceId = expandedDeviceId === id ? "" : id
+    } else if (view === "clients") {
+      expandedClientId = expandedClientId === id ? "" : id
+    }
   }
 
   function activateFocused() {
-    return focusIndex === 0 ? doRefresh() : openDashboard()
+    if (focusStop === ViewModel.FOCUS_REFRESH) return doRefresh()
+    if (focusStop === ViewModel.FOCUS_DASHBOARD) return openDashboard()
+    if (focusStop === ViewModel.FOCUS_SEARCH) {
+      var field = activeBrowse()
+      if (field) field.focusSearch()
+      return "searching"
+    }
+    if (focusStop === ViewModel.FOCUS_LIST) {
+      if (!activeList || activeCursor >= activeList.rows.length) return "empty"
+      toggleExpanded(activeList.rows[activeCursor].id)
+      return "toggled"
+    }
+    // The segmented control: Enter on a chip is the chip being chosen, and the
+    // chip under the cursor IS the current view, so there is nothing to do.
+    return "view"
+  }
+
+  // REQ-B15. Escape clears a non-empty search before it closes the panel. The
+  // case where the search field itself has focus is handled inside
+  // `BrowseList` — `PanelKeyCatcher` is blocked then and never sees the key.
+  function escapePressed() {
+    if (browsing && currentSearch() !== "") {
+      clearSearch()
+      return "cleared"
+    }
+    close()
+    return "closed"
+  }
+
+  // By NAME, not by current view, so a caller can reach a page's search field
+  // when that page is not the one showing — which is exactly the case REQ-B10's
+  // "clears any search text when it closes" has to be checked in, because
+  // closing has already returned the panel to Overview by then.
+  function browseFor(name) {
+    return name === "devices" ? deviceBrowse : name === "clients" ? clientBrowse : null
+  }
+
+  function activeBrowse() { return browseFor(view) }
+
+  function currentSearch() {
+    return view === "devices" ? deviceSearch : view === "clients" ? clientSearch : ""
+  }
+
+  // Called BY the field, when the user types. It records what was typed and
+  // does not write back — see `clearSearch` for the other direction.
+  function setSearch(text) {
+    if (view === "devices") { deviceSearch = text; deviceCursor = 0 }
+    else if (view === "clients") { clientSearch = text; clientCursor = 0 }
+  }
+
+  // Called AT the field, when the panel clears the search on its own account:
+  // Escape with the list focused, and REQ-B10's reset when the panel closes.
+  // The field is uncontrolled, so setting the model alone would leave the
+  // user's text on screen above a list that is no longer filtered by it.
+  function clearSearch() {
+    if (deviceBrowse) deviceBrowse.setSearchText("")
+    if (clientBrowse) clientBrowse.setSearchText("")
+    deviceSearch = ""
+    clientSearch = ""
+    deviceCursor = 0
+    clientCursor = 0
+  }
+
+  // REQ-B10: the panel returns to Overview and clears both searches when it
+  // closes. The widget's job is health, and reopening it should answer that
+  // question rather than resume a browse.
+  onOpenedChanged: if (!opened) resetBrowse()
+
+  function resetBrowse() {
+    clearSearch()
+    view = "overview"
+    roleFilter = ""
+    expandedDeviceId = ""
+    expandedClientId = ""
+    deviceCursor = 0
+    clientCursor = 0
+    focusStop = ViewModel.FOCUS_SEGMENTS
   }
 
   // REQ-001a lives in exactly one file. The panel hero needs the same
@@ -157,13 +356,33 @@ Panel {
 
     PanelKeyCatcher {
       id: keyCatcher
+      objectName: "unifi-key-catcher"
       anchors.fill: parent
 
-      onCloseRequested: root.close()
+      // REQ-B15. While the search field holds focus the panel's own key
+      // handling is suspended — otherwise typing "ap" drives the panel cursor
+      // instead of filtering. `PanelKeyCatcher.blocked` forwards every key to
+      // descendants without emitting a signal, and its own documentation names
+      // this exact case (host-contract §7).
+      blocked: root.searchHasFocus
+
+      onCloseRequested: root.escapePressed()
       onTabRequested: function (direction) { root.moveFocus(direction) }
-      onMoveRequested: function (dx, dy) { root.moveFocus(dy !== 0 ? dy : dx) }
+      onMoveRequested: function (dx, dy) { root.moveCursor(dx, dy) }
       onActivateRequested: root.activateFocused()
-      onTextKey: function (t) { if (t === "r" || t === "R") root.doRefresh() }
+      onTextKey: function (t) {
+        // REQ-B15: "/" focuses the search field. Checked before "r", because a
+        // panel that refreshed on a keystroke meant for the search box would be
+        // both surprising and a request the user did not make.
+        if (t === "/") {
+          if (!root.browsing) root.setView("devices")
+          root.focusStop = ViewModel.FOCUS_SEARCH
+          var field = root.activeBrowse()
+          if (field) field.focusSearch()
+          return
+        }
+        if (t === "r" || t === "R") root.doRefresh()
+      }
 
       Flickable {
         id: panelFlick
@@ -197,6 +416,47 @@ Panel {
                 showBadge: root.vm.rendering ? root.vm.rendering.badge === true : false
               }
             }
+          }
+
+          // REQ-B10. Three pages, one row of chips. `Ui/ButtonGroup` is one
+          // Tab stop rather than one per chip, and this panel drives it through
+          // `cursorIndex` rather than giving it Tab focus — which is the path
+          // the host's own bar panels use and the one its source says they use
+          // (host-contract §7). Giving it focus as well would put two
+          // independent notions of "which chip" on screen at once.
+          //
+          // Shown only when there is a snapshot: Devices and Clients over no
+          // reading are two empty pages and a third that explains why, and the
+          // explanation is the one worth being on.
+          ButtonGroup {
+            id: segments
+            visible: root.vm.hasSnapshot
+            options: [
+              { value: "overview", label: "Overview" },
+              { value: "devices", label: "Devices" },
+              { value: "clients", label: "Clients" }
+            ]
+            value: root.view
+            cursorIndex: root.focusStop === ViewModel.FOCUS_SEGMENTS
+              ? ViewModel.BROWSE_VIEWS.indexOf(root.view) : -1
+            focusable: false
+            foreground: root.foreground
+            fontFamily: root.fontFamily
+            onChanged: function (next) {
+              root.focusStop = ViewModel.FOCUS_SEGMENTS
+              root.setView(next)
+            }
+            // The host's gallery also wires `onHovered` so the mouse drags the
+            // panel cursor onto the group (GalleryPanel.qml:1055-1061), and this
+            // deliberately does not. There, the group sits in a form of rows
+            // where hover-follows-cursor is natural. Here it is three chips at
+            // the TOP of a panel whose content is below them, so the mouse
+            // crosses it on the way to everything — and stealing the focus stop
+            // in passing would move Tab's starting point without the user
+            // having asked for anything.
+            //
+            // A CLICK still sets it, in `onChanged` above, which is the case
+            // where the user did ask.
           }
 
           // REQ-013 / UX-007. One sentence naming what failed and the single
@@ -282,17 +542,68 @@ Panel {
             wrapMode: Text.WordWrap
           }
 
+          // REQ-B10 / REQ-B13 / REQ-B16. Two instances rather than one bound to
+          // the active list: each owns its own search field, and a field's text
+          // is not bound back from the model (see BrowseList) — so one shared
+          // field would carry the device search into the client page.
+          BrowseList {
+            id: deviceBrowse
+            width: parent.width
+            visible: root.view === "devices"
+            list: root.vm.deviceList
+            placeholder: "Search devices"
+            searchFocused: root.focusStop === ViewModel.FOCUS_SEARCH
+            listFocused: root.focusStop === ViewModel.FOCUS_LIST
+            cursorIndex: root.deviceCursor
+            foreground: root.foreground
+            urgent: root.urgent
+            fontFamily: root.fontFamily
+            onSearchChanged: function (text) { root.setSearch(text) }
+            onToggleRequested: function (id) { root.toggleExpanded(id) }
+            onTabRequested: function (direction) { root.moveFocus(direction) }
+            onEscapeRequested: root.escapePressed()
+            onCursorHovered: function (index) { root.hoverList(index) }
+          }
+
+          BrowseList {
+            id: clientBrowse
+            width: parent.width
+            visible: root.view === "clients"
+            list: root.vm.clientList
+            placeholder: "Search clients"
+            searchFocused: root.focusStop === ViewModel.FOCUS_SEARCH
+            listFocused: root.focusStop === ViewModel.FOCUS_LIST
+            cursorIndex: root.clientCursor
+            foreground: root.foreground
+            urgent: root.urgent
+            fontFamily: root.fontFamily
+            onSearchChanged: function (text) { root.setSearch(text) }
+            onToggleRequested: function (id) { root.toggleExpanded(id) }
+            onTabRequested: function (direction) { root.moveFocus(direction) }
+            onEscapeRequested: root.escapePressed()
+            onCursorHovered: function (index) { root.hoverList(index) }
+          }
+
           StatusPanel {
             width: parent.width
-            visible: root.vm.hasSnapshot
+            visible: root.vm.hasSnapshot && !root.browsing
             vm: root.vm
             foreground: root.foreground
             urgent: root.urgent
             fontFamily: root.fontFamily
+            // REQ-B10a / AC-B19. The Overview count row is an entry point into
+            // a filtered Devices page. The role value travels with the row from
+            // `ViewModel.countRows`, so nothing between here and there
+            // translates a plural noun into a feature name.
+            onRoleActivated: function (role) {
+              root.setView("devices", role)
+              root.focusStop = ViewModel.FOCUS_LIST
+            }
           }
 
           DeviceList {
             width: parent.width
+            visible: !root.browsing
             vm: root.vm
             foreground: root.foreground
             fontFamily: root.fontFamily
@@ -369,7 +680,7 @@ Panel {
               text: "Refresh"
               enabled: root.vm.refreshEnabled
               opacity: enabled ? 1.0 : 0.45
-              hasCursor: root.focusIndex === 0
+              hasCursor: root.focusStop === ViewModel.FOCUS_REFRESH
               foreground: root.foreground
               fontFamily: root.fontFamily
               bordered: true
@@ -380,7 +691,7 @@ Panel {
               text: "Open UniFi"
               enabled: root.vm.dashboard ? root.vm.dashboard.accepted : false
               opacity: enabled ? 1.0 : 0.45
-              hasCursor: root.focusIndex === 1
+              hasCursor: root.focusStop === ViewModel.FOCUS_DASHBOARD
               foreground: root.foreground
               fontFamily: root.fontFamily
               bordered: true
