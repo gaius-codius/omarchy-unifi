@@ -451,7 +451,7 @@ ShellRoot {
         // `build` reaches most of the browse code on every path, so the ordinary
         // cases below already drive it under V4. The DETAIL builders do not:
         // they run only for an expanded row, so `deviceDetail`, `clientDetail`,
-        // `portRow`, `radioRow`, `formatPct`, `formatSpeedMbps`, `poeText` and
+        // `portRow`, `radioSummaryText`, `formatPct`, `poeText` and
         // `formatInstant` would have had 400-odd V8 assertions and no V4
         // execution at all until Phase B3 drew them.
         //
@@ -511,10 +511,14 @@ ShellRoot {
         var strings = 0
         for (var p = 0; p < detail.ports.length; p++) {
           var port = detail.ports[p]
-          if (typeof port.speedText === "string" && typeof port.poeText === "string"
+          if (typeof port.idxText === "string" && typeof port.poeText === "string"
+              && typeof port.connectorText === "string"
               && typeof port.stateText === "string") strings++
         }
         check("every port cell is a string", detail.ports.length, strings)
+        // The radio line is built under V4 too, and it is a string even when
+        // the device has no radios — `PortTable` binds it unconditionally.
+        check("the radio line built under V4", "string", typeof detail.radiosText)
         for (var r = 0; r < detail.rows.length; r++) {
           if (typeof detail.rows[r].value !== "string") {
             bad("every detail row is a string", detail.rows[r].key); return
@@ -537,8 +541,12 @@ ShellRoot {
               ViewModel.formatInstant("2026-01-12T09:14:00Z"))
         check("REQ-B17: V4 rejects a date that does not exist", "unknown",
               ViewModel.formatInstant("2026-02-30T00:00:00Z"))
-        check("V4 formats a gigabit port the same", "1 Gbps",
-              ViewModel.formatSpeedMbps(1000))
+        check("V4 says the port state in words", "no link",
+              ViewModel.portStateWord("DOWN"))
+        check("V4 omits an absent retry rate", "5 GHz",
+              ViewModel.radioText({ frequencyGHz: 5, txRetriesPct: null }))
+        check("and keeps a real zero", "5 GHz (0% retries)",
+              ViewModel.radioText({ frequencyGHz: 5, txRetriesPct: 0 }))
         check("BIZ-003 holds under V4", "unknown", ViewModel.formatPct(null))
         check("and a real zero survives it", "0%", ViewModel.formatPct(0))
 

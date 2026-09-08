@@ -899,6 +899,45 @@ function downlinkText(downlinks, id) {
     + (rest > 0 ? " and " + rest + " more" : "")
 }
 
+// The same inversion as `downlinkNames`, over the OTHER list. `clients[]`
+// carries `uplinkDeviceId` (protocol-v1.md), so "what is connected to this
+// access point" is answerable without a seventh route — it is the client list
+// read backwards.
+//
+// A count and not the names: a busy AP has thirty of them, the names are
+// personal data (REQ-B20) already one panel away in the Clients view, and a row
+// that said "14 devices — Kitchen Tablet, ..." would be a privacy decision made
+// for the reader rather than by them.
+function clientCountsByUplink(clients) {
+  const found = {}
+  const list = clients || []
+  for (let i = 0; i < list.length; i++) {
+    const up = (list[i] || {}).uplinkDeviceId
+    if (typeof up !== "string" || up === "") continue
+    const seen = own(found, up)
+    found[up] = (typeof seen === "number" ? seen : 0) + 1
+  }
+  return found
+}
+
+// REQ-010/AC-063's rule turned on a count this panel derives itself.
+//
+// Every count here is taken from `clients[]`, which CLIENTS_LISTED_MAX and the
+// DATA-B04 budget are both entitled to shorten. When they have, the count is a
+// floor and not a total, and it says so — a bare "14" beside an AP that in fact
+// has forty is worse than no row, because it looks like an answer.
+//
+// A floor of zero is the case that has to be handled separately: it carries no
+// information at all (BIZ-003 — absent is unknown, never none), so it is not
+// allowed to render as "none".
+function clientCountText(counts, id, truncated) {
+  const raw = own(counts || {}, id)
+  const count = typeof raw === "number" ? raw : 0
+  if (!truncated) return count === 0 ? "none" : String(count)
+  if (count === 0) return "unknown — the client list is truncated"
+  return count + " or more — the client list is truncated"
+}
+
 function uniqueSorted(values) {
   const out = values.slice(0)
   out.sort(function (a, b) {
@@ -911,7 +950,17 @@ function uniqueSorted(values) {
   return out
 }
 
-function deviceDetail(device, names, downlinks) {
+// `context` and not four positional arguments. Everything in it is a fact
+// about the LIST rather than about this device — who it plugs into, what plugs
+// into it, how many clients sit behind it, and whether the list those were
+// counted from was complete — so all of it is derived once per build in
+// `deviceListModel` and handed down. A caller with none of it (`{}`) still gets
+// a well-formed detail, which is what the AC-B09 and AC-B10 cases pass.
+function deviceDetail(device, context) {
+  const ctx = context || {}
+  const names = ctx.names || {}
+  const downlinks = ctx.downlinks || {}
+  const clientCounts = ctx.clientCounts || {}
   const entry = device || {}
   const detail = entry.detail === undefined ? null : entry.detail
   const metrics = entry.metrics || null
@@ -944,14 +993,20 @@ function deviceDetail(device, names, downlinks) {
         copy: copyableValue(entry.macAddress) },
       { key: "uplink", label: "Uplink", value: uplinkLabel(names, entry.uplinkDeviceId) },
       { key: "downlinks", label: "Downlinks",
-        value: downlinkText(downlinks || {}, entry.id) },
+        value: downlinkText(downlinks, entry.id) },
+      // What is on the other end of the ports and the radios. For an access
+      // point this is the only interesting number it has; for a switch it is
+      // the difference between "eight ports up" and "eight ports up carrying
+      // one client each".
+      { key: "clients", label: "Clients",
+        value: clientCountText(clientCounts, entry.id, ctx.clientsTruncated === true) },
       { key: "cpu", label: "CPU", value: formatPct(metrics ? metrics.cpuUtilizationPct : null) },
       { key: "memory", label: "Memory", value: formatPct(metrics ? metrics.memoryUtilizationPct : null) },
       { key: "download", label: "Download", value: formatBps(metrics ? metrics.downloadBps : null) },
       { key: "upload", label: "Upload", value: formatBps(metrics ? metrics.uploadBps : null) }
     ]),
     ports: mapRows(ports, portRow),
-    radios: mapRows(radios, radioRow),
+    radiosText: radioSummaryText(radios),
     // "The controller answered and there are none" — only ever said when the
     // detail was actually fetched.
     portsEmptyText: fetched && ports.length === 0 ? "No ports reported." : "",
@@ -995,14 +1050,36 @@ function mapRows(entries, builder) {
   return rows
 }
 
+// The API's port `state` is an enum meant for a program — "UP", "DOWN" — and
+// it was rendered raw, two shouted words down the middle of the table. "DOWN"
+// reads as a fault; what it actually means is that nothing is plugged in, which
+// on a 24-port switch is the ordinary condition of most of the ports.
+//
+// `own` and not `map[state]`: `state` is a controller string that protocol-v1
+// does not constrain to a closed set, and `PORT_STATE_WORD["constructor"]` is a
+// function. An unrecognised state renders in lower case rather than as a
+// guess — the panel does not know what a new enum member means and does not
+// pretend to.
+const PORT_STATE_WORD = { "UP": "up", "DOWN": "no link" }
+
+function portStateWord(state) {
+  if (typeof state !== "string" || state === "") return "unknown"
+  const word = own(PORT_STATE_WORD, state)
+  return word === undefined ? state.toLowerCase() : word
+}
+
+// No port speed. `maxSpeedMbps` is the port's negotiated LINK RATE and reads
+// as a throughput — every idle gigabit port claims "1000 Mbps" — so a column of
+// them told the reader the hardware's capability while looking like traffic.
+// The field is still carried by the envelope (the protocol table is frozen);
+// what is removed is the column.
 function portRow(port) {
   const entry = port || {}
   return {
     idx: entry.idx,
     idxText: typeof entry.idx === "number" ? String(entry.idx) : "?",
     connectorText: formatOptional(entry.connector),
-    stateText: formatOptional(entry.state),
-    speedText: formatSpeedMbps(entry.maxSpeedMbps),
+    stateText: portStateWord(entry.state),
     poeText: poeText(entry.poe),
     isUp: entry.state === "UP"
   }
@@ -1022,14 +1099,36 @@ function poeText(poe) {
   return parts.join(" ")
 }
 
-function radioRow(radio) {
+// One line for the whole radio table: "2.4 GHz,  5 GHz".
+//
+// It was a two-column table of band against transmit-retry rate, and on the
+// controller this was written against `txRetriesPct` is absent on every radio
+// of every access point — so the table was a column of bands beside a column of
+// the word "unknown", four lines tall, saying nothing twice. The figure is not
+// dropped: a controller that reports it gets it back, in the band's own
+// parentheses. What is dropped is the empty column.
+//
+// This is the one place the BIZ-003 "unknown" is not rendered, and the reason
+// it is safe to omit is that the band beside it is the row's subject: there is
+// no ambiguity between "0% retries" and a band with nothing after it, and a
+// reader is not left wondering which radio the missing number belonged to.
+function radioSummaryText(radios) {
+  const parts = []
+  const list = radios || []
+  for (let i = 0; i < list.length; i++) parts.push(radioText(list[i]))
+  return parts.join(",  ")
+}
+
+function radioText(radio) {
   const entry = radio || {}
   const frequency = entry.frequencyGHz
-  return {
-    frequencyText: typeof frequency === "number" && isFinite(frequency)
-      ? round1(frequency) + " GHz" : "unknown",
-    retriesText: formatPct(entry.txRetriesPct)
-  }
+  const band = typeof frequency === "number" && isFinite(frequency)
+    ? round1(frequency) + " GHz" : "unknown band"
+  const retries = entry.txRetriesPct
+  // A real zero is reported; only an absent one is omitted. Truthiness here
+  // would silently drop the best possible retry rate (BIZ-003).
+  if (typeof retries !== "number" || !isFinite(retries)) return band
+  return band + " (" + round1(retries) + "% retries)"
 }
 
 // AC-B10. `null` is unknown, never 0 — the same rule `formatOptional` and
@@ -1040,13 +1139,6 @@ function formatPct(value) {
   if (value === null || value === undefined) return "unknown"
   if (typeof value !== "number" || !isFinite(value)) return "unknown"
   return round1(value) + "%"
-}
-
-function formatSpeedMbps(value) {
-  if (value === null || value === undefined) return "unknown"
-  if (typeof value !== "number" || !isFinite(value) || value < 0) return "unknown"
-  if (value < 1000) return value + " Mbps"
-  return round1(value / 1000) + " Gbps"
 }
 
 // --- REQ-B17: the two time renderings ------------------------------------
@@ -1149,7 +1241,21 @@ function deviceListModel(snapshot, ui) {
   const term = searchTerm(options.search)
   const role = typeof options.role === "string" ? options.role : ""
   const names = uplinkNames(listed)
-  const downlinks = downlinkNames(listed)
+  // The client list, read for two things this view needs: how many clients sit
+  // behind each device, and whether that list was complete. The truncation test
+  // is written the same way `clientListModel` writes its own, and a model case
+  // holds the two to the same answer — a device detail that said "14" while the
+  // Clients view said "showing 500 of 900" would be the panel contradicting
+  // itself one keystroke apart.
+  const clients = data.clients || []
+  const clientTotal = typeof counts.clients === "number"
+    ? counts.clients : clients.length
+  const context = {
+    names: names,
+    downlinks: downlinkNames(listed),
+    clientCounts: clientCountsByUplink(clients),
+    clientsTruncated: clientTotal > clients.length
+  }
   const rows = []
   for (let i = 0; i < listed.length; i++) {
     const row = browseDeviceRow(listed[i])
@@ -1172,7 +1278,7 @@ function deviceListModel(snapshot, ui) {
       ? emptyText(noun, term, listed.length, total) : "",
     expandedId: expandedIdIn(rows, options.expandedId),
     expandedDetail: detailFor(rows, listed, options.expandedId, function (device) {
-      return deviceDetail(device, names, downlinks)
+      return deviceDetail(device, context)
     })
   }
 }
@@ -1867,9 +1973,12 @@ if (typeof module !== "undefined") module.exports = {
   clientDetail: clientDetail,
   portRow: portRow,
   poeText: poeText,
-  radioRow: radioRow,
+  radioSummaryText: radioSummaryText,
+  radioText: radioText,
+  portStateWord: portStateWord,
+  clientCountsByUplink: clientCountsByUplink,
+  clientCountText: clientCountText,
   formatPct: formatPct,
-  formatSpeedMbps: formatSpeedMbps,
   parseRfc3339: parseRfc3339,
   formatInstant: formatInstant,
   connectedText: connectedText,

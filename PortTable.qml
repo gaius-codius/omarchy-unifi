@@ -1,6 +1,6 @@
-// REQ-B14's port and radio tables, and AC-B09's distinction.
+// REQ-B14's port table and radio line, and AC-B09's distinction.
 //
-// Both tables and both empty sentences live here because they are the same
+// Both are here, and both empty sentences with them, because they are the same
 // question asked twice: did the controller answer, and if it did, what did it
 // say? `ViewModel.deviceDetail` decides — `portsEmptyText` is non-empty only
 // when the detail WAS fetched and the array is genuinely empty, and
@@ -9,15 +9,19 @@
 // keeps no rule of its own, so the two can never be confused here.
 //
 // Nothing in it is drawn for a client: `detail.ports` is absent on a client
-// detail, which `hasPorts` reads as false. That is deliberate — the client
+// detail, which the guards below read as false. That is deliberate — the client
 // detail is not padded with empty device fields just to make one component
 // serve both.
 //
-// It is a TABLE now, in the sense of having columns that line up. It used to
-// join the four fields into one elided line — `up  ·  RJ45  ·  1000 Mbps  ·
-// PoE 802.3at` — which reads as a sentence and cannot be scanned: to find the
-// one port running at 100 Mbps you had to read every row to its middle. The
-// model always returned the four separately; only this file joined them.
+// The ports are a TABLE, in the sense of having columns that line up. They used
+// to join their fields into one elided line — `up  ·  RJ45  ·  1000 Mbps  ·
+// PoE 802.3at` — which reads as a sentence and cannot be scanned.
+//
+// The radios are NOT a table, and used to be. Their second column was the
+// transmit-retry rate, which this controller does not report on any radio of
+// any access point, so the table was a column of bands beside a column of the
+// word "unknown". `radiosText` is one line, and carries the retry figure inline
+// wherever a controller does report it.
 import QtQuick
 import qs.Commons
 import qs.Ui
@@ -34,19 +38,20 @@ Column {
   readonly property color _tertiary: emphasis ? emphasis.tertiary : foreground
 
   readonly property var ports: detail && detail.ports ? detail.ports : []
-  readonly property var radios: detail && detail.radios ? detail.radios : []
+  readonly property string radiosText: detail && detail.radiosText
+    ? detail.radiosText : ""
   readonly property string portsEmpty: detail && detail.portsEmptyText
     ? detail.portsEmptyText : ""
   readonly property string radiosEmpty: detail && detail.radiosEmptyText
     ? detail.radiosEmptyText : ""
 
-  // One place, so a column cannot drift between the header and the rows.
+  // One place, so a column cannot drift between rows. The state column widened
+  // when the speed column went: "no link" is two words where "DOWN" was one.
   readonly property int idxWidth: Style.space(30)
-  readonly property real stateShare: 0.26
-  readonly property real speedShare: 0.28
+  readonly property real stateShare: 0.34
 
   spacing: Style.spacing.xs
-  visible: ports.length > 0 || radios.length > 0
+  visible: ports.length > 0 || radiosText !== ""
     || portsEmpty !== "" || radiosEmpty !== ""
 
   PanelSectionHeader {
@@ -91,23 +96,11 @@ Column {
         elide: Text.ElideRight
       }
       Text {
-        id: portSpeed
         anchors.left: portState.right
-        width: Math.round(parent._body * root.speedShare)
-        text: modelData.speedText
-        color: root._tertiary
-        font.family: root.fontFamily
-        font.pixelSize: Style.font.caption
-        textFormat: Text.PlainText
-        elide: Text.ElideRight
-      }
-      Text {
-        id: portRest
-        anchors.left: portSpeed.right
         anchors.right: parent.right
         // Connector and PoE share the last column: both are occasional detail,
-        // and giving each a column of its own would leave two mostly-empty
-        // ones down the middle of the table.
+        // and giving each a column of its own would leave a mostly-empty one
+        // down the middle of the table.
         text: modelData.connectorText
           + (modelData.poeText === "" ? "" : "  ·  " + modelData.poeText)
         color: root._tertiary
@@ -132,42 +125,22 @@ Column {
   }
 
   PanelSectionHeader {
-    visible: root.radios.length > 0 || root.radiosEmpty !== ""
+    visible: root.radiosText !== "" || root.radiosEmpty !== ""
     height: visible ? implicitHeight : 0
     text: "Radios"
     foreground: root.foreground
     fontFamily: root.fontFamily
   }
 
-  Repeater {
-    model: root.radios
-    delegate: Item {
-      required property var modelData
-      width: root.width
-      implicitHeight: radioBand.implicitHeight
-
-      Text {
-        id: radioBand
-        anchors.left: parent.left
-        width: root.idxWidth + Math.round((parent.width - root.idxWidth) * root.stateShare)
-        text: modelData.frequencyText
-        color: root._secondary
-        font.family: root.fontFamily
-        font.pixelSize: Style.font.caption
-        textFormat: Text.PlainText
-        elide: Text.ElideRight
-      }
-      Text {
-        anchors.left: radioBand.right
-        anchors.right: parent.right
-        text: modelData.retriesText
-        color: root._tertiary
-        font.family: root.fontFamily
-        font.pixelSize: Style.font.caption
-        textFormat: Text.PlainText
-        elide: Text.ElideRight
-      }
-    }
+  Text {
+    visible: root.radiosText !== ""
+    width: root.width
+    text: root.radiosText
+    color: root._secondary
+    font.family: root.fontFamily
+    font.pixelSize: Style.font.caption
+    textFormat: Text.PlainText
+    wrapMode: Text.WordWrap
   }
 
   Text {

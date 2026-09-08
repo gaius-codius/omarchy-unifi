@@ -51,15 +51,21 @@ report reads "unknown" — never `0`.
 Overview and two browsable lists: every adopted device, and every connected
 client. Each is searchable — case-insensitive substring, never fuzzy, so you can
 always say why a row matched — and each row expands to a detail block. A device
-shows its firmware and whether an update is waiting, its uplink, CPU, memory and
-throughput, and the port or radio table; a client shows its MAC, access type and
-when it connected. Activating a per-role count on Overview opens Devices
-filtered to that role.
+shows its firmware and whether an update is waiting, its address, CPU, memory
+and throughput, what it plugs into and what plugs into it, how many clients sit
+behind it, and its port table or its radio bands; a client shows its address,
+MAC, access type and when it connected. Activating a per-role count on Overview
+opens Devices filtered to that role.
 
-The whole panel is keyboard-driven: Tab walks the controls, `/` jumps to the
-search field, Up/Down move the list cursor, Enter expands a row, and Escape
-clears a search before it closes the panel. MAC addresses are shown only in an
-expanded row, and appear in no log, warning or `status` output.
+The whole panel is keyboard-driven: Tab walks the controls, Left/Right move
+between the three pages, `/` jumps to the search field, Up/Down move the list
+cursor, Enter expands a row, and Escape clears a search before it closes the
+panel. Clicking an address, a MAC or the site id copies it. MAC addresses are
+shown only in an expanded row, and — apart from that deliberate copy — appear in
+no log, warning or `status` output.
+
+Counts the panel derives itself say when they are floors. If the client list was
+bounded, an access point reports "14 or more" rather than a confident "14".
 
 A bounded list says so — "showing 200 of 412 devices", counted from a figure the
 helper carries separately and never from the length of the list you are looking

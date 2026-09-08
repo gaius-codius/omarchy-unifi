@@ -298,9 +298,31 @@ access point. A `null` `detail` renders as "details not fetched for this device"
 naming the truncation — never as an empty port table, which would assert the
 device has no ports.
 
+*Amended by SPEC-AMD-7, 2026-09-08.* The device detail also carries the device's
+own **IP address** and its **downlinks** — the names of the devices whose
+`uplinkDeviceId` is this one, counted in full and named up to four. (Both were
+built during the design pass of 2026-09-08 without amending this paragraph,
+which was an omission; they are recorded here.)
+
+It also carries a **client count** — how many entries of `clients[]` name this
+device as their uplink. It is a count and never the names: the names are
+personal data under REQ-B20 and are already reachable one page away, in the
+Clients view. When `clients[]` is truncated that count is a **floor** and must
+say so, and a floor of zero must not render as "none" (BIZ-003 — absent is
+unknown, never none).
+
+In the same amendment the port table drops its **speed** column (`maxSpeedMbps`
+remains in the envelope; the protocol below is unchanged), renders `state` as
+words rather than as the API enum, and the **radio table becomes a single
+line** — the bands, each carrying its transmit-retry rate only where the
+controller reports one.
+
 *Client row:* name and IP; type word, "via <uplink device name>", and
 connected-since as a relative time.
 *Client detail:* MAC address, access type, and the absolute `connectedAt`.
+*Amended by SPEC-AMD-7, 2026-09-08:* and the client's **IP address**, labelled —
+it is on the collapsed row as unlabelled context, which is legible at a glance
+and not something a reader can act on.
 
 **REQ-B15 — keyboard (extends UX-008).** Tab cycles segmented control → search
 → list → Refresh → Open UniFi and wraps. *Amended by SPEC-AMD-5, 2026-09-08:*

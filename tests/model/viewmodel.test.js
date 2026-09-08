@@ -1414,20 +1414,78 @@ test("AC-B10: a device reporting zero throughput says 0, not unknown", () => {
   assert.strictEqual(values.upload, "0 bps")
 })
 
-test("AC-B10: a null radio retry rate is unknown and a zero one is 0%", () => {
-  assert.deepStrictEqual(ViewModel.radioRow({ frequencyGHz: 5, txRetriesPct: 0 }),
-    { frequencyText: "5 GHz", retriesText: "0%" })
-  assert.deepStrictEqual(ViewModel.radioRow({ frequencyGHz: null, txRetriesPct: null }),
-    { frequencyText: "unknown", retriesText: "unknown" })
+test("AC-B10: an absent radio retry rate is omitted and a zero one is reported", () => {
+  // BIZ-003 turned around. Everywhere else an absent optional renders as the
+  // word "unknown"; here it renders as nothing at all, because the band beside
+  // it is the subject of the line and an omitted figure cannot be mistaken for
+  // a band. What must NOT happen is the other half of BIZ-003: a real zero —
+  // the best retry rate a radio can have — being dropped as though absent.
+  assert.strictEqual(ViewModel.radioText({ frequencyGHz: 5, txRetriesPct: 0 }),
+    "5 GHz (0% retries)")
+  assert.strictEqual(ViewModel.radioText({ frequencyGHz: 2.4, txRetriesPct: 3.14 }),
+    "2.4 GHz (3.1% retries)")
+  assert.strictEqual(ViewModel.radioText({ frequencyGHz: 5, txRetriesPct: null }),
+    "5 GHz")
+  assert.strictEqual(ViewModel.radioText({ frequencyGHz: 5 }), "5 GHz")
+  assert.strictEqual(ViewModel.radioText({ frequencyGHz: 5, txRetriesPct: NaN }),
+    "5 GHz")
+  assert.strictEqual(ViewModel.radioText({ frequencyGHz: 5, txRetriesPct: "3" }),
+    "5 GHz")
+  // A radio whose band is missing is still a radio, and saying so is not the
+  // same as saying nothing.
+  assert.strictEqual(ViewModel.radioText({ frequencyGHz: null, txRetriesPct: null }),
+    "unknown band")
 })
 
-test("AC-B10: a null port speed is unknown and a zero one is 0 Mbps", () => {
-  assert.strictEqual(ViewModel.formatSpeedMbps(null), "unknown")
-  assert.strictEqual(ViewModel.formatSpeedMbps(0), "0 Mbps")
-  assert.strictEqual(ViewModel.formatSpeedMbps(100), "100 Mbps")
-  assert.strictEqual(ViewModel.formatSpeedMbps(1000), "1 Gbps")
-  assert.strictEqual(ViewModel.formatSpeedMbps(2500), "2.5 Gbps")
-  assert.strictEqual(ViewModel.formatSpeedMbps(-1), "unknown")
+test("REQ-B14: the radios render as one line, in the order given", () => {
+  assert.strictEqual(ViewModel.radioSummaryText([]), "")
+  assert.strictEqual(ViewModel.radioSummaryText(null), "")
+  assert.strictEqual(
+    ViewModel.radioSummaryText([{ frequencyGHz: 2.4, txRetriesPct: null },
+                                { frequencyGHz: 5, txRetriesPct: null },
+                                { frequencyGHz: 6, txRetriesPct: null }]),
+    "2.4 GHz,  5 GHz,  6 GHz")
+  // The controller this was written against reports no retry rate at all, so
+  // the ordinary case is bands alone — and it must not contain the word the
+  // two-column table used to fill its second column with.
+  const bands = ViewModel.radioSummaryText(
+    [{ frequencyGHz: 2.4, txRetriesPct: null }, { frequencyGHz: 5, txRetriesPct: null }])
+  assert.strictEqual(bands.indexOf("unknown"), -1)
+})
+
+test("REQ-B14: a port state is a word, not the API's enum", () => {
+  // "DOWN" reads as a fault. What it means is that nothing is plugged in,
+  // which on a 24-port switch is the ordinary condition of most of the ports.
+  assert.strictEqual(ViewModel.portStateWord("UP"), "up")
+  assert.strictEqual(ViewModel.portStateWord("DOWN"), "no link")
+  // Not in the map: rendered, not guessed at. protocol-v1.md does not constrain
+  // `state` to a closed set, so a member added by a controller update has to
+  // reach the panel as itself rather than as "unknown".
+  assert.strictEqual(ViewModel.portStateWord("BLOCKING"), "blocking")
+  assert.strictEqual(ViewModel.portStateWord(null), "unknown")
+  assert.strictEqual(ViewModel.portStateWord(""), "unknown")
+  assert.strictEqual(ViewModel.portStateWord(7), "unknown")
+  // The `own` guard. `map["constructor"]` is a function, and it reached the
+  // client rows once already (see `clientTypeWord`).
+  assert.strictEqual(ViewModel.portStateWord("constructor"), "constructor")
+  assert.strictEqual(ViewModel.portStateWord("valueOf"), "valueof")
+})
+
+test("REQ-B14: the port row carries the state word and no speed", () => {
+  const row = ViewModel.portRow(
+    { idx: 3, connector: "RJ45", state: "DOWN", maxSpeedMbps: 1000, poe: null })
+  assert.strictEqual(row.idxText, "3")
+  assert.strictEqual(row.stateText, "no link")
+  assert.strictEqual(row.isUp, false)
+  // The speed is still on the wire — the protocol table is frozen — and must
+  // not be anywhere in what the panel renders.
+  assert.strictEqual(row.speedText, undefined)
+  assert.strictEqual(JSON.stringify(row).indexOf("1000"), -1)
+  assert.strictEqual(JSON.stringify(row).indexOf("Mbps"), -1)
+  // `isUp` is the colour, `stateText` is the word. UX-002 wants both, and a
+  // single field cannot be both.
+  assert.strictEqual(ViewModel.portRow({ idx: 1, state: "UP" }).isUp, true)
+  assert.strictEqual(ViewModel.portRow({ idx: 1, state: "UP" }).stateText, "up")
 })
 
 test("AC-B10: an unknown uptime is dropped from the row and unknown on the field", () => {
@@ -2206,6 +2264,125 @@ test("REQ-B14: the expanded device detail carries the downlinks row", () => {
   assert.strictEqual(rows.length, 1)
   assert.strictEqual(rows[0].label, "Downlinks")
   assert.strictEqual(rows[0].value, "1 device — attic-ap")
+})
+
+// --- REQ-B14: how many clients sit behind a device -----------------------
+
+test("REQ-B14: the client count is the client list read backwards", () => {
+  const clients = [
+    client({ id: "c1", uplinkDeviceId: "ap" }),
+    client({ id: "c2", uplinkDeviceId: "ap" }),
+    client({ id: "c3", uplinkDeviceId: "sw" }),
+    client({ id: "c4", uplinkDeviceId: null }),
+    client({ id: "c5", uplinkDeviceId: "" })
+  ]
+  const counts = ViewModel.clientCountsByUplink(clients)
+  assert.strictEqual(counts.ap, 2)
+  assert.strictEqual(counts.sw, 1)
+  // A client with no uplink belongs to nothing and is counted nowhere. It is
+  // NOT quietly attributed to the empty-string key, which would then be handed
+  // to any device whose id failed to parse.
+  assert.strictEqual(Object.keys(counts).length, 2)
+  assert.strictEqual(ViewModel.clientCountText(counts, "ap", false), "2")
+  assert.strictEqual(ViewModel.clientCountText(counts, "sw", false), "1")
+  assert.strictEqual(ViewModel.clientCountText(counts, "gw", false), "none")
+})
+
+test("REQ-B14: the client count survives a prototype key", () => {
+  // `uplinkDeviceId` is a controller string that protocol-v1.md does not
+  // constrain, and `found["constructor"]` starts life as a function — so
+  // `found[up] = found[up] + 1` without the `own` guard produces
+  // "function Object() { [native code] }1" as a count.
+  const counts = ViewModel.clientCountsByUplink([
+    client({ id: "c1", uplinkDeviceId: "constructor" }),
+    client({ id: "c2", uplinkDeviceId: "constructor" })
+  ])
+  assert.strictEqual(ViewModel.clientCountText(counts, "constructor", false), "2")
+  // And a device whose id happens to be a prototype member has no clients
+  // rather than inheriting one.
+  assert.strictEqual(ViewModel.clientCountText({}, "valueOf", false), "none")
+  assert.strictEqual(ViewModel.clientCountText({}, "toString", false), "none")
+})
+
+test("REQ-B14: a count taken from a truncated client list says it is a floor", () => {
+  // REQ-010/AC-063's rule applied to a number this panel derives itself. When
+  // CLIENTS_LISTED_MAX or the DATA-B04 budget has shortened `clients[]`, every
+  // count read from it is a floor — and a bare "14" beside an access point that
+  // in fact has forty looks exactly like an answer.
+  const counts = { ap: 14 }
+  assert.strictEqual(ViewModel.clientCountText(counts, "ap", false), "14")
+  const text = ViewModel.clientCountText(counts, "ap", true)
+  assert.ok(text.indexOf("14") !== -1, text)
+  assert.ok(text.indexOf("or more") !== -1, text)
+  assert.ok(text.indexOf("truncated") !== -1, text)
+  // BIZ-003: a floor of zero carries no information, so it must not render as
+  // "none" — which would be a claim.
+  assert.strictEqual(ViewModel.clientCountText(counts, "gw", true),
+    "unknown — the client list is truncated")
+  assert.strictEqual(ViewModel.clientCountText(counts, "gw", false), "none")
+})
+
+test("REQ-B14: the expanded device detail carries the clients row", () => {
+  const snapshot = snapshotWith([
+    device({ id: "ap", name: "attic-ap" }),
+    device({ id: "gw", name: "Gateway" })
+  ], [
+    client({ id: "c1", uplinkDeviceId: "ap" }),
+    client({ id: "c2", uplinkDeviceId: "ap" }),
+    client({ id: "c3", uplinkDeviceId: "ap" })
+  ])
+  const rows = ViewModel.deviceListModel(snapshot, { expandedId: "ap" })
+    .expandedDetail.rows.filter((r) => r.key === "clients")
+  assert.strictEqual(rows.length, 1)
+  assert.strictEqual(rows[0].label, "Clients")
+  assert.strictEqual(rows[0].value, "3")
+  // The negative control: the gateway has none of them, and a row that read
+  // the whole list rather than its own key would say 3 here too.
+  const other = ViewModel.deviceListModel(snapshot, { expandedId: "gw" })
+    .expandedDetail.rows.filter((r) => r.key === "clients")
+  assert.strictEqual(other[0].value, "none")
+})
+
+test("REQ-B14: the clients row and the Clients view agree about truncation", () => {
+  // The two truncation tests are written separately — `deviceListModel` cannot
+  // read `clientListModel`'s — so this holds them to the same answer. A device
+  // detail saying "14" while the Clients view says "showing 2 of 900" is the
+  // panel contradicting itself one keystroke apart.
+  const clients = [client({ id: "c1", uplinkDeviceId: "ap" }),
+                   client({ id: "c2", uplinkDeviceId: "ap" })]
+  const snapshot = snapshotWith([device({ id: "ap", name: "attic-ap" })], clients,
+    { devicesTotal: 1, clients: 900, offlineTotal: 0 })
+
+  assert.strictEqual(ViewModel.clientListModel(snapshot, {}).truncated, true)
+  const row = ViewModel.deviceListModel(snapshot, { expandedId: "ap" })
+    .expandedDetail.rows.filter((r) => r.key === "clients")[0]
+  assert.ok(row.value.indexOf("or more") !== -1, row.value)
+
+  // And the control, on the same snapshot with an honest total.
+  const whole = snapshotWith([device({ id: "ap", name: "attic-ap" })], clients,
+    { devicesTotal: 1, clients: 2, offlineTotal: 0 })
+  assert.strictEqual(ViewModel.clientListModel(whole, {}).truncated, false)
+  const honest = ViewModel.deviceListModel(whole, { expandedId: "ap" })
+    .expandedDetail.rows.filter((r) => r.key === "clients")[0]
+  assert.strictEqual(honest.value, "2")
+})
+
+test("REQ-B14: a detail built with no context still renders every row", () => {
+  // `deviceDetail(record, {})` is what the AC-B09 and AC-B10 cases pass, and
+  // what a future caller will pass. Every row must still be a string — an
+  // undefined `value` binds into QML as the string "undefined".
+  const detail = ViewModel.deviceDetail(device({ id: "1", name: "n" }), {})
+  const keys = detail.rows.map((r) => r.key)
+  for (const key of ["firmware", "ip", "mac", "uplink", "downlinks", "clients",
+                     "cpu", "memory", "download", "upload"]) {
+    assert.ok(keys.indexOf(key) !== -1, "missing row: " + key)
+  }
+  for (const row of detail.rows) {
+    assert.strictEqual(typeof row.value, "string", row.key)
+    assert.strictEqual(typeof row.copy, "string", row.key)
+  }
+  assert.strictEqual(ViewModel.deviceDetail(device({ id: "1" }), undefined).rows.length,
+    detail.rows.length)
 })
 
 test("REQ-B24 (SPEC-AMD-6): only a real value is copyable, never the placeholder", () => {
