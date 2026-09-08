@@ -472,12 +472,24 @@ ShellRoot {
         }
         if (withDetail === null) { bad("the fixture carries a fetched detail"); return }
 
+        // A client that HAS a MAC. `clients[0]` was used here, and its
+        // `macAddress` is null — so REQ-B21's assertion below ran against the
+        // string "unknown" and demonstrated nothing about a MAC at all. Chosen
+        // the same way the device with a detail is chosen, and for the same
+        // reason: the fixture decides which record fits, not an index.
+        var withMac = null
+        for (var c = 0; c < snapshot.clients.length; c++) {
+          var mac = snapshot.clients[c].macAddress
+          if (typeof mac === "string" && mac !== "") { withMac = snapshot.clients[c]; break }
+        }
+        if (withMac === null) { bad("the fixture carries a client with a MAC"); return }
+
         var model = ViewModel.build({
           snapshot: snapshot, level: { level: "amber", rule: 3 },
           settings: {}, warnings: [], nowWall: 1768209240,
           browse: {
             expandedDeviceId: withDetail.id,
-            expandedClientId: snapshot.clients[0].id
+            expandedClientId: withMac.id
           }
         })
 
@@ -532,7 +544,38 @@ ShellRoot {
 
         var clientDetail = model.clientList.expandedDetail
         if (clientDetail === null) { bad("the expanded client has a detail"); return }
-        check("REQ-B21: the client detail carries four rows", 4, clientDetail.rows.length)
+        // Membership, not a count. This assertion was `4 === rows.length`, and
+        // adding an IP row broke it while changing nothing REQ-B21 is about —
+        // the same defect as N-90. A count also passes for a detail whose MAC
+        // row has been replaced by something else entirely, which is the one
+        // thing this is supposed to catch.
+        //
+        // REQ-B21 / D3 is: the MAC is in the DETAIL and on no collapsed row.
+        var detailKeys = []
+        var macValue = ""
+        for (var di = 0; di < clientDetail.rows.length; di++) {
+          detailKeys.push(clientDetail.rows[di].key)
+          if (clientDetail.rows[di].key === "mac") macValue = clientDetail.rows[di].value
+        }
+        check("REQ-B21: the detail carries the MAC", true,
+              detailKeys.indexOf("mac") !== -1)
+        check("REQ-B21: and it is an address, not the 'unknown' placeholder", true,
+              macValue.indexOf(":") !== -1)
+        // The row the list draws when the client is COLLAPSED. Every string on
+        // it, so a MAC arriving in a field nobody thought about still fails.
+        var collapsed = null
+        for (var ci = 0; ci < model.clientList.rows.length; ci++) {
+          if (model.clientList.rows[ci].id === withMac.id) collapsed = model.clientList.rows[ci]
+        }
+        if (collapsed === null) { bad("the expanded client is in the list"); return }
+        var leaked = []
+        for (var key in collapsed) {
+          if (typeof collapsed[key] === "string" && key !== "searchText"
+              && collapsed[key].indexOf(macValue) !== -1) {
+            leaked.push(key)
+          }
+        }
+        check("REQ-B21: no collapsed row renders it", 0, leaked.length)
       }
     })
 
@@ -1681,6 +1724,42 @@ ShellRoot {
         check("Left reaches Overview", "overview", panelWidget.view)
         panelWidget.moveCursor(-1, 0)
         check("Left at the first chip stays", "overview", panelWidget.view)
+
+        // SPEC-AMD-5. The page keys are no longer the segmented control's — they
+        // work from every focus stop, and this is the half nothing tested. Every
+        // assertion above drives them from `focusStop = "segments"`, which is
+        // the one stop where the OLD modal behaviour also worked; the reported
+        // bug lived entirely in the other four.
+        panelWidget.setView("devices")
+        panelWidget.focusStop = ViewModel.FOCUS_LIST
+        panelWidget.moveCursor(1, 0)
+        check("Right switches page from the list", "clients", panelWidget.view)
+        // And it did NOT relocate the focus stop on the way. Walking focus out
+        // of the list on a horizontal key is what made the page changes look
+        // like the list handing itself over.
+        check("and the list keeps the focus", ViewModel.FOCUS_LIST,
+              panelWidget.focusStop)
+
+        panelWidget.focusStop = ViewModel.FOCUS_REFRESH
+        panelWidget.moveCursor(-1, 0)
+        check("Left switches page from a button too", "devices", panelWidget.view)
+        check("and the button keeps the focus", ViewModel.FOCUS_REFRESH,
+              panelWidget.focusStop)
+
+        // Leaving for a page that has no such stop still relocates, because the
+        // stop genuinely is not there — that rule is REQ-B10's and is unchanged.
+        panelWidget.focusStop = ViewModel.FOCUS_LIST
+        panelWidget.moveCursor(-1, 0)
+        check("Overview has no list, so the stop resets", "overview",
+              panelWidget.view)
+        check("and the focus went to the segments", ViewModel.FOCUS_SEGMENTS,
+              panelWidget.focusStop)
+
+        // Vertical keys are now the only thing that walks the stops, and only
+        // where there is no list cursor to claim them.
+        panelWidget.moveCursor(0, 1)
+        check("Down walks the stops on Overview", ViewModel.FOCUS_REFRESH,
+              panelWidget.focusStop)
       }
     })
 

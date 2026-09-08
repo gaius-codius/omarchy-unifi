@@ -21,7 +21,11 @@ Column {
   // to turn into a filtered Devices page. This component does not know what a
   // page is, which is why it emits rather than navigating.
   signal roleActivated(string role)
-  readonly property color dim: Qt.darker(foreground, 1.4)
+  // Blended toward the background rather than darkened, so it mutes on a light
+  // theme too. The formula is `Emphasis.qml`'s `level(0.52)`; this component is
+  // not given the whole scale because one level is all it uses.
+  readonly property color dim: Qt.tint(Color.background,
+    Qt.rgba(foreground.r, foreground.g, foreground.b, 0.52))
 
   readonly property var model: vm ? vm : null
 

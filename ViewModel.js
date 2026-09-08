@@ -463,16 +463,17 @@ function metaRows(meta, snapshot, warnings) {
   const siteName = site && typeof site.name === "string" && site.name !== ""
     ? site.name : null
   const autoSelected = hasWarning(warnings, "site_auto_selected")
-  return [
+  return withCopy([
     { key: "site", label: "Site",
       value: formatOptional(siteName)
         + (autoSelected && siteName !== null ? " (auto-selected)" : "") },
     { key: "apiRootHost", label: "Controller", value: formatOptional(data.apiRootHost) },
-    { key: "siteId", label: "Site id", value: formatOptional(siteId) },
+    { key: "siteId", label: "Site id", value: formatOptional(siteId),
+      copy: copyableValue(siteId) },
     { key: "helperVersion", label: "Helper", value: formatOptional(data.helperVersion) },
     { key: "commitGeneration", label: "Config generation",
       value: formatOptional(data.commitGeneration) }
-  ]
+  ])
 }
 
 // --- REQ-013a: the warning rows ------------------------------------------
@@ -695,7 +696,11 @@ function browseDeviceRow(device) {
     ? entry.ipAddress : ""
   const uptime = metrics ? metrics.uptimeSec : null
   const uptimeKnown = typeof uptime === "number" && isFinite(uptime) && uptime >= 0
-  const segments = [wordCase(classWord(entry.class))]
+  // The class word is NOT in here. It is `tokenText`, rendered as a fixed
+  // right-hand column so the eye can run down one edge and find every broken
+  // device — which is what a list ordered by brokenness is for. Leaving it at
+  // the head of a `·`-joined line made it one more word in a sentence.
+  const segments = []
   segments.push(ip !== "" ? ip : "IP unknown")
   // "uptime when known" (REQ-B14). Omitted rather than printed as "unknown",
   // because the row's job is a glance and a third of the line saying nothing is
@@ -719,6 +724,14 @@ function browseDeviceRow(device) {
     secondaryText: typeof entry.model === "string" && entry.model !== ""
       ? entry.model : "unknown model",
     classText: wordCase(classWord(entry.class)),
+    // The status word, carried under the SAME name the client row uses for the
+    // same job, so the shared row delegate reads one field rather than
+    // branching on which list it is drawing.
+    tokenText: wordCase(classWord(entry.class)),
+    // Whether that token is the reason the row sorts where it does. The
+    // delegate colours on this rather than comparing class words itself
+    // (REQ-014), and `down` is not the only value that must stand out.
+    tokenUrgent: entry.class === "down" || entry.class === "impaired",
     ipText: formatOptional(ip === "" ? null : ip),
     uptimeText: formatUptime(uptime),
     metaText: segments.join("  ·  "),
@@ -762,7 +775,9 @@ function browseClientRow(client, uplinkName, nowWall) {
   // which would print the same string twice on one row.
   const ipText = ip !== "" && ip !== nameText ? ip : ""
   const connected = connectedText(entry.connectedAt, nowWall)
-  const segments = [clientTypeWord(entry.type)]
+  // The type word is `tokenText`, not the head of this line — see the device
+  // row for why.
+  const segments = []
   if (uplinkName !== "") segments.push("via " + uplinkName)
   if (connected !== "") segments.push("connected " + connected)
   return {
@@ -776,6 +791,10 @@ function browseClientRow(client, uplinkName, nowWall) {
     // rather than two delegates that look alike.
     secondaryText: ipText,
     typeText: clientTypeWord(entry.type),
+    tokenText: clientTypeWord(entry.type),
+    // A client is never urgent on this axis: it is connected, or it is not in
+    // the list at all. Present so the two row shapes stay identical.
+    tokenUrgent: false,
     uplinkText: uplinkName,
     connectedText: connected,
     metaText: segments.join("  ·  "),
@@ -813,7 +832,86 @@ function uplinkNames(devices) {
 
 // --- REQ-B14: the detail blocks ------------------------------------------
 
-function deviceDetail(device, names) {
+// The inverse of `uplinkNames`: for each device, the names of the devices that
+// plug INTO it.
+//
+// Derived, because the API does not carry it. `interfaces.ports[]` is
+// `{idx, connector, maxSpeedMbps, state, poe}` and nothing more — no peer, no
+// port label — so "port 5 goes to the kitchen switch" is not expressible from
+// the six allowlisted GETs and is not attempted here. `uplink.deviceId` is
+// device-level topology (api-contract.md:337), and inverting it is the whole of
+// what can honestly be said.
+//
+// Built from the LISTED devices only. A downlink outside `devices[]` — dropped
+// by DEVICES_LISTED_MAX or the DATA-B04 budget — cannot be named, and inventing
+// a count that includes records the panel does not hold would make the row
+// disagree with the list beside it.
+// REQ-B24 (SPEC-AMD-6). A row is copyable when there is something real to
+// copy — never the BIZ-003 placeholder. Copying the word "unknown" onto the
+// clipboard is worse than nothing: it silently replaces whatever the user had.
+//
+// The RAW value, not the rendered one. What lands on the clipboard should be
+// what the reader would have typed, so a formatted string that happens to read
+// well in a two-column layout is not it.
+function copyableValue(value) {
+  return typeof value === "string" && value !== "" ? value : ""
+}
+
+// Every row carries the field, whether or not it has anything in it, so the
+// view can bind one name and never test for its presence (REQ-014).
+function withCopy(rows) {
+  for (let i = 0; i < rows.length; i++) {
+    if (typeof rows[i].copy !== "string") rows[i].copy = ""
+  }
+  return rows
+}
+
+function downlinkNames(devices) {
+  const found = {}
+  const list = devices || []
+  for (let i = 0; i < list.length; i++) {
+    const entry = list[i] || {}
+    const up = entry.uplinkDeviceId
+    if (typeof up !== "string" || up === "") continue
+    // A device that claims itself as its own uplink would otherwise be listed
+    // as its own downlink. The controller has never done this; the guard costs
+    // one comparison and the alternative is a row that reads as a loop.
+    if (up === entry.id) continue
+    if (!Object.prototype.hasOwnProperty.call(found, up)) found[up] = []
+    found[up].push(displayName(entry))
+  }
+  return found
+}
+
+// REQ-B14. "3 devices" and then the names, rather than names alone: the count
+// is the fact worth having at a glance on a gateway with twenty of them, and it
+// is read from the array the panel actually holds so it cannot disagree with
+// what is listed below it.
+const DOWNLINKS_NAMED_MAX = 4
+
+function downlinkText(downlinks, id) {
+  const kids = uniqueSorted(own(downlinks, id) || [])
+  if (kids.length === 0) return "none"
+  const shown = kids.slice(0, DOWNLINKS_NAMED_MAX)
+  const rest = kids.length - shown.length
+  const noun = kids.length === 1 ? " device" : " devices"
+  return kids.length + noun + " — " + shown.join(", ")
+    + (rest > 0 ? " and " + rest + " more" : "")
+}
+
+function uniqueSorted(values) {
+  const out = values.slice(0)
+  out.sort(function (a, b) {
+    const left = String(a).toLowerCase()
+    const right = String(b).toLowerCase()
+    if (left < right) return -1
+    if (left > right) return 1
+    return 0
+  })
+  return out
+}
+
+function deviceDetail(device, names, downlinks) {
   const entry = device || {}
   const detail = entry.detail === undefined ? null : entry.detail
   const metrics = entry.metrics || null
@@ -835,15 +933,23 @@ function deviceDetail(device, names) {
     unavailableText: fetched ? "" : DETAIL_NOT_FETCHED,
     updateAvailable: entry.firmwareUpdatable === true,
     updateText: entry.firmwareUpdatable === true ? "update available" : "",
-    rows: [
+    rows: withCopy([
       { key: "firmware", label: "Firmware", value: formatOptional(entry.firmwareVersion) },
-      { key: "mac", label: "MAC", value: formatOptional(entry.macAddress) },
+      // The device's own address. It is on the collapsed row inside the
+      // `·`-joined context line, which is fine to glance at and useless to
+      // copy from — the same gap the client rows had.
+      { key: "ip", label: "IP", value: formatOptional(entry.ipAddress),
+        copy: copyableValue(entry.ipAddress) },
+      { key: "mac", label: "MAC", value: formatOptional(entry.macAddress),
+        copy: copyableValue(entry.macAddress) },
       { key: "uplink", label: "Uplink", value: uplinkLabel(names, entry.uplinkDeviceId) },
+      { key: "downlinks", label: "Downlinks",
+        value: downlinkText(downlinks || {}, entry.id) },
       { key: "cpu", label: "CPU", value: formatPct(metrics ? metrics.cpuUtilizationPct : null) },
       { key: "memory", label: "Memory", value: formatPct(metrics ? metrics.memoryUtilizationPct : null) },
       { key: "download", label: "Download", value: formatBps(metrics ? metrics.downloadBps : null) },
       { key: "upload", label: "Upload", value: formatBps(metrics ? metrics.uploadBps : null) }
-    ],
+    ]),
     ports: mapRows(ports, portRow),
     radios: mapRows(radios, radioRow),
     // "The controller answered and there are none" — only ever said when the
@@ -866,14 +972,20 @@ function clientDetail(client, uplinkName) {
   return {
     id: typeof entry.id === "string" ? entry.id : "",
     nameText: clientDisplayName(entry),
-    rows: [
+    rows: withCopy([
+      // The IP is on the collapsed row too, as `secondaryText` — but there it
+      // is unlabelled, in a column that elides, and an address the reader has
+      // to infer the meaning of is not one they can act on.
+      { key: "ip", label: "IP", value: formatOptional(entry.ipAddress),
+        copy: copyableValue(entry.ipAddress) },
       // REQ-B21 / D3: this is the only place a client MAC address is rendered,
       // and it is rendered only because the user expanded the row.
-      { key: "mac", label: "MAC", value: formatOptional(entry.macAddress) },
+      { key: "mac", label: "MAC", value: formatOptional(entry.macAddress),
+        copy: copyableValue(entry.macAddress) },
       { key: "access", label: "Access", value: formatOptional(entry.accessType) },
       { key: "uplink", label: "Uplink", value: uplinkName === "" ? "unknown" : uplinkName },
       { key: "connected", label: "Connected", value: formatInstant(entry.connectedAt) }
-    ]
+    ])
   }
 }
 
@@ -1037,6 +1149,7 @@ function deviceListModel(snapshot, ui) {
   const term = searchTerm(options.search)
   const role = typeof options.role === "string" ? options.role : ""
   const names = uplinkNames(listed)
+  const downlinks = downlinkNames(listed)
   const rows = []
   for (let i = 0; i < listed.length; i++) {
     const row = browseDeviceRow(listed[i])
@@ -1059,7 +1172,7 @@ function deviceListModel(snapshot, ui) {
       ? emptyText(noun, term, listed.length, total) : "",
     expandedId: expandedIdIn(rows, options.expandedId),
     expandedDetail: detailFor(rows, listed, options.expandedId, function (device) {
-      return deviceDetail(device, names)
+      return deviceDetail(device, names, downlinks)
     })
   }
 }
@@ -1237,6 +1350,20 @@ function browseView(value) {
     if (BROWSE_VIEWS[i] === value) return value
   }
   return "overview"
+}
+
+// REQ-B15 (amended, SPEC-AMD-5). Left/Right move between pages from ANY focus
+// stop, so the arithmetic moved here out of the panel — where it sat inside a
+// branch that only ran while the segmented control happened to hold focus.
+//
+// CLAMPED, not wrapped. Three chips in a row are a position, not a cycle: the
+// user can see both ends, and a Right at the last one that silently reappeared
+// at the first would lose them the only landmark the control has.
+function nextBrowseView(view, direction) {
+  const at = BROWSE_VIEWS.indexOf(browseView(view))
+  const step = direction > 0 ? 1 : (direction < 0 ? -1 : 0)
+  const to = Math.min(BROWSE_VIEWS.length - 1, Math.max(0, at + step))
+  return BROWSE_VIEWS[to]
 }
 
 // --- AC-011 / SEC-009 / UX-010 -------------------------------------------
@@ -1714,6 +1841,9 @@ if (typeof module !== "undefined") module.exports = {
   isConfigFaultKind: isConfigFaultKind,
   BROWSE_CLASS_RANK: BROWSE_CLASS_RANK,
   BROWSE_VIEWS: BROWSE_VIEWS,
+  downlinkNames: downlinkNames,
+  downlinkText: downlinkText,
+  nextBrowseView: nextBrowseView,
   ROLE_FOR_COUNT_KEY: ROLE_FOR_COUNT_KEY,
   ROLE_PLURAL: ROLE_PLURAL,
   CLIENT_TYPE_WORD: CLIENT_TYPE_WORD,

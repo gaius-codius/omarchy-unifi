@@ -2067,3 +2067,198 @@ test("REQ-B14: both row kinds carry the same secondary line, under the same name
     }
   }
 })
+
+test("REQ-B14: the status word is a field of its own, not the head of the meta line", () => {
+  // The row draws it as a fixed right-hand column so the eye can run down one
+  // edge and find every broken device. While it was the first of four
+  // `·`-joined segments there was nothing for the delegate to bind.
+  //
+  // Nothing asserted the class word was EVER in `metaText` — the three existing
+  // assertions about that string are all negative ("the MAC is not in it", "up
+  // is not in it") — so moving it out of the line broke no test at all. These
+  // are the positive statements that were missing.
+  const row = ViewModel.browseDeviceRow(
+    device({ id: "1", name: "Attic AP", class: "down", ipAddress: "192.0.2.7" }))
+  assert.strictEqual(row.tokenText, "Down")
+  assert.strictEqual(row.tokenText, row.classText)
+  assert.strictEqual(row.metaText.indexOf("Down"), -1,
+    "the class word is still in the meta line as well as the token")
+  assert.ok(row.metaText.indexOf("192.0.2.7") !== -1,
+    "the meta line lost the address when it lost the class word")
+
+  const clientRow = ViewModel.browseClientRow(
+    client({ id: "2", name: "pi", type: "WIRED" }), "sw", null)
+  assert.strictEqual(clientRow.tokenText, "Wired")
+  assert.strictEqual(clientRow.tokenText, clientRow.typeText)
+  assert.strictEqual(clientRow.metaText.indexOf("Wired"), -1)
+  assert.ok(clientRow.metaText.indexOf("via sw") !== -1)
+})
+
+test("REQ-B14: the delegate is told WHICH states are urgent, and does not decide", () => {
+  // `down` is not the only one. The delegate colours on this flag rather than
+  // comparing class words itself (REQ-014), which is also what stops the two
+  // lists needing two delegates.
+  const urgent = { down: true, impaired: true,
+                   online: false, unknown: false, transitional: false }
+  for (const cls of Object.keys(urgent)) {
+    assert.strictEqual(
+      ViewModel.browseDeviceRow(device({ id: "1", class: cls })).tokenUrgent,
+      urgent[cls], cls)
+  }
+  // A client is connected or it is not in the list, so it has no urgent state —
+  // but it carries the field, because the two row shapes must stay identical.
+  assert.strictEqual(
+    ViewModel.browseClientRow(client({ id: "2" }), "", null).tokenUrgent, false)
+})
+
+test("REQ-B14: an expanded client shows its IP address, labelled", () => {
+  // It is on the collapsed row too, as `secondaryText` — unlabelled, and in a
+  // column that elides. An address the reader has to infer the meaning of is
+  // not one they can act on.
+  const detail = ViewModel.clientDetail(
+    client({ id: "1", name: "pi", ipAddress: "192.0.2.40" }), "")
+  const ip = detail.rows.filter((r) => r.key === "ip")
+  assert.strictEqual(ip.length, 1)
+  assert.strictEqual(ip[0].label, "IP")
+  assert.strictEqual(ip[0].value, "192.0.2.40")
+  // BIZ-003 / AC-B10: absent is "unknown", never blank and never an invented 0.
+  const none = ViewModel.clientDetail(client({ id: "2", ipAddress: null }), "")
+  assert.strictEqual(none.rows.filter((r) => r.key === "ip")[0].value, "unknown")
+})
+
+test("REQ-B15 (SPEC-AMD-5): Left/Right walk the pages and clamp at both ends", () => {
+  // The arithmetic lives here now because the key is no longer modal: it moves
+  // pages from every focus stop, so the panel has nowhere sensible to keep a
+  // branch that only applied on one of them.
+  assert.strictEqual(ViewModel.nextBrowseView("overview", 1), "devices")
+  assert.strictEqual(ViewModel.nextBrowseView("devices", 1), "clients")
+  assert.strictEqual(ViewModel.nextBrowseView("clients", -1), "devices")
+  assert.strictEqual(ViewModel.nextBrowseView("devices", -1), "overview")
+
+  // CLAMPED, not wrapped — and asserted at both ends, because a modulo and a
+  // clamp agree everywhere except exactly here.
+  assert.strictEqual(ViewModel.nextBrowseView("clients", 1), "clients")
+  assert.strictEqual(ViewModel.nextBrowseView("overview", -1), "overview")
+
+  // A direction of zero is not a move.
+  assert.strictEqual(ViewModel.nextBrowseView("devices", 0), "devices")
+
+  // Junk resolves through browseView first, so a corrupted view cannot land
+  // the user on a fourth page or on `undefined`.
+  assert.strictEqual(ViewModel.nextBrowseView("nonsense", 1), "devices")
+  assert.strictEqual(ViewModel.nextBrowseView(null, -1), "overview")
+})
+
+test("REQ-B14: downlinks are the inverse of uplinkDeviceId, and nothing more", () => {
+  // The API carries no per-port peer — `interfaces.ports[]` is idx, connector,
+  // speed, state, PoE and nothing else — so "port 5 goes to the kitchen switch"
+  // is not derivable and is not attempted. Inverting device-level topology is
+  // the whole of what can honestly be said.
+  const devices = [
+    device({ id: "gw", name: "Gateway" }),
+    device({ id: "a", name: "attic-ap", uplinkDeviceId: "gw" }),
+    device({ id: "b", name: "Kitchen SW", uplinkDeviceId: "gw" }),
+    device({ id: "c", name: "garage-ap", uplinkDeviceId: "b" })
+  ]
+  const map = ViewModel.downlinkNames(devices)
+  assert.deepStrictEqual(map.gw.slice().sort(), ["Kitchen SW", "attic-ap"])
+  assert.deepStrictEqual(map.b, ["garage-ap"])
+
+  // Case-insensitive order, so a capitalised name does not sort into its own
+  // block ahead of everything lowercase.
+  assert.strictEqual(ViewModel.downlinkText(map, "gw"),
+    "2 devices — attic-ap, Kitchen SW")
+  assert.strictEqual(ViewModel.downlinkText(map, "b"), "1 device — garage-ap")
+
+  // A leaf says so rather than showing an empty row. BIZ-003 is not in play —
+  // this is a known zero, not an unknown.
+  assert.strictEqual(ViewModel.downlinkText(map, "c"), "none")
+  assert.strictEqual(ViewModel.downlinkText(map, "no-such-id"), "none")
+})
+
+test("REQ-B14: a long downlink list is counted in full and named in part", () => {
+  const devices = [device({ id: "gw", name: "Gateway" })]
+  for (let i = 0; i < 7; i++) {
+    devices.push(device({ id: "d" + i, name: "sw-" + i, uplinkDeviceId: "gw" }))
+  }
+  const text = ViewModel.downlinkText(ViewModel.downlinkNames(devices), "gw")
+  // The COUNT is all seven — read from the array, so it cannot disagree with
+  // the list beside it — while only the first four are named.
+  assert.ok(text.indexOf("7 devices") === 0, text)
+  assert.ok(text.indexOf("and 3 more") !== -1, text)
+  assert.strictEqual(text.indexOf("sw-4"), -1, "named past the cap")
+})
+
+test("REQ-B14: a device is never its own downlink", () => {
+  // The controller has never reported this. The guard is one comparison and the
+  // alternative is a detail row that reads as a loop.
+  const map = ViewModel.downlinkNames([device({ id: "x", name: "x", uplinkDeviceId: "x" })])
+  assert.strictEqual(ViewModel.downlinkText(map, "x"), "none")
+})
+
+test("REQ-B14: the expanded device detail carries the downlinks row", () => {
+  const snapshot = snapshotWith([
+    device({ id: "gw", name: "Gateway" }),
+    device({ id: "a", name: "attic-ap", uplinkDeviceId: "gw" })
+  ], [])
+  const list = ViewModel.deviceListModel(snapshot, { expandedId: "gw" })
+  const rows = list.expandedDetail.rows.filter((r) => r.key === "downlinks")
+  assert.strictEqual(rows.length, 1)
+  assert.strictEqual(rows[0].label, "Downlinks")
+  assert.strictEqual(rows[0].value, "1 device — attic-ap")
+})
+
+test("REQ-B24 (SPEC-AMD-6): only a real value is copyable, never the placeholder", () => {
+  // Copying the word "unknown" onto the clipboard is worse than doing nothing:
+  // it silently replaces whatever the user had, and they find out later.
+  const known = ViewModel.clientDetail(
+    client({ id: "1", ipAddress: "192.0.2.40", macAddress: "02:00:00:aa:bb:cc" }), "")
+  const byKey = {}
+  for (const row of known.rows) byKey[row.key] = row
+  assert.strictEqual(byKey.ip.copy, "192.0.2.40")
+  assert.strictEqual(byKey.mac.copy, "02:00:00:aa:bb:cc")
+
+  const missing = ViewModel.clientDetail(
+    client({ id: "2", ipAddress: null, macAddress: null }), "")
+  for (const row of missing.rows) {
+    if (row.key === "ip" || row.key === "mac") {
+      assert.strictEqual(row.value, "unknown")
+      assert.strictEqual(row.copy, "", row.key + " offered the placeholder")
+    }
+  }
+})
+
+test("REQ-B24: every row carries the field, so the view never tests for it", () => {
+  // REQ-014. A view that has to ask whether `copy` exists is a view holding a
+  // rule, and the two detail shapes would drift the first time one gained a row.
+  const snapshot = snapshotOf("success_browse_full")
+  const model = ViewModel.build({ snapshot: snapshot, nowWall: 1768209240,
+    browse: { expandedDeviceId: snapshot.devices[0].id,
+              expandedClientId: snapshot.clients[0].id } })
+  const sets = [model.metaRows,
+                model.deviceList.expandedDetail.rows,
+                model.clientList.expandedDetail.rows]
+  for (const rows of sets) {
+    for (const row of rows) {
+      assert.strictEqual(typeof row.copy, "string", row.key)
+    }
+  }
+})
+
+test("REQ-B24: what is copied is the raw value, not the rendered one", () => {
+  // The site row renders "Home (auto-selected)" when DATA-012 picked the site.
+  // Pasting that into a terminal would be nonsense, so the row is not copyable
+  // at all — while the site ID beside it, which is exactly what a reader would
+  // otherwise transcribe, is.
+  const rows = ViewModel.build({
+    snapshot: snapshotOf("success_healthy"),
+    warnings: [{ code: "site_auto_selected" }],
+    nowWall: 1768209240
+  }).metaRows
+  const byKey = {}
+  for (const row of rows) byKey[row.key] = row
+  assert.ok(byKey.site.value.indexOf("(auto-selected)") !== -1)
+  assert.strictEqual(byKey.site.copy, "")
+  assert.notStrictEqual(byKey.siteId.copy, "")
+  assert.strictEqual(byKey.siteId.copy, byKey.siteId.value)
+})

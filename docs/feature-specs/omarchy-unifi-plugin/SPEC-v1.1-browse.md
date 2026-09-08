@@ -303,8 +303,11 @@ connected-since as a relative time.
 *Client detail:* MAC address, access type, and the absolute `connectedAt`.
 
 **REQ-B15 — keyboard (extends UX-008).** Tab cycles segmented control → search
-→ list → Refresh → Open UniFi and wraps. Left/Right move within the segmented
-control; Up/Down within the list; Enter expands or collapses the focused row;
+→ list → Refresh → Open UniFi and wraps. *Amended by SPEC-AMD-5, 2026-09-08:*
+Tab is the only key that moves focus; **Left/Right — and `h`/`l` — move between
+pages from any focus stop, clamped at both ends rather than wrapping**; Up/Down
+move the list cursor while the list holds focus, and walk the focus stops where
+it does not. Enter expands or collapses the focused row;
 `/` focuses the search field. Escape clears a non-empty search **before** it
 closes the panel. While the search field holds focus the panel's own key
 handling is suspended, or typing "ap" drives the panel cursor instead of
@@ -330,7 +333,24 @@ not in error messages, not in any log line, not in `status`'s IPC output. The
 sanitizer covers them, and a test asserts a corpus containing them produces
 diagnostic output containing none of them.
 
+*Amended by SPEC-AMD-6, 2026-09-08:* personal data may **also** be placed on the
+system clipboard, by an explicit user action on a value already rendered, per
+REQ-B24. It is still never logged, never in a warning or error message, and
+never in `status` output.
+
 **REQ-B21.** Per D3, the MAC address is not rendered until a row is expanded.
+
+**REQ-B24 — copy on click (SPEC-AMD-6).** A rendered value the reader would
+otherwise transcribe — the site id, a device or client IP address, a MAC
+address — is copyable by clicking it. The model marks which values these are;
+the view holds no rule about it (REQ-014). Three constraints:
+
+- What is copied is the **raw** value, never the rendered one. A row showing
+  "Home (auto-selected)" is not copyable at all.
+- A value that is not known is **not** copyable. Putting the BIZ-003 placeholder
+  "unknown" on the clipboard would silently destroy what the user had there.
+- The copy is confirmed on screen, and the confirmation is cleared by the user's
+  next action rather than by a timer.
 
 **REQ-B22.** SEC-011 is unchanged: no real controller data in fixtures. New
 fixtures use RFC 5737 addresses and MAC addresses from `02:00:00:`.
@@ -377,6 +397,8 @@ has, or the prefix being one everything starts with.
 | AC-B19 | LIVE | Activating an Overview role-count row opens Devices filtered to that role. |
 | AC-B20 | LIVE | A full batch against the real controller completes within the REQ-017 budget with detail fetched for every device, and the measured wall time is recorded. |
 | AC-B21 | MAN | Both lists are legible in ≥3 themes including one light theme (AC-069's rule, extended). |
+| AC-B24 | AUTO | Only a known value is copyable and what is copied is the raw value, never the rendered one or the "unknown" placeholder; every detail and meta row carries the field so the view never tests for it (REQ-B24). |
+| AC-B25 | AUTO | Left/Right move between pages from every focus stop and clamp at both ends, and do not relocate the focus stop on the way (REQ-B15 as amended). |
 | AC-B22 | AUTO | `tests/test_suite_integrity.js` reports a named, executing test for every criterion in this table. |
 
 ---

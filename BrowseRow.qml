@@ -2,13 +2,26 @@
 //
 // One component for both lists, not two that look alike. Every string it draws
 // was decided in `ViewModel.js` — `nameText`, `secondaryText` (a device's model,
-// a client's IP, in the same place and meaning the same thing), `metaText` — so
-// this file makes no decision about what a row says. That is REQ-014, and it is
-// what lets 33 `node --test` cases cover the wording of a list the harness only
-// has to prove is on screen.
+// a client's IP, in the same place and meaning the same thing), `tokenText`,
+// `metaText` — so this file makes no decision about what a row says. That is
+// REQ-014, and it is what lets 33 `node --test` cases cover the wording of a
+// list the harness only has to prove is on screen.
 //
 // The MAC address is not here (REQ-B21 / D3). It appears in `detailRows` and
 // therefore only after a deliberate expansion.
+//
+// The layout is two lines:
+//
+//   name .................................................. Online
+//   UDM Pro  ·  192.168.1.5  ·  up 3d 4h
+//
+// The status word sits in a fixed right-hand column rather than at the head of
+// the second line, so the eye can run down one edge and find every broken
+// device. That is what a list ordered by brokenness is for, and while the word
+// was the first of four `·`-joined segments it was just another word in a
+// sentence. It also frees the name: the previous layout put the model on the
+// same line, right-aligned and capped at 40% of the width, which meant a long
+// model name ate the name the user was actually searching for.
 import QtQuick
 import qs.Commons
 import qs.Ui
@@ -23,10 +36,15 @@ Item {
   property color foreground: Color.foreground
   property color urgent: Color.urgent
   property string fontFamily: Style.font.family
-  readonly property color dim: Qt.darker(foreground, 1.4)
+  property var emphasis: null
+  property string copiedKey: ""
 
   signal toggleRequested()
   signal hoverRequested()
+  signal copyRequested(string key, string text)
+
+  readonly property color _secondary: emphasis ? emphasis.secondary : foreground
+  readonly property color _tertiary: emphasis ? emphasis.tertiary : foreground
 
   implicitHeight: layout.implicitHeight
   height: implicitHeight
@@ -50,18 +68,18 @@ Item {
     spacing: Style.spacing.xs
 
     // The header, and the only part that toggles. The click target covers this
-    // Item and not the whole row: a target over the expanded detail would
-    // collapse the row when the user clicked in the port table they had just
-    // opened to read.
+    // Item and the line under it but not the whole row: a target over the
+    // expanded detail would collapse the row when the user clicked in the port
+    // table they had just opened to read.
     Item {
       id: header
       width: parent.width
-      implicitHeight: Math.max(primary.implicitHeight, secondary.implicitHeight)
+      implicitHeight: Math.max(primary.implicitHeight, token.implicitHeight)
 
       Text {
         id: primary
         anchors.left: parent.left
-        anchors.right: secondary.left
+        anchors.right: token.left
         anchors.rightMargin: Style.spacing.md
         text: root.row ? root.row.nameText : ""
         color: root.foreground
@@ -71,32 +89,68 @@ Item {
         elide: Text.ElideRight
       }
 
+      // The status word. Never elided and never given a width cap — it is a
+      // fixed vocabulary ("Online", "Down", "Wired", "Wireless"), so it cannot
+      // grow, and the whole point of the column is that it is always in the
+      // same place.
+      //
+      // `tokenUrgent` and not a class comparison here: the model decides which
+      // states are the ones worth colouring (REQ-014), and `down` is not the
+      // only one. UX-002 — the colour is never the only signal, because the
+      // word itself says the condition.
       Text {
-        id: secondary
+        id: token
         anchors.right: parent.right
-        // Capped so a long model name cannot squeeze the name it belongs to
-        // down to an ellipsis. The name is what the user searched for.
-        width: Math.min(implicitWidth, Math.round(parent.width * 0.4))
-        horizontalAlignment: Text.AlignRight
-        text: root.row ? root.row.secondaryText : ""
-        color: root.dim
+        anchors.baseline: primary.baseline
+        text: root.row ? root.row.tokenText : ""
+        color: (root.row && root.row.tokenUrgent) ? root.urgent : root._tertiary
         font.family: root.fontFamily
-        font.pixelSize: Style.font.bodySmall
+        font.pixelSize: Style.font.caption
         textFormat: Text.PlainText
-        elide: Text.ElideRight
       }
     }
 
-    Text {
+    // The second line: identity that is not the name, then context. Two Text
+    // items rather than one string, because they are two different weights —
+    // which is the whole reason this row was hard to read. The separator is
+    // punctuation and carries no meaning, so composing it here is not a
+    // decision (REQ-014); every word around it came from `vm`.
+    Item {
       id: metaLine
       width: parent.width
-      visible: text !== ""
-      text: root.row ? root.row.metaText : ""
-      color: root.dim
-      font.family: root.fontFamily
-      font.pixelSize: Style.font.caption
-      textFormat: Text.PlainText
-      elide: Text.ElideRight
+      visible: secondary.text !== "" || meta.text !== ""
+      implicitHeight: visible ? Math.max(secondary.implicitHeight, meta.implicitHeight) : 0
+
+      Text {
+        id: secondary
+        anchors.left: parent.left
+        // Capped so a long model name cannot push the context off the row
+        // entirely, but generously — it no longer competes with the name, which
+        // now has the line above to itself.
+        width: Math.min(implicitWidth, Math.round(parent.width * 0.55))
+        text: root.row ? root.row.secondaryText : ""
+        color: root._secondary
+        font.family: root.fontFamily
+        font.pixelSize: Style.font.caption
+        textFormat: Text.PlainText
+        elide: Text.ElideRight
+      }
+
+      Text {
+        id: meta
+        anchors.left: secondary.right
+        anchors.right: parent.right
+        anchors.leftMargin: secondary.text !== "" && text !== "" ? Style.spacing.xs : 0
+        text: root.row
+          ? ((secondary.text !== "" && root.row.metaText !== "" ? "·  " : "")
+             + root.row.metaText)
+          : ""
+        color: root._tertiary
+        font.family: root.fontFamily
+        font.pixelSize: Style.font.caption
+        textFormat: Text.PlainText
+        elide: Text.ElideRight
+      }
     }
 
     // REQ-B14's "update available" mark. `vm` decided whether to show it —
@@ -118,8 +172,9 @@ Item {
     // every frame.
     Column {
       width: parent.width
-      spacing: Style.spacing.xs
+      spacing: Style.spacing.sm
       visible: root.expanded && root.detail !== null
+      topPadding: visible ? Style.spacing.xs : 0
 
       PanelSeparator { foreground: root.foreground }
 
@@ -128,6 +183,9 @@ Item {
         rows: root.detail ? root.detail.rows : []
         foreground: root.foreground
         fontFamily: root.fontFamily
+        emphasis: root.emphasis
+        copiedKey: root.copiedKey
+        onCopyRequested: function (key, text) { root.copyRequested(key, text) }
       }
 
       // AC-B09. This sentence and an empty port table are different claims:
@@ -139,7 +197,7 @@ Item {
         visible: text !== ""
         text: root.detail && root.detail.unavailableText !== undefined
           ? root.detail.unavailableText : ""
-        color: root.dim
+        color: root._tertiary
         font.family: root.fontFamily
         font.pixelSize: Style.font.caption
         textFormat: Text.PlainText
@@ -151,6 +209,7 @@ Item {
         detail: root.detail
         foreground: root.foreground
         fontFamily: root.fontFamily
+        emphasis: root.emphasis
       }
     }
   }
@@ -167,9 +226,9 @@ Item {
   // transparent one with no text is INVISIBLE — and an invisible item takes no
   // mouse events at all. The row would simply not have been clickable.
   //
-  // It covers the header and the meta line only. A target over the expanded
-  // detail would collapse the row when the user clicked in the port table they
-  // had just opened to read.
+  // It covers the two identity lines only. A target over the expanded detail
+  // would collapse the row when the user clicked in the port table they had
+  // just opened to read.
   MouseArea {
     anchors.left: layout.left
     anchors.right: layout.right

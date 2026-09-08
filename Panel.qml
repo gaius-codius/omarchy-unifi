@@ -23,6 +23,7 @@
 // the bug AC-068 would find.
 import QtQuick
 import QtQuick.Controls
+import Quickshell
 import qs.Commons
 import qs.Ui
 import "ViewModel.js" as ViewModel
@@ -55,7 +56,10 @@ Panel {
   readonly property color urgent: bar ? bar.urgent : Color.urgent
   readonly property string fontFamily: bar ? bar.fontFamily : Style.font.family
   // qmllint enable missing-property
-  readonly property color dim: Qt.darker(foreground, 1.4)
+  // The one muted colour, from the one scale. It was `Qt.darker(foreground,
+  // 1.4)` — the host's convention — which does not mute at all on a light
+  // theme. See `Emphasis.qml` for the arithmetic.
+  readonly property color dim: emphasisTokens.tertiary
 
   // REQ-B15 (extending UX-008). The stop ORDER, the wrap and what happens to
   // the cursor when a page change removes the stop it is on all live in
@@ -75,6 +79,47 @@ Panel {
   property string expandedClientId: ""
   property int deviceCursor: 0
   property int clientCursor: 0
+
+  // One instance, passed down rather than instantiated per delegate — a
+  // 200-row list would otherwise allocate 200 copies of three constants.
+  readonly property Emphasis emphasis: emphasisTokens
+  // Bound to the BAR's foreground, not the global one — the panel takes its
+  // colours from the bar it belongs to (`foreground` above does the same), so a
+  // scale built from `Color.foreground` would drift from everything around it.
+  Emphasis { id: emphasisTokens; foreground: root.foreground }
+
+  // REQ-B24 (SPEC-AMD-6). The key of the value most recently copied, so the row
+  // that was clicked can confirm it. Cleared by everything the user might do
+  // next, which is why there is no Timer: a confirmation that expires on a
+  // deadline can vanish mid-read, and one that waits for the next action
+  // cannot.
+  property string copiedKey: ""
+
+  // The ONLY place this plugin touches the clipboard, so there is one line to
+  // audit against REQ-B20.
+  //
+  // `Quickshell.clipboardText` is a writable property on the Quickshell
+  // singleton (HC-21). Deliberately NOT `execDetached(["wl-copy", value])`,
+  // which is what the host's own clipboard plugin uses: `no_exec_for_dashboard`
+  // forbids a launcher in any panel file for REQ-012, and loosening a security
+  // gate to gain a copy button would be a bad trade. It is also better on its
+  // own terms — a property assignment never becomes a command line, so a MAC
+  // address never appears in /proc/<pid>/cmdline.
+  //
+  // The value is never logged. REQ-B20 permits it on the clipboard by the
+  // user's own action and nowhere else, and a console.log here would be the
+  // "nowhere else".
+  function copyValue(key, text) {
+    if (typeof text !== "string" || text === "") return "empty"
+    Quickshell.clipboardText = text
+    copiedKey = key
+    return "copied"
+  }
+
+  // Every exit from the state the confirmation describes.
+  onViewChanged: copiedKey = ""
+  onExpandedDeviceIdChanged: copiedKey = ""
+  onExpandedClientIdChanged: copiedKey = ""
 
   readonly property bool browsing: view !== "overview"
 
@@ -161,26 +206,31 @@ Panel {
     focusStop = ViewModel.nextFocus(view, focusStop, direction)
   }
 
-  // REQ-B15: Left/Right move within the segmented control, Up/Down within the
-  // list. Which axis does what depends on where the cursor is, so the dispatch
-  // is here and the arithmetic is not.
   function moveCursor(dx, dy) {
-    if (focusStop === ViewModel.FOCUS_SEGMENTS && dx !== 0) {
-      var views = ViewModel.BROWSE_VIEWS
-      var at = views.indexOf(view)
-      var to = Math.min(views.length - 1, Math.max(0, (at < 0 ? 0 : at) + dx))
-      setView(views[to])
+    // REQ-B15 as amended (SPEC-AMD-5): one meaning per key, and no meaning that
+    // depends on a focus stop the user cannot see.
+    //
+    // It used to be modal — Left/Right moved the segmented control on ONE stop
+    // and fell through to "next Tab stop" on the other four. The fallthrough
+    // was this file's invention, defended in a comment as better than a key
+    // that did nothing. It was not: pressing Right in the list walked focus out
+    // of the list silently, and two more presses started changing pages, which
+    // is exactly how it was reported. A key that does nothing reads as "not
+    // applicable here"; a key that quietly moves your focus and then changes
+    // the page reads as broken.
+    if (dx !== 0) {
+      setView(ViewModel.nextBrowseView(view, dx))
       return
     }
-    if (focusStop === ViewModel.FOCUS_LIST && dy !== 0) {
+    if (dy === 0) return
+    // Vertical stays where it is useful: inside the list when the list has the
+    // cursor, walking the stops when it does not — on Overview there is no list
+    // for "down" to mean anything else.
+    if (focusStop === ViewModel.FOCUS_LIST) {
       moveListCursor(dy)
       return
     }
-    // Anywhere else, an arrow is a Tab. The vertical axis, because the panel is
-    // a column and Up/Down between the two buttons at its foot is what a reader
-    // expects; horizontal falls through to the same thing rather than doing
-    // nothing, which would read as the key being broken.
-    moveFocus(dy !== 0 ? dy : dx)
+    moveFocus(dy)
   }
 
   // The mouse landing on a row puts the panel cursor there, so the two never
@@ -292,6 +342,7 @@ Panel {
   onOpenedChanged: if (!opened) resetBrowse()
 
   function resetBrowse() {
+    copiedKey = ""
     clearSearch()
     view = "overview"
     roleFilter = ""
@@ -428,35 +479,73 @@ Panel {
           // Shown only when there is a snapshot: Devices and Clients over no
           // reading are two empty pages and a third that explains why, and the
           // explanation is the one worth being on.
-          ButtonGroup {
-            id: segments
+          // Wrapped so the segments stop can show a focus ring of its own.
+          // The ring is drawn HERE and not by the group, because the group's
+          // own cursor painting is what made selection ambiguous — see the note
+          // on `cursorIndex` below. Focus and selection are two facts and now
+          // have two marks: a ring around the control says where the keyboard
+          // is, the chip fill says which page you are on, and neither moves
+          // when the other changes.
+          Item {
+            width: parent.width
             visible: root.vm.hasSnapshot
-            options: [
-              { value: "overview", label: "Overview" },
-              { value: "devices", label: "Devices" },
-              { value: "clients", label: "Clients" }
-            ]
-            value: root.view
-            cursorIndex: root.focusStop === ViewModel.FOCUS_SEGMENTS
-              ? ViewModel.BROWSE_VIEWS.indexOf(root.view) : -1
-            focusable: false
-            foreground: root.foreground
-            fontFamily: root.fontFamily
-            onChanged: function (next) {
-              root.focusStop = ViewModel.FOCUS_SEGMENTS
-              root.setView(next)
+            implicitHeight: segments.implicitHeight
+
+            Rectangle {
+              anchors.fill: segments
+              anchors.margins: -Style.spacing.xs
+              radius: Style.cornerRadius
+              color: "transparent"
+              border.width: Style.controlBorderWidth(true, false)
+              border.color: Style.controlBorder(true, false, root.foreground, root.foreground)
+              visible: root.focusStop === ViewModel.FOCUS_SEGMENTS
             }
-            // The host's gallery also wires `onHovered` so the mouse drags the
-            // panel cursor onto the group (GalleryPanel.qml:1055-1061), and this
-            // deliberately does not. There, the group sits in a form of rows
-            // where hover-follows-cursor is natural. Here it is three chips at
-            // the TOP of a panel whose content is below them, so the mouse
-            // crosses it on the way to everything — and stealing the focus stop
-            // in passing would move Tab's starting point without the user
-            // having asked for anything.
-            //
-            // A CLICK still sets it, in `onChanged` above, which is the case
-            // where the user did ask.
+
+              ButtonGroup {
+                id: segments
+                options: [
+                  { value: "overview", label: "Overview" },
+                  { value: "devices", label: "Devices" },
+                  { value: "clients", label: "Clients" }
+                ]
+                value: root.view
+                // NOT driven from the focus stop any more, and the reason is worth
+                // recording. `cursorIndex` was bound to the selected index whenever
+                // the segments held focus — so the cursor was never on a chip other
+                // than the selected one, and the only thing the binding achieved was
+                // to change how the SELECTED chip was painted depending on where
+                // focus happened to be.
+                //
+                // `Ui/Button` resolves its fill `hot` before `selected`
+                // (Ui/Button.qml:112-117), and `hot` is `hasCursor || hover`. So the
+                // current page wore the hover fill while the segments had focus and
+                // the selected fill when they did not — two different appearances
+                // for one state, flipping on every Tab and every arrow. That is the
+                // "it does not reliably display which page you are on" report.
+                //
+                // Selection is now painted by `value` alone and never changes. Focus
+                // is drawn as a ring around the whole group below, which is additive:
+                // it says where the keyboard is without touching what is selected.
+                cursorIndex: -1
+                focusable: false
+                foreground: root.foreground
+                fontFamily: root.fontFamily
+                onChanged: function (next) {
+                  root.focusStop = ViewModel.FOCUS_SEGMENTS
+                  root.setView(next)
+                }
+                // The host's gallery also wires `onHovered` so the mouse drags the
+                // panel cursor onto the group (GalleryPanel.qml:1055-1061), and this
+                // deliberately does not. There, the group sits in a form of rows
+                // where hover-follows-cursor is natural. Here it is three chips at
+                // the TOP of a panel whose content is below them, so the mouse
+                // crosses it on the way to everything — and stealing the focus stop
+                // in passing would move Tab's starting point without the user
+                // having asked for anything.
+                //
+                // A CLICK still sets it, in `onChanged` above, which is the case
+                // where the user did ask.
+              }
           }
 
           // REQ-013 / UX-007. One sentence naming what failed and the single
@@ -558,6 +647,9 @@ Panel {
             foreground: root.foreground
             urgent: root.urgent
             fontFamily: root.fontFamily
+            emphasis: root.emphasis
+            copiedKey: root.copiedKey
+            onCopyRequested: function (key, text) { root.copyValue(key, text) }
             onSearchChanged: function (text) { root.setSearch(text) }
             onToggleRequested: function (id) { root.toggleExpanded(id) }
             onTabRequested: function (direction) { root.moveFocus(direction) }
@@ -577,6 +669,9 @@ Panel {
             foreground: root.foreground
             urgent: root.urgent
             fontFamily: root.fontFamily
+            emphasis: root.emphasis
+            copiedKey: root.copiedKey
+            onCopyRequested: function (key, text) { root.copyValue(key, text) }
             onSearchChanged: function (text) { root.setSearch(text) }
             onToggleRequested: function (id) { root.toggleExpanded(id) }
             onTabRequested: function (direction) { root.moveFocus(direction) }
@@ -628,32 +723,23 @@ Panel {
             fontFamily: root.fontFamily
           }
 
-          Repeater {
-            model: root.vm.metaRows
-            delegate: Item {
-              required property var modelData
-              width: column.width
-              implicitHeight: Math.max(metaLabel.implicitHeight, metaValue.implicitHeight)
-              Text {
-                id: metaLabel
-                anchors.left: parent.left
-                text: modelData.label
-                color: root.dim
-                font.family: root.fontFamily
-                font.pixelSize: Style.font.caption
-                textFormat: Text.PlainText
-              }
-              Text {
-                id: metaValue
-                anchors.right: parent.right
-                text: modelData.value
-                color: root.foreground
-                font.family: root.fontFamily
-                font.pixelSize: Style.font.caption
-                textFormat: Text.PlainText
-                elide: Text.ElideRight
-              }
-            }
+          // `DetailRows`, not a second hand-rolled label/value Repeater. These
+          // rows have exactly the shape it renders — `{ key, label, value,
+          // copy }` — and the copy affordance the site id needed was already
+          // there, so the alternative was to write it twice and then keep the
+          // two in step.
+          //
+          // It also fixes a smaller thing on the way: the old delegate
+          // right-anchored the value with no left bound, so a long controller
+          // host and a long label could overlap rather than elide.
+          DetailRows {
+            width: parent.width
+            rows: root.vm.metaRows
+            foreground: root.foreground
+            fontFamily: root.fontFamily
+            emphasis: root.emphasis
+            copiedKey: root.copiedKey
+            onCopyRequested: function (key, text) { root.copyValue(key, text) }
           }
 
           // DATA-007's diagnostic line, shown only when there is one. The
@@ -697,6 +783,25 @@ Panel {
               bordered: true
               onClicked: root.openDashboard()
             }
+          }
+
+          // The keys work today and nothing said so — which is the same as
+          // them not working. `Ui/PanelKeyCatcher` maps the arrows AND hjkl,
+          // Tab/Shift-Tab, Enter, Space and Escape (PanelKeyCatcher.qml:51-83),
+          // and this panel adds "/" and "r"; none of it was discoverable.
+          //
+          // Tertiary weight and one line: an affordance, not a manual.
+          Text {
+            width: parent.width
+            visible: root.vm.hasSnapshot
+            text: root.browsing
+              ? "←→ pages  ·  ↑↓ select  ·  ⏎ open  ·  Tab move  ·  / search  ·  Esc close"
+              : "←→ pages  ·  Tab move  ·  ⏎ activate  ·  / search  ·  Esc close"
+            color: root.dim
+            font.family: root.fontFamily
+            font.pixelSize: Style.font.caption
+            textFormat: Text.PlainText
+            wrapMode: Text.WordWrap
           }
 
           // REQ-011: disabled WITH an explanatory label. A greyed button that

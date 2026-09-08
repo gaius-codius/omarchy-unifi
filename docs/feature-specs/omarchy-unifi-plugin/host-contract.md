@@ -963,6 +963,47 @@ Two consequences for any `Model.js`-style layer:
 The host itself demonstrates the required dual-export idiom at
 `plugins/bar/BarModel.js:211-212`.
 
+### HC-21: the clipboard is a property, not a process (verified 2026-09-08)
+
+`Quickshell.clipboardText` is a **writable** string property on the `Quickshell`
+singleton, so setting the clipboard needs no launcher at all:
+
+```
+/usr/lib/qt6/qml/Quickshell/quickshell-core.qmltypes:997-1004
+    Property {
+        name: "clipboardText"
+        type: "QString"
+        read: "clipboardText"
+        write: "setClipboardText"          <-- writable
+        notify: "clipboardTextChanged"
+    }
+```
+
+on `Component { name: "QuickshellGlobal"; exports: ["Quickshell/Quickshell 0.0"];
+isSingleton: true }`. Usage is `import Quickshell` and then
+`Quickshell.clipboardText = value`.
+
+**Why this matters more than convenience.** The obvious implementations are
+`Quickshell.execDetached(["wl-copy", value])` — which is what the host's own
+clipboard-history plugin does (`plugins/clipboard/Clipboard.qml:219-231`) — or a
+`Process` with stdin. Both are closed to this plugin by
+`tests/lint/no_exec_for_dashboard.sh`, which forbids `execDetached` in **any**
+QML file and permits `Process` only in `Service.qml`. That gate exists for
+REQ-012/AC-011, and loosening a launcher rule to gain a copy button would be
+trading a security control for an affordance.
+
+It is also better on its own terms: a value assigned to a property never becomes
+a command line, so a client's IP or MAC address never appears in
+`/proc/<pid>/cmdline` where any process of the same user can read it. That is
+the same argument SEC-001 makes for the API key, applied to REQ-B20's personal
+data.
+
+**Not verified:** whether the write survives the shell exiting. Wayland
+clipboard ownership belongs to the client that set it, and Quickshell holds it
+only while running — the host's own plugin shells out to `wl-copy` partly for
+that reason. For copying an address into a terminal a second later this does not
+arise, and no requirement here depends on persistence.
+
 ## 12. Summary of constraints that change the design
 
 | ID | Constraint | Design impact |

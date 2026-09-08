@@ -24,6 +24,8 @@ Column {
   property color urgent: Color.urgent
   property string fontFamily: Style.font.family
   property string placeholder: "Search"
+  property var emphasis: null
+  property string copiedKey: ""
 
   // Owned by the panel, because REQ-B15's Tab order spans this component and
   // the buttons below it, and because REQ-B10 requires the search text to be
@@ -45,9 +47,22 @@ Column {
   signal escapeRequested()
   signal toggleRequested(string id)
   signal cursorHovered(int index)
+  signal copyRequested(string key, string text)
 
   readonly property var rows: list ? list.rows : []
-  readonly property color dim: Qt.darker(foreground, 1.4)
+  readonly property color _tertiary: emphasis ? emphasis.tertiary : foreground
+
+  // The scrollbar overlays the viewport rather than sitting beside it, so
+  // without a reserved gutter it lands on top of the right-hand end of every
+  // row — which for this list is the status word and the elided tail of the
+  // context line. The host's own lists have the same overlap and get away with
+  // it because their rows are one short line; ours are two, with content at
+  // both edges.
+  //
+  // Bound to the SAME condition that drives `interactive`, so a list that does
+  // not scroll gives the space back rather than carrying an empty margin for a
+  // scrollbar that is not there.
+  readonly property int gutter: view.interactive ? Style.space(10) : 0
 
   // The panel needs to know where the caret is to satisfy REQ-B15's
   // "the panel's own key handling is suspended while the search field holds
@@ -119,7 +134,7 @@ Column {
     visible: text !== ""
     width: parent.width
     text: root.list ? root.list.truncationText : ""
-    color: root.dim
+    color: root._tertiary
     font.family: root.fontFamily
     font.pixelSize: Style.font.caption
     textFormat: Text.PlainText
@@ -130,7 +145,7 @@ Column {
     visible: text !== ""
     width: parent.width
     text: root.list ? root.list.emptyText : ""
-    color: root.dim
+    color: root._tertiary
     font.family: root.fontFamily
     font.pixelSize: Style.font.bodySmall
     textFormat: Text.PlainText
@@ -181,7 +196,7 @@ Column {
       required property var modelData
       required property int index
 
-      width: ListView.view.width
+      width: ListView.view.width - root.gutter
       row: modelData
       // REQ-B14: one row expanded at a time. `vm` resolves which — including
       // dropping the expansion when a search filters that row away — so this
@@ -193,6 +208,9 @@ Column {
       foreground: root.foreground
       urgent: root.urgent
       fontFamily: root.fontFamily
+      emphasis: root.emphasis
+      copiedKey: root.copiedKey
+      onCopyRequested: function (key, text) { root.copyRequested(key, text) }
       onToggleRequested: root.toggleRequested(modelData.id)
       // Hover moves the panel cursor onto the row, so the mouse and the
       // keyboard never point at two different rows. The host does the same for

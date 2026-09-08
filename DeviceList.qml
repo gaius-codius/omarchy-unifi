@@ -19,7 +19,11 @@ Column {
   property var vm: null
   property color foreground: Color.foreground
   property string fontFamily: Style.font.family
-  readonly property color dim: Qt.darker(foreground, 1.4)
+  // Blended toward the background rather than darkened, so it mutes on a light
+  // theme too. The formula is `Emphasis.qml`'s `level(0.52)`; this component is
+  // not given the whole scale because one level is all it uses.
+  readonly property color dim: Qt.tint(Color.background,
+    Qt.rgba(foreground.r, foreground.g, foreground.b, 0.52))
 
   readonly property var offline: vm && vm.offline ? vm.offline : null
 
