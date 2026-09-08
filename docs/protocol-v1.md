@@ -12,8 +12,8 @@ it. Every shape, bound and rejection rule below is stated once, here.
 Authority: `SPEC.md` spec-v1 (frozen 2026-09-05) is authoritative for
 *requirements*. This document is authoritative for the *encoding* of those
 requirements, and fills in the bounds `SPEC.md` §15 leaves to implementation.
-Where a value here has no `SPEC.md` source it is marked **[chosen]** and its
-reasoning is in `implementation-notes.md`.
+Where a value here has no `SPEC.md` source it is marked **[chosen]**, and the
+reason it was chosen is given at its point of use below.
 
 Contents:
 
@@ -500,8 +500,7 @@ one.
 ## Bounds
 
 Every bound is enforced on **both** sides. A value marked **[chosen]** is not
-fixed by `SPEC.md`; §15 delegates it, and the reasoning is in
-`implementation-notes.md`.
+fixed by `SPEC.md`; §15 delegates it.
 
 ### Envelope and process
 

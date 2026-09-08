@@ -112,8 +112,8 @@ function anyGatewayNotWell(gateways) {
 //
 // This implements the second. The first would report a healthy WAN while every
 // gateway on the site is isolated — and REQ-002 rule 4 would colour that same
-// snapshot amber, so the panel would contradict the bar item. Flagged in
-// DEVIATION_LOG.md as DEV-3 for confirmation.
+// snapshot amber, so the panel would contradict the bar item. This reading was
+// raised with the spec owner and confirmed on 2026-09-06.
 function wanStatusFor(gateways) {
   if (!gateways || gateways.length === 0) return "unknown"
   if (everyGatewayDown(gateways)) return "down"

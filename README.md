@@ -5,8 +5,7 @@ the bar and a popup panel with WAN state, device counts, and which devices are
 offline. It is **read-only** — it uses six kinds of GET request and never changes
 anything on your controller.
 
-> **Status: pre-release.** Through Phase 12b and Phase B4 of
-> `docs/feature-specs/omarchy-unifi-plugin/PLAN.md`. The helper, the service and
+> **Status: pre-release.** The helper, the service and
 > the panel are written, tested, and have been run installed in a real Omarchy
 > shell against a real UniFi controller (Network 10.6.101) — so the API key
 > header, the route set, the record shapes and the supported-version matrix are
@@ -221,9 +220,8 @@ are no gateways to be down.
 
 Everything else works normally: device counts, per-role counts, the offline
 list, the client count, and the degraded level when something is down or
-impaired. This is tracked as DEV-6 in
-`docs/feature-specs/omarchy-unifi-plugin/DEVIATION_LOG.md`, and more data from
-more controllers is exactly what it needs.
+impaired. This is a known limitation, and more data from more controllers is
+exactly what it needs.
 
 ## Troubleshooting
 
@@ -277,9 +275,8 @@ tests/run.sh --gates  # additionally prove each lint gate fails on a seeded viol
 Wayland session. `--live-staged` is refused unless explicitly authorised,
 because it installs into `~/.config/omarchy/plugins/`.
 
-`docs/feature-specs/omarchy-unifi-plugin/` holds the spec, the phased plan, the
-verified host and API contracts, and the deviation log. `CLAUDE.md` says which
-to read first.
+`docs/feature-specs/omarchy-unifi-plugin/` holds the spec and the verified host
+and API contracts; `docs/protocol-v1.md` holds the envelope contract.
 
 ## Licence
 
