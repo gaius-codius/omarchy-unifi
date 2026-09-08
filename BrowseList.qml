@@ -55,7 +55,7 @@ Column {
   readonly property var rows: list ? list.rows : []
   readonly property color _tertiary: emphasis ? emphasis.tertiary : foreground
   readonly property var filterChips: list && list.filterChips ? list.filterChips : []
-  readonly property string filterValue: list && list.role ? list.role : ""
+  readonly property string filterValue: list && list.filterValue ? list.filterValue : ""
 
   // The scrollbar overlays the viewport rather than sitting beside it, so
   // without a reserved gutter it lands on top of the right-hand end of every
@@ -87,7 +87,10 @@ Column {
 
   spacing: Style.spacing.sm
 
-  // REQ-B10a's filter, offered here rather than only from Overview.
+  // REQ-B10a's filter, offered here rather than only from Overview — a device
+  // role on one page, a client's connection type on the other (SPEC-AMD-10).
+  // This file does not know which: the model hands it options and a selected
+  // value, and the panel decides what a change means (REQ-014).
   //
   // The SAME control the pages use one row above — `Ui/ButtonGroup`, driven by
   // `cursorIndex: -1` and `focusable: false`, which is the path the host's own

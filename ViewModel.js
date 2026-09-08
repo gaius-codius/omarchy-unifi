@@ -1261,7 +1261,10 @@ function deviceListModel(snapshot, ui) {
     total: total,
     matched: rows.length,
     searchText: term,
-    role: role,
+    // `filterValue` and not `role`: the two pages filter on different axes —
+    // a device's role, a client's connection type — and one name for "what this
+    // page is filtered to" is what lets one `BrowseList` paint both choosers.
+    filterValue: role,
     // The chooser, and with it the answer to "what am I looking at" — the
     // selected chip names the filter the way the page chips above it name the
     // page. It replaced a sentence reading "Access points only ✕" (SPEC-AMD-8);
@@ -1286,31 +1289,36 @@ function clientListModel(snapshot, ui) {
   const listed = data.clients || []
   const total = typeof counts.clients === "number" ? counts.clients : listed.length
   const term = searchTerm(options.search)
+  const type = typeof options.type === "string" ? options.type : ""
   const nowWall = typeof options.nowWall === "number" ? options.nowWall : null
   const names = uplinkNames(data.devices || [])
   const rows = []
   for (let i = 0; i < listed.length; i++) {
     const uplink = uplinkNameFor(names, (listed[i] || {}).uplinkDeviceId)
     const row = browseClientRow(listed[i], uplink, nowWall)
+    // The RAW type, matched exactly — `row.typeText` is the rendered word and
+    // an unknown type renders as itself, so matching on the rendering would
+    // work by accident for three of the four known types and not for VPN.
+    if (type !== "" && row.type !== type) continue
     if (!matchesSearch(row.searchText, term)) continue
     rows.push(row)
   }
+  // "no wired clients" rather than "no clients", the same way the Devices page
+  // names the role it was filtered to.
+  const clientNoun = type === "" ? "clients"
+    : lowerOf(clientTypeWord(type)) + " clients"
   return {
     rows: rows,
     listed: listed.length,
     total: total,
     matched: rows.length,
     searchText: term,
-    role: "",
-    // The Clients page has no filter dimension. The key is carried anyway,
-    // because both pages are rendered by one `BrowseList` and a key present on
-    // one model and not the other is a binding that reads `undefined` on one of
-    // the two pages — which is what the "identical shapes" case exists to stop.
-    filterChips: [],
+    filterValue: type,
+    filterChips: clientTypeChips(listed),
     truncated: total > listed.length,
     truncationText: truncationText(listed.length, total, "client"),
     emptyText: rows.length === 0
-      ? emptyText("clients", term, listed.length, total) : "",
+      ? emptyText(clientNoun, term, listed.length, total) : "",
     expandedId: expandedIdIn(rows, options.expandedId),
     expandedDetail: detailFor(rows, listed, options.expandedId, function (client) {
       return clientDetail(client, uplinkNameFor(names, client.uplinkDeviceId))
@@ -1382,7 +1390,55 @@ function roleChips(counts) {
   return [{ value: "", label: "All" }].concat(chips)
 }
 
-// REQ-B15 (SPEC-AMD-9): what `f` does. WRAPPING, unlike the page keys, which
+// REQ-B10a (SPEC-AMD-10). The Clients page's filter — the same idea one axis
+// over, and derived differently because the data is different.
+//
+// From the LISTED clients, not from `counts`: the envelope carries no per-type
+// breakdown, only `counts.clients` as one total. What matters is preserved —
+// this reads `data.clients`, never the FILTERED rows, so choosing "Wired" does
+// not leave "Wired" standing as the only chip.
+//
+// A type present only among clients that CLIENTS_LISTED_MAX or the DATA-B04
+// budget dropped is not offered. That is the same limitation the per-device
+// client counts carry (N-124) and is preferable to offering a filter whose only
+// possible result is an empty list.
+//
+// `clients[].type` is explicitly NOT a closed set (protocol-v1.md), so an
+// unrecognised type is still offered, labelled by `clientTypeWord` — which
+// renders the raw string for an unknown type, exactly as the row beside it
+// does. Known types come first in the order `CLIENT_TYPE_WORD` declares them,
+// so the chips do not reshuffle between polls as the client list changes;
+// anything else follows, sorted, for the same reason.
+function clientTypeChips(clients) {
+  const list = clients || []
+  const present = {}
+  for (let i = 0; i < list.length; i++) {
+    const type = (list[i] || {}).type
+    if (typeof type !== "string" || type === "") continue
+    present[type] = true
+  }
+  const order = Object.keys(CLIENT_TYPE_WORD)
+  const types = []
+  for (let i = 0; i < order.length; i++) {
+    if (own(present, order[i])) types.push(order[i])
+  }
+  const rest = []
+  const seen = Object.keys(present)
+  for (let i = 0; i < seen.length; i++) {
+    if (!own(CLIENT_TYPE_WORD, seen[i])) rest.push(seen[i])
+  }
+  rest.sort()
+  const all = types.concat(rest)
+  if (all.length === 0) return []
+  const chips = [{ value: "", label: "All" }]
+  for (let i = 0; i < all.length; i++) {
+    chips.push({ value: all[i], label: clientTypeWord(all[i]) })
+  }
+  return chips
+}
+
+// REQ-B15 (SPEC-AMD-9, generalised by SPEC-AMD-10): what `f` does, on either
+// browse page. WRAPPING, unlike the page keys, which
 // SPEC-AMD-5 clamps because three chips in a row are a position. This is a
 // dedicated cycle key with no other way back: clamped, `f` would strand the
 // user on the last filter with only the mouse to undo it. "All" is first, so
@@ -1391,7 +1447,7 @@ function roleChips(counts) {
 // A `current` that is in no chip — a filter for a role whose last device just
 // went away — lands on index 0, which is "All". That is the recoverable answer
 // rather than the arithmetically tidy one.
-function nextRoleFilter(chips, current) {
+function nextFilter(chips, current) {
   const list = chips || []
   if (list.length === 0) return ""
   let at = -1
@@ -1464,7 +1520,7 @@ function emptyBrowseList() {
     total: 0,
     matched: 0,
     searchText: "",
-    role: "",
+    filterValue: "",
     filterChips: [],
     truncated: false,
     truncationText: "",
@@ -1891,6 +1947,7 @@ function build(input) {
     // AC-071's guarantee cover the new strings without a second mechanism.
     clientList: clientListModel(snapshot, {
       search: browse.clientSearch,
+      type: browse.type,
       expandedId: browse.expandedClientId,
       nowWall: nowWall
     })
@@ -2063,7 +2120,8 @@ if (typeof module !== "undefined") module.exports = {
   clientListModel: clientListModel,
   truncationText: truncationText,
   roleChips: roleChips,
-  nextRoleFilter: nextRoleFilter,
+  nextFilter: nextFilter,
+  clientTypeChips: clientTypeChips,
   emptyText: emptyText,
   emptyBrowseList: emptyBrowseList,
   browseView: browseView,

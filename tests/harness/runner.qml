@@ -1886,7 +1886,7 @@ ShellRoot {
               typeof role === "string" && role !== "")
         panelWidget.setView("devices", role)
         check("the page switched", "devices", panelWidget.view)
-        check("the filter reached the model", role, panelWidget.vm.deviceList.role)
+        check("the filter reached the model", role, panelWidget.vm.deviceList.filterValue)
 
         var listed = panelWidget.vm.deviceList.rows
         var offRole = 0
@@ -1922,34 +1922,62 @@ ShellRoot {
         // SPEC-AMD-9: `f` cycles the same list the chooser draws. Driven
         // through the panel's own function rather than a synthesised keystroke,
         // which the harness cannot deliver for a text key.
-        var before = panelWidget.vm.deviceList.role
-        panelWidget.cycleRoleFilter()
-        check("f moved the filter", true, panelWidget.vm.deviceList.role !== before)
+        var before = panelWidget.vm.deviceList.filterValue
+        panelWidget.cycleFilter()
+        check("f moved the filter", true, panelWidget.vm.deviceList.filterValue !== before)
         // A full lap comes back. One step has already been taken above, so this
         // is the REMAINING `chips.length - 1` — a cycle that does not close is
         // one the user cannot undo, and `f` is its only keyboard route.
-        for (var lap = 0; lap < chips.length - 1; lap++) panelWidget.cycleRoleFilter()
+        for (var lap = 0; lap < chips.length - 1; lap++) panelWidget.cycleFilter()
         check("and a full lap comes back to where it was", before,
-              panelWidget.vm.deviceList.role)
+              panelWidget.vm.deviceList.filterValue)
 
-        // The chooser is drawn on Devices and nowhere else.
-        panelWidget.setView("clients")
-        check("the Clients page offers no role chooser", 0,
-              panelWidget.vm.clientList.filterChips.length)
-        // `f` on a page with no filter. Called for real — asserting the filter
-        // is empty right after `setView` cleared it would have proved nothing
-        // about the key at all.
-        panelWidget.cycleRoleFilter()
-        check("and f does nothing on a page with no filter", "",
-              panelWidget.vm.deviceList.role)
-        check("nor does it move the page", "clients", panelWidget.view)
-
-        // Leaving the page drops the filter: one that outlived the row that set
-        // it would show an empty Devices page with nothing saying why.
+        // SPEC-AMD-10: a filter SURVIVES a page change. It used to be cleared by
+        // every one of them, which was right while Overview was the only way to
+        // set one and nothing on the page said it was filtered. Both halves have
+        // changed, and clearing it is now work the user has to redo.
         panelWidget.setView("devices", role)
-        check("the filter is set again", role, panelWidget.vm.deviceList.role)
+        check("the filter is set", role, panelWidget.vm.deviceList.filterValue)
+        panelWidget.setView("clients")
         panelWidget.setView("devices")
-        check("switching pages clears the filter", "", panelWidget.vm.deviceList.role)
+        check("a round trip through Clients leaves it on", role,
+              panelWidget.vm.deviceList.filterValue)
+
+        // The Clients page filters on its OWN axis, and the two do not leak into
+        // each other — a single shared string would carry "WIRED" into the role
+        // filter and silently empty the Devices page.
+        panelWidget.setView("clients")
+        var typeChips = panelWidget.vm.clientList.filterChips
+        check("the Clients page offers a chooser of its own", true,
+              typeChips.length > 1)
+        check("and it is All plus connection types", "", typeChips[0].value)
+        panelWidget.cycleFilter()
+        check("f moved the client filter", typeChips[1].value,
+              panelWidget.vm.clientList.filterValue)
+        check("and left the device filter alone", role,
+              panelWidget.vm.deviceList.filterValue)
+        check("the client chooser is on screen", true,
+              panelTextContains(typeChips[1].label))
+        var typed = panelWidget.vm.clientList.rows
+        var offType = 0
+        for (var t = 0; t < typed.length; t++) {
+          if (typed[t].type !== typeChips[1].value) offType++
+        }
+        check("every listed client holds the type", 0, offType)
+        check("and the filter is not empty", true, typed.length > 0)
+
+        // Only an explicit clear puts it back — which is what "All" is, and what
+        // `f` wrapping past the last chip does.
+        for (var w = 0; w < typeChips.length - 1; w++) panelWidget.cycleFilter()
+        check("wrapping past the last type clears it", "",
+              panelWidget.vm.clientList.filterValue)
+
+        // And closing the panel resets both, as REQ-B10 requires of the search.
+        panelWidget.resetBrowse()
+        check("reset clears the device filter", "",
+              panelWidget.vm.deviceList.filterValue)
+        check("reset clears the client filter", "",
+              panelWidget.vm.clientList.filterValue)
       }
     })
 

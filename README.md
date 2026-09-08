@@ -55,11 +55,12 @@ shows its firmware and whether an update is waiting, its address, CPU, memory
 and throughput, what it plugs into and what plugs into it, how many clients sit
 behind it, and its port table or its radio bands; a client shows its address,
 MAC, access type and when it connected. Activating a per-role count on Overview
-opens Devices filtered to that role — and the Devices page carries the same
-filter itself, offering every role the site actually has.
+opens Devices filtered to that role — and each browse page carries its own
+filter: Devices by role, Clients by connection type. A filter stays on until you
+clear it.
 
 The whole panel is keyboard-driven: Tab walks the controls, Left/Right move
-between the three pages, `/` jumps to the search field, `f` cycles the Devices
+between the three pages, `/` jumps to the search field, `f` cycles the current page's
 filter, Up/Down move the list cursor, Enter expands a row, and Escape clears a
 search before it closes the panel. Clicking an address, a MAC or the site id copies it. MAC addresses are
 shown only in an expanded row, and — apart from that deliberate copy — appear in

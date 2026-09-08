@@ -75,6 +75,12 @@ Panel {
   property string deviceSearch: ""
   property string clientSearch: ""
   property string roleFilter: ""
+  // REQ-B10a (SPEC-AMD-10). The Clients page's axis. Two properties and not one
+  // shared string: the pages filter on different things, so a single one would
+  // carry "WIRED" into the Devices page's role filter the moment the user
+  // switched — which, now that a filter SURVIVES a page change, would silently
+  // empty the other list.
+  property string typeFilter: ""
   property string expandedDeviceId: ""
   property string expandedClientId: ""
   property int deviceCursor: 0
@@ -158,6 +164,7 @@ Panel {
     deviceSearch: deviceSearch,
     clientSearch: clientSearch,
     role: roleFilter,
+    type: typeFilter,
     expandedDeviceId: expandedDeviceId,
     expandedClientId: expandedClientId
   })
@@ -253,26 +260,46 @@ Panel {
   }
 
   // REQ-B10 / REQ-B10a. Switching pages moves the focus stop only when the one
-  // it is on does not exist on the new page, and clears the role filter unless
-  // the caller is setting one — a filter that outlived the row that set it
-  // would show an empty Devices page with nothing saying why.
+  // it is on does not exist on the new page.
+  //
+  // SPEC-AMD-10: a filter now SURVIVES a page change. It used to be cleared by
+  // every one of them, and the comment here defended that — "a filter that
+  // outlived the row that set it would show an empty Devices page with nothing
+  // saying why". That was true when Overview's count rows were the only way to
+  // set one and nothing on the page said it was filtered. Both halves have since
+  // changed: the page carries its own chooser, and the selected chip says what
+  // is on. Clearing it on the way past Clients and back is now only work the
+  // user has to redo.
+  //
+  // `role` is still honoured when passed, which is how the Overview rows set it.
   function setView(next, role) {
     var wanted = ViewModel.browseView(next)
     view = wanted
-    roleFilter = role === undefined ? "" : role
+    if (role !== undefined) roleFilter = role
     focusStop = ViewModel.focusAfterViewChange(wanted, focusStop)
   }
 
-  // REQ-B10a / SPEC-AMD-9. The list is the model's, so the order the key walks
-  // and the order the chips are drawn in cannot drift apart, and a role with no
-  // devices is skipped by both for the same reason.
-  //
-  // Devices only: there is no role filter on the other two pages, and a key
-  // that silently did nothing somewhere would be worse than one that is simply
-  // not offered there — which is why the hint line names it only on Devices.
-  function cycleRoleFilter() {
-    if (view !== "devices") return
-    roleFilter = ViewModel.nextRoleFilter(vm.deviceList.filterChips, roleFilter)
+  // Which axis the page on screen filters on. Overview has none.
+  function currentFilter() {
+    return view === "devices" ? roleFilter : view === "clients" ? typeFilter : ""
+  }
+
+  // The cursor goes back to the top, as it does on a search: the row it was on
+  // has very likely just been filtered away, and a cursor left pointing past the
+  // end of a shortened list is the defect `setSearch` already avoids.
+  function setFilter(value) {
+    if (view === "devices") { roleFilter = value; deviceCursor = 0 }
+    else if (view === "clients") { typeFilter = value; clientCursor = 0 }
+  }
+
+  // REQ-B15 / SPEC-AMD-9, generalised by SPEC-AMD-10. The chip list is the
+  // MODEL's, so the order `f` walks and the order the chips are drawn in cannot
+  // drift apart, and an option the site does not have is skipped by both for one
+  // reason rather than two.
+  function cycleFilter() {
+    if (!browsing) return
+    var list = view === "devices" ? vm.deviceList : vm.clientList
+    setFilter(ViewModel.nextFilter(list.filterChips, currentFilter()))
   }
 
   // REQ-B14: one row expanded at a time, and activating the open row closes it.
@@ -358,6 +385,7 @@ Panel {
     clearSearch()
     view = "overview"
     roleFilter = ""
+    typeFilter = ""
     expandedDeviceId = ""
     expandedClientId = ""
     deviceCursor = 0
@@ -445,10 +473,10 @@ Panel {
           return
         }
         if (t === "r" || t === "R") { root.doRefresh(); return }
-        // REQ-B15 (SPEC-AMD-9). `f` cycles the role filter — the keyboard half
-        // of the chooser on the Devices page, which is deliberately not a Tab
-        // stop. Announced in the hint line below, as `/` and `r` are.
-        if (t === "f" || t === "F") root.cycleRoleFilter()
+        // REQ-B15 (SPEC-AMD-9/10). `f` cycles the filter of whichever browse
+        // page is showing — the keyboard half of a chooser that is deliberately
+        // not a Tab stop. Announced in the hint line below, as `/` and `r` are.
+        if (t === "f" || t === "F") root.cycleFilter()
       }
 
       Flickable {
@@ -675,7 +703,7 @@ Panel {
             // the two blocks are deliberately parallel, and a handler that
             // exists on one of them is the asymmetry that gets missed when a
             // second filter dimension is added.
-            onFilterChanged: function (value) { root.roleFilter = value }
+            onFilterChanged: function (value) { root.setFilter(value) }
           }
 
           BrowseList {
@@ -702,7 +730,7 @@ Panel {
             // the two blocks are deliberately parallel, and a handler that
             // exists on one of them is the asymmetry that gets missed when a
             // second filter dimension is added.
-            onFilterChanged: function (value) { root.roleFilter = value }
+            onFilterChanged: function (value) { root.setFilter(value) }
           }
 
           StatusPanel {
@@ -820,14 +848,12 @@ Panel {
           Text {
             width: parent.width
             visible: root.vm.hasSnapshot
-            // Three variants, because a key named on a page where it does
-            // nothing is worse than one that is not named: `f` filters only on
-            // Devices, which is the only page with a filter to cycle.
-            text: !root.browsing
-              ? "←→ pages  ·  Tab move  ·  ⏎ activate  ·  / search  ·  Esc close"
-              : root.view === "devices"
-                ? "←→ pages  ·  ↑↓ select  ·  ⏎ open  ·  f filter  ·  / search  ·  Esc close"
-                : "←→ pages  ·  ↑↓ select  ·  ⏎ open  ·  Tab move  ·  / search  ·  Esc close"
+            // `f` is named on both browse pages and on neither Overview,
+            // which has nothing to filter — a key named where it does nothing
+            // is worse than one that is not named.
+            text: root.browsing
+              ? "←→ pages  ·  ↑↓ select  ·  ⏎ open  ·  f filter  ·  / search  ·  Esc close"
+              : "←→ pages  ·  Tab move  ·  ⏎ activate  ·  / search  ·  Esc close"
             color: root.dim
             font.family: root.fontFamily
             font.pixelSize: Style.font.caption

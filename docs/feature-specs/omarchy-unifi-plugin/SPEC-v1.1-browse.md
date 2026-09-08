@@ -272,6 +272,19 @@ with no devices is not offered — and the selected entry is what satisfies
 SPEC-AMD-8's "names its filter". The chooser is not a Tab stop; its keyboard
 equivalent is `f` (REQ-B15).
 
+*Amended by SPEC-AMD-10, 2026-09-09:* **the Clients page carries a chooser of
+its own**, on connection type — "All" plus each `clients[].type` present in the
+listed clients. Because `type` is not a closed set (protocol-v1.md), an
+unrecognised one is still offered, labelled with the raw string. The two axes
+are independent: a device role and a client type are different questions, and
+neither page's filter affects the other's list.
+
+**A filter now survives a page change** and is cleared only by an explicit
+action — choosing "All", cycling `f` past the last option, or closing the panel
+(REQ-B10's reset). It was previously cleared by every page change, which was
+correct while Overview's rows were the only way to set one and no page said it
+was filtered; both of those have since changed.
+
 **REQ-B11 — device ordering.** Total and stable, applied by the helper:
 `down`, `impaired`, `unknown`, `transitional`, `online`; within a class,
 gateways first, then by name case-insensitively, then by `id`. The list exists
@@ -348,8 +361,9 @@ closes the panel. While the search field holds focus the panel's own key
 handling is suspended, or typing "ap" drives the panel cursor instead of
 filtering.
 
-*Amended by SPEC-AMD-9, 2026-09-09:* `f` cycles the Devices page's role filter,
-wrapping — and wrapping past the last role is how the keyboard clears it. It is
+*Amended by SPEC-AMD-9, 2026-09-09, extended by SPEC-AMD-10:* `f` cycles the
+filter of whichever browse page is showing — the Devices page's role filter or
+the Clients page's connection-type filter — wrapping — and wrapping past the last role is how the keyboard clears it. It is
 a bare key alongside `/` and `r` rather than a new focus stop, so **the Tab
 order above is unchanged**. Wrapping and not clamping, unlike the page keys:
 `f` is the filter's only keyboard route, and clamped it would strand the user

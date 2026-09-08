@@ -1999,31 +1999,31 @@ test("REQ-B10a: the chooser offers every role the site has, and no other", () =>
   }
 })
 
-test("REQ-B15 (SPEC-AMD-9): f cycles the filter and wraps back to All", () => {
+test("REQ-B15 (SPEC-AMD-9/10): f cycles the filter and wraps back to All", () => {
   const chips = ViewModel.roleChips({
     devicesTotal: 3,
     gateways: { online: 1 }, switches: { online: 1 }, accessPoints: { online: 1 }
   })
-  assert.strictEqual(ViewModel.nextRoleFilter(chips, ""), "gateway")
-  assert.strictEqual(ViewModel.nextRoleFilter(chips, "gateway"), "switching")
-  assert.strictEqual(ViewModel.nextRoleFilter(chips, "switching"), "accessPoint")
+  assert.strictEqual(ViewModel.nextFilter(chips, ""), "gateway")
+  assert.strictEqual(ViewModel.nextFilter(chips, "gateway"), "switching")
+  assert.strictEqual(ViewModel.nextFilter(chips, "switching"), "accessPoint")
   // WRAPS, unlike the page keys, which SPEC-AMD-5 clamps. `f` is the only
   // keyboard route to this filter: clamped, it would strand the user on the
   // last role with no way back but the mouse.
-  assert.strictEqual(ViewModel.nextRoleFilter(chips, "accessPoint"), "")
+  assert.strictEqual(ViewModel.nextFilter(chips, "accessPoint"), "")
 
   // A filter for a role that is no longer offered — its last device went away
   // between polls — lands on "All" rather than throwing or sticking.
-  assert.strictEqual(ViewModel.nextRoleFilter(chips, "switching-that-left"), "")
-  assert.strictEqual(ViewModel.nextRoleFilter(chips, null), "")
+  assert.strictEqual(ViewModel.nextFilter(chips, "switching-that-left"), "")
+  assert.strictEqual(ViewModel.nextFilter(chips, null), "")
   // Nothing to cycle: the key does nothing rather than inventing a filter.
-  assert.strictEqual(ViewModel.nextRoleFilter([], "gateway"), "")
-  assert.strictEqual(ViewModel.nextRoleFilter(null, "gateway"), "")
+  assert.strictEqual(ViewModel.nextFilter([], "gateway"), "")
+  assert.strictEqual(ViewModel.nextFilter(null, "gateway"), "")
 
   // One full lap returns to where it started, for however many roles the site
   // has. A cycle that does not close is one the user cannot undo.
   let at = ""
-  for (let i = 0; i < chips.length; i++) at = ViewModel.nextRoleFilter(chips, at)
+  for (let i = 0; i < chips.length; i++) at = ViewModel.nextFilter(chips, at)
   assert.strictEqual(at, "")
 })
 
@@ -2038,7 +2038,7 @@ test("REQ-B10a: the chooser reaches the model the page is built from", () => {
   assert.deepStrictEqual(filtered.filterChips.map((c) => c.value),
     ["", "gateway", "accessPoint"])
   // `role` is what the chooser paints as selected, so it has to survive.
-  assert.strictEqual(filtered.role, "accessPoint")
+  assert.strictEqual(filtered.filterValue, "accessPoint")
   assert.strictEqual(filtered.rows.length, 1)
   assert.strictEqual(filtered.rows[0].nameText, "attic-ap")
 
@@ -2046,7 +2046,7 @@ test("REQ-B10a: the chooser reaches the model the page is built from", () => {
   // not. This is the "options move when you choose one" defect.
   const unfiltered = ViewModel.deviceListModel(snapshot, {})
   assert.deepStrictEqual(unfiltered.filterChips, filtered.filterChips)
-  assert.strictEqual(unfiltered.role, "")
+  assert.strictEqual(unfiltered.filterValue, "")
   assert.strictEqual(unfiltered.rows.length, 2)
 
   // The Clients page has no filter dimension and carries the key regardless —
@@ -2068,13 +2068,125 @@ test("REQ-B10a: the filter survives typing, because it is not a search modifier"
   ], [], { devicesTotal: 3, clients: 0, offlineTotal: 0,
            gateways: { online: 1 }, accessPoints: { online: 2 } })
   const both = ViewModel.deviceListModel(snapshot, { role: "accessPoint", search: "barn" })
-  assert.strictEqual(both.role, "accessPoint")
+  assert.strictEqual(both.filterValue, "accessPoint")
   assert.strictEqual(both.searchText, "barn")
   assert.strictEqual(both.rows.length, 1)
 
   const filterOnly = ViewModel.deviceListModel(snapshot, { role: "accessPoint" })
-  assert.strictEqual(filterOnly.role, "accessPoint")
+  assert.strictEqual(filterOnly.filterValue, "accessPoint")
   assert.strictEqual(filterOnly.rows.length, 2)
+})
+
+test("REQ-B10a (SPEC-AMD-10): the Clients page offers the types it actually has", () => {
+  // From the LISTED clients and not from `counts`, which carries no per-type
+  // breakdown — only one total. What matters is preserved: this reads the whole
+  // client array, never the filtered rows, so choosing "Wired" cannot leave
+  // "Wired" standing as the only chip.
+  const chips = ViewModel.clientTypeChips([
+    client({ id: "1", type: "WIRELESS" }),
+    client({ id: "2", type: "WIRED" }),
+    client({ id: "3", type: "WIRELESS" })
+  ])
+  assert.deepStrictEqual(chips, [
+    { value: "", label: "All" },
+    { value: "WIRED", label: "Wired" },
+    { value: "WIRELESS", label: "Wireless" }
+  ])
+  // Declaration order of CLIENT_TYPE_WORD, NOT order of appearance — the client
+  // list is sorted by name, so first-seen order would reshuffle the chooser
+  // between polls as clients come and go.
+  assert.strictEqual(chips[1].value, "WIRED")
+
+  // A type nobody on this site has is not offered.
+  const wiredOnly = ViewModel.clientTypeChips([client({ id: "1", type: "WIRED" })])
+  assert.deepStrictEqual(wiredOnly.map((c) => c.value), ["", "WIRED"])
+  assert.deepStrictEqual(ViewModel.clientTypeChips([]), [])
+  assert.deepStrictEqual(ViewModel.clientTypeChips(null), [])
+  // A client with no type at all contributes no chip and does not crash.
+  assert.deepStrictEqual(
+    ViewModel.clientTypeChips([client({ id: "1", type: null })]), [])
+
+  // protocol-v1.md says `type` is NOT a closed set. An unrecognised one is
+  // still offered — labelled with the raw string, which is exactly what the row
+  // beside it renders — and sorted after the known ones so the order is stable.
+  const exotic = ViewModel.clientTypeChips([
+    client({ id: "1", type: "ZIGBEE" }),
+    client({ id: "2", type: "WIRED" }),
+    client({ id: "3", type: "AURORA" })
+  ])
+  assert.deepStrictEqual(exotic.map((c) => c.value), ["", "WIRED", "AURORA", "ZIGBEE"])
+  assert.strictEqual(exotic[2].label, "AURORA")
+
+  // The SAME two types in the opposite order in the list. A mutant that
+  // reversed the client list's order instead of sorting survived the case
+  // above, because that fixture happened to hold them in reverse already —
+  // one arrangement cannot distinguish "sorted" from "reversed".
+  //
+  // The property being pinned is stability: the client list is ordered by name
+  // (REQ-B12), so an order derived from it would reshuffle the chooser every
+  // time a client was renamed, connected or dropped.
+  const flipped = ViewModel.clientTypeChips([
+    client({ id: "1", type: "AURORA" }),
+    client({ id: "2", type: "WIRED" }),
+    client({ id: "3", type: "ZIGBEE" })
+  ])
+  assert.deepStrictEqual(flipped.map((c) => c.value), ["", "WIRED", "AURORA", "ZIGBEE"])
+  assert.deepStrictEqual(flipped.map((c) => c.value), exotic.map((c) => c.value))
+
+  // The prototype guard, for the third map indexed by a controller string.
+  const poison = ViewModel.clientTypeChips([client({ id: "1", type: "constructor" })])
+  assert.deepStrictEqual(poison.map((c) => c.value), ["", "constructor"])
+  assert.strictEqual(poison[1].label, "constructor")
+})
+
+test("REQ-B10a (SPEC-AMD-10): the client filter matches the raw type", () => {
+  const snapshot = snapshotWith([], [
+    client({ id: "1", name: "laptop", type: "WIRELESS" }),
+    client({ id: "2", name: "nas", type: "WIRED" }),
+    client({ id: "3", name: "phone", type: "WIRELESS" })
+  ])
+  const wireless = ViewModel.clientListModel(snapshot, { type: "WIRELESS" })
+  assert.deepStrictEqual(wireless.rows.map((r) => r.nameText), ["laptop", "phone"])
+  assert.strictEqual(wireless.filterValue, "WIRELESS")
+  assert.strictEqual(ViewModel.clientListModel(snapshot, {}).rows.length, 3)
+  assert.strictEqual(ViewModel.clientListModel(snapshot, {}).filterValue, "")
+
+  // The chips do not move when a filter is applied.
+  assert.deepStrictEqual(wireless.filterChips,
+    ViewModel.clientListModel(snapshot, {}).filterChips)
+
+  // Matched on the RAW type, not the rendered word. "Wired" is the label and
+  // "WIRED" is the value; matching the rendering would work by accident for
+  // three of the four known types and not for VPN.
+  assert.strictEqual(ViewModel.clientListModel(snapshot, { type: "Wireless" }).rows.length, 0)
+
+  // The filter and the search compose, and neither clears the other.
+  const both = ViewModel.clientListModel(snapshot, { type: "WIRELESS", search: "phone" })
+  assert.deepStrictEqual(both.rows.map((r) => r.nameText), ["phone"])
+  assert.strictEqual(both.filterValue, "WIRELESS")
+  assert.strictEqual(both.searchText, "phone")
+})
+
+test("REQ-B16: an empty filtered client list names the type it was filtered to", () => {
+  // "no wired clients", the way the Devices page names the role. A sentence
+  // reading "no clients" over a site with forty of them is a wrong answer.
+  const snapshot = snapshotWith([], [client({ id: "1", name: "laptop", type: "WIRELESS" })])
+  const empty = ViewModel.clientListModel(snapshot, { type: "WIRED" })
+  assert.strictEqual(empty.rows.length, 0)
+  assert.ok(empty.emptyText.indexOf("wired clients") !== -1, empty.emptyText)
+  // And the unfiltered empty sentence is unchanged.
+  const none = ViewModel.clientListModel(snapshotWith([], []), {})
+  assert.ok(none.emptyText.indexOf("clients") !== -1, none.emptyText)
+  assert.strictEqual(none.emptyText.indexOf("wired"), -1, none.emptyText)
+})
+
+test("REQ-B15 (SPEC-AMD-10): f cycles the client types too", () => {
+  const chips = ViewModel.clientTypeChips([
+    client({ id: "1", type: "WIRED" }), client({ id: "2", type: "WIRELESS" })
+  ])
+  assert.strictEqual(ViewModel.nextFilter(chips, ""), "WIRED")
+  assert.strictEqual(ViewModel.nextFilter(chips, "WIRED"), "WIRELESS")
+  assert.strictEqual(ViewModel.nextFilter(chips, "WIRELESS"), "")
 })
 
 test("REQ-B10: the two list models have identical shapes", () => {
