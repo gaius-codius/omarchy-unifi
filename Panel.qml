@@ -263,6 +263,18 @@ Panel {
     focusStop = ViewModel.focusAfterViewChange(wanted, focusStop)
   }
 
+  // REQ-B10a / SPEC-AMD-9. The list is the model's, so the order the key walks
+  // and the order the chips are drawn in cannot drift apart, and a role with no
+  // devices is skipped by both for the same reason.
+  //
+  // Devices only: there is no role filter on the other two pages, and a key
+  // that silently did nothing somewhere would be worse than one that is simply
+  // not offered there — which is why the hint line names it only on Devices.
+  function cycleRoleFilter() {
+    if (view !== "devices") return
+    roleFilter = ViewModel.nextRoleFilter(vm.deviceList.filterChips, roleFilter)
+  }
+
   // REQ-B14: one row expanded at a time, and activating the open row closes it.
   function toggleExpanded(id) {
     if (view === "devices") {
@@ -432,7 +444,11 @@ Panel {
           if (field) field.focusSearch()
           return
         }
-        if (t === "r" || t === "R") root.doRefresh()
+        if (t === "r" || t === "R") { root.doRefresh(); return }
+        // REQ-B15 (SPEC-AMD-9). `f` cycles the role filter — the keyboard half
+        // of the chooser on the Devices page, which is deliberately not a Tab
+        // stop. Announced in the hint line below, as `/` and `r` are.
+        if (t === "f" || t === "F") root.cycleRoleFilter()
       }
 
       Flickable {
@@ -659,7 +675,7 @@ Panel {
             // the two blocks are deliberately parallel, and a handler that
             // exists on one of them is the asymmetry that gets missed when a
             // second filter dimension is added.
-            onFilterCleared: root.roleFilter = ""
+            onFilterChanged: function (value) { root.roleFilter = value }
           }
 
           BrowseList {
@@ -686,7 +702,7 @@ Panel {
             // the two blocks are deliberately parallel, and a handler that
             // exists on one of them is the asymmetry that gets missed when a
             // second filter dimension is added.
-            onFilterCleared: root.roleFilter = ""
+            onFilterChanged: function (value) { root.roleFilter = value }
           }
 
           StatusPanel {
@@ -804,9 +820,14 @@ Panel {
           Text {
             width: parent.width
             visible: root.vm.hasSnapshot
-            text: root.browsing
-              ? "←→ pages  ·  ↑↓ select  ·  ⏎ open  ·  Tab move  ·  / search  ·  Esc close"
-              : "←→ pages  ·  Tab move  ·  ⏎ activate  ·  / search  ·  Esc close"
+            // Three variants, because a key named on a page where it does
+            // nothing is worse than one that is not named: `f` filters only on
+            // Devices, which is the only page with a filter to cycle.
+            text: !root.browsing
+              ? "←→ pages  ·  Tab move  ·  ⏎ activate  ·  / search  ·  Esc close"
+              : root.view === "devices"
+                ? "←→ pages  ·  ↑↓ select  ·  ⏎ open  ·  f filter  ·  / search  ·  Esc close"
+                : "←→ pages  ·  ↑↓ select  ·  ⏎ open  ·  Tab move  ·  / search  ·  Esc close"
             color: root.dim
             font.family: root.fontFamily
             font.pixelSize: Style.font.caption

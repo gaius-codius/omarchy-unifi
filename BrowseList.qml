@@ -48,13 +48,14 @@ Column {
   signal toggleRequested(string id)
   signal cursorHovered(int index)
   signal copyRequested(string key, string text)
-  // REQ-B10a. Emitted by the filter chip below; the panel owns `roleFilter` and
-  // is the only thing that may clear it.
-  signal filterCleared()
+  // REQ-B10a. Emitted by the filter chooser below; the panel owns `roleFilter`
+  // and is the only thing that may change it.
+  signal filterChanged(string value)
 
   readonly property var rows: list ? list.rows : []
   readonly property color _tertiary: emphasis ? emphasis.tertiary : foreground
-  readonly property string filterText: list && list.filterText ? list.filterText : ""
+  readonly property var filterChips: list && list.filterChips ? list.filterChips : []
+  readonly property string filterValue: list && list.role ? list.role : ""
 
   // The scrollbar overlays the viewport rather than sitting beside it, so
   // without a reserved gutter it lands on top of the right-hand end of every
@@ -86,36 +87,37 @@ Column {
 
   spacing: Style.spacing.sm
 
-  // REQ-B10a's filter, said out loud.
+  // REQ-B10a's filter, offered here rather than only from Overview.
   //
-  // ABOVE the search field, because it is a condition on the whole page rather
-  // than a modifier of the search — it survives typing, and clearing the search
-  // does not clear it.
+  // The SAME control the pages use one row above — `Ui/ButtonGroup`, driven by
+  // `cursorIndex: -1` and `focusable: false`, which is the path the host's own
+  // bar panels take (host-contract §7). Two chip rows in a column is the risk
+  // this accepts: they are told apart by the caption-size font, which makes
+  // this row read as subordinate to the pages above it, and by the fact that
+  // one says page names and the other role names.
   //
-  // An `Ui/Button` and not a hand-rolled chip. Host-contract §7 says never write
-  // a `MouseArea` for a BUTTON, and unlike the list rows (§7's carve-out, N-100)
-  // this is a button in every sense: one word, one action, and it wants the
-  // kit's hover fill, border tokens and tooltip rather than a private imitation
-  // of them.
+  // It REPLACED a chip reading "Access points only ✕" (SPEC-AMD-8). A chooser
+  // showing the current state and every other one available says strictly more
+  // than a label plus a clear button, and keeping both would be the same fact
+  // twice in a panel that is short of room.
   //
-  // The `✕` is composed here rather than in the model. It is punctuation for an
-  // affordance, not a statement — the same reasoning as `BrowseRow`'s `·`
-  // separator — and keeping it out of `filterText` leaves the model asserting a
-  // sentence rather than a glyph.
+  // ABOVE the search field, because the filter is a condition on the page and
+  // the search is a condition on the rows: the filter survives typing, and
+  // clearing the search does not clear it.
   //
-  // NOT a Tab stop. Adding one would change REQ-B15's focus order, which is a
-  // spec amendment; the keyboard route to clearing already exists and is the
-  // one that set the filter in the first place — any page change clears it
-  // (`Panel.setView`). What was missing was never the way out, only the sign.
-  Button {
-    visible: root.filterText !== ""
-    text: root.filterText + "   ✕"
-    tooltipText: "Show all devices"
+  // NOT a Tab stop, deliberately — one more stop would amend REQ-B15's focus
+  // order. The keyboard route is `f`, which cycles this list and is announced
+  // in the panel's hint line, the same way `/` and `r` are.
+  ButtonGroup {
+    visible: root.filterChips.length > 0
+    options: root.filterChips
+    value: root.filterValue
+    cursorIndex: -1
+    focusable: false
     foreground: root.foreground
     fontFamily: root.fontFamily
     fontSize: Style.font.caption
-    bordered: true
-    onClicked: root.filterCleared()
+    onChanged: function (value) { root.filterChanged(value) }
   }
 
   TextField {

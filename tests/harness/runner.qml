@@ -1905,19 +1905,51 @@ ShellRoot {
         // it passed while the page was indistinguishable on screen from an
         // unfiltered one — `matched` was computed and rendered nowhere, and
         // `emptyText` names the role only when the list is EMPTY, which is the
-        // one case the chip is not needed for.
+        // one case the chooser is not needed for.
         //
         // Through the tree walk, which skips invisible subtrees, so this is
         // "reached the screen" and not "a binding evaluated".
-        var chip = ViewModel.roleFilterText(role)
-        check("the model produced a chip for this role", true, chip !== "")
-        check("and the filtered page renders it", true, panelTextContains(chip))
+        var chips = panelWidget.vm.deviceList.filterChips
+        var label = ""
+        for (var c = 0; c < chips.length; c++) {
+          if (chips[c].value === role) label = chips[c].label
+        }
+        check("the site offers a chip for the role Overview emitted", true, label !== "")
+        check("and the chooser is on the filtered page", true, panelTextContains(label))
+        check("with All beside it, so the filter can be undone", true,
+              panelTextContains("All"))
+
+        // SPEC-AMD-9: `f` cycles the same list the chooser draws. Driven
+        // through the panel's own function rather than a synthesised keystroke,
+        // which the harness cannot deliver for a text key.
+        var before = panelWidget.vm.deviceList.role
+        panelWidget.cycleRoleFilter()
+        check("f moved the filter", true, panelWidget.vm.deviceList.role !== before)
+        // A full lap comes back. One step has already been taken above, so this
+        // is the REMAINING `chips.length - 1` — a cycle that does not close is
+        // one the user cannot undo, and `f` is its only keyboard route.
+        for (var lap = 0; lap < chips.length - 1; lap++) panelWidget.cycleRoleFilter()
+        check("and a full lap comes back to where it was", before,
+              panelWidget.vm.deviceList.role)
+
+        // The chooser is drawn on Devices and nowhere else.
+        panelWidget.setView("clients")
+        check("the Clients page offers no role chooser", 0,
+              panelWidget.vm.clientList.filterChips.length)
+        // `f` on a page with no filter. Called for real — asserting the filter
+        // is empty right after `setView` cleared it would have proved nothing
+        // about the key at all.
+        panelWidget.cycleRoleFilter()
+        check("and f does nothing on a page with no filter", "",
+              panelWidget.vm.deviceList.role)
+        check("nor does it move the page", "clients", panelWidget.view)
 
         // Leaving the page drops the filter: one that outlived the row that set
         // it would show an empty Devices page with nothing saying why.
+        panelWidget.setView("devices", role)
+        check("the filter is set again", role, panelWidget.vm.deviceList.role)
         panelWidget.setView("devices")
         check("switching pages clears the filter", "", panelWidget.vm.deviceList.role)
-        check("and the chip goes with it", false, panelTextContains(chip))
       }
     })
 

@@ -263,9 +263,14 @@ a browse.
 screen** and offers a way to clear it. As first built the filter was invisible
 whenever it matched anything — the matched count was computed and rendered
 nowhere, and the only string naming the role appeared solely on an *empty*
-list — so a filtered page was indistinguishable from a small site. The affordance
-is not a Tab stop and Escape's meaning is unchanged (REQ-B15); the existing
-keyboard route out is any page change, which clears the filter.
+list — so a filtered page was indistinguishable from a small site.
+
+*Amended by SPEC-AMD-9, 2026-09-09:* the filter is also **set from the Devices
+page**, not only from Overview. The page carries a chooser offering "All" and
+one entry per role the site actually has — the SPEC-AMD-3 drop rule, so a role
+with no devices is not offered — and the selected entry is what satisfies
+SPEC-AMD-8's "names its filter". The chooser is not a Tab stop; its keyboard
+equivalent is `f` (REQ-B15).
 
 **REQ-B11 — device ordering.** Total and stable, applied by the helper:
 `down`, `impaired`, `unknown`, `transitional`, `online`; within a class,
@@ -342,6 +347,13 @@ it does not. Enter expands or collapses the focused row;
 closes the panel. While the search field holds focus the panel's own key
 handling is suspended, or typing "ap" drives the panel cursor instead of
 filtering.
+
+*Amended by SPEC-AMD-9, 2026-09-09:* `f` cycles the Devices page's role filter,
+wrapping — and wrapping past the last role is how the keyboard clears it. It is
+a bare key alongside `/` and `r` rather than a new focus stop, so **the Tab
+order above is unchanged**. Wrapping and not clamping, unlike the page keys:
+`f` is the filter's only keyboard route, and clamped it would strand the user
+on the last role with only the mouse to undo it.
 
 **REQ-B16 — empty and truncated states.** A filtered list with no matches says
 so and names the term. An unfiltered list with no entries says so. A truncated

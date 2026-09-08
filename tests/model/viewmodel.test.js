@@ -1946,82 +1946,134 @@ test("REQ-B10: a model with no snapshot still has both list shapes", () => {
     ViewModel.build({}).clientList)
 })
 
-test("REQ-B10a: a filtered page says so, and an unfiltered one says nothing", () => {
-  // The gap this closes: `matched` was computed and rendered nowhere, and
-  // `emptyText` — the only string that ever named the role — appears ONLY when
-  // the list is empty. So the filter was silent in exactly the case it is
-  // normally on for, and a filtered page looked like a small site.
-  assert.strictEqual(ViewModel.roleFilterText("gateway"), "Gateways only")
-  assert.strictEqual(ViewModel.roleFilterText("switching"), "Switches only")
-  assert.strictEqual(ViewModel.roleFilterText("accessPoint"), "Access points only")
+test("REQ-B10a: the chooser offers every role the site has, and no other", () => {
+  // Built from `counts`, not from the rows on screen. If it read the filtered
+  // rows, choosing "Switches" would leave "Switches" as the only chip left —
+  // a chooser whose options move when you choose one.
+  const chips = ViewModel.roleChips({
+    devicesTotal: 4,
+    gateways: { online: 1 }, switches: { online: 2 }, accessPoints: { online: 1 }
+  })
+  assert.deepStrictEqual(chips, [
+    { value: "", label: "All" },
+    { value: "gateway", label: "Gateways" },
+    { value: "switching", label: "Switches" },
+    { value: "accessPoint", label: "Access points" }
+  ])
+  // "All" first, because it is the unfiltered state and because `f` wrapping
+  // past the last chip is how the keyboard clears the filter.
+  assert.strictEqual(chips[0].value, "")
 
-  // Silent when there is no filter — the chip must not be a permanent fixture
-  // reading "Devices only".
-  assert.strictEqual(ViewModel.roleFilterText(""), "")
-  assert.strictEqual(ViewModel.roleFilterText(null), "")
-  assert.strictEqual(ViewModel.roleFilterText(undefined), "")
-  assert.strictEqual(ViewModel.roleFilterText(7), "")
+  // SPEC-AMD-3's drop rule: a role with no devices is not offered, because the
+  // only thing that filter could produce is an empty list.
+  const noSwitches = ViewModel.roleChips({
+    devicesTotal: 2, gateways: { online: 1 }, switches: null,
+    accessPoints: { online: 1 }
+  })
+  assert.deepStrictEqual(noSwitches.map((c) => c.value), ["", "gateway", "accessPoint"])
+  const zeroed = ViewModel.roleChips({
+    devicesTotal: 1, gateways: { online: 1 },
+    switches: { online: 0, down: 0, impaired: 0, transitional: 0, unknown: 0 }
+  })
+  assert.deepStrictEqual(zeroed.map((c) => c.value), ["", "gateway"])
 
-  // `own`, not `ROLE_PLURAL[role]`. The role arrives from panel state, and
-  // `ROLE_PLURAL["valueOf"]` is a function — which would render as a chip
-  // reading "function valueOf() { [native code] } only".
-  for (const poison of ["constructor", "toString", "valueOf", "__proto__",
-                        "hasOwnProperty", "isPrototypeOf"]) {
-    assert.strictEqual(ViewModel.roleFilterText(poison), "", poison)
-  }
+  // Summed over ALL five classes, as `countRows` sums it — a role present only
+  // in the `unknown` class is still a role the site has.
+  const onlyUnknown = ViewModel.roleChips({ devicesTotal: 1, switches: { unknown: 2 } })
+  assert.deepStrictEqual(onlyUnknown.map((c) => c.value), ["", "switching"])
 
-  // Every role the Overview rows can actually emit produces a chip. This is the
-  // coupling that matters: `ROLE_FOR_COUNT_KEY` is what `roleActivated` sends.
+  // No roles, no chooser — never a lone "All" chip, which offers one choice
+  // that has already been made.
+  assert.deepStrictEqual(ViewModel.roleChips({ devicesTotal: 0 }), [])
+  assert.deepStrictEqual(ViewModel.roleChips(null), [])
+
+  // Every role the Overview rows can emit is offered here under the same label
+  // the rest of the panel uses for it.
   for (const key of Object.keys(ViewModel.ROLE_FOR_COUNT_KEY)) {
     const role = ViewModel.ROLE_FOR_COUNT_KEY[key]
-    assert.notStrictEqual(ViewModel.roleFilterText(role), "",
-      key + " -> " + role + " produces no chip, so its filtered page is silent")
+    const one = ViewModel.roleChips({ devicesTotal: 1, [key]: { online: 1 } })
+    assert.deepStrictEqual(one.map((c) => c.value), ["", role], key)
+    assert.strictEqual(one[1].label,
+      ViewModel.ROLE_PLURAL[role].charAt(0).toUpperCase()
+        + ViewModel.ROLE_PLURAL[role].slice(1))
   }
 })
 
-test("REQ-B10a: the chip reaches the model the page is actually built from", () => {
-  // Through `deviceListModel`, not the helper alone — the helper being right
-  // and the field being unset is the defect this is for.
+test("REQ-B15 (SPEC-AMD-9): f cycles the filter and wraps back to All", () => {
+  const chips = ViewModel.roleChips({
+    devicesTotal: 3,
+    gateways: { online: 1 }, switches: { online: 1 }, accessPoints: { online: 1 }
+  })
+  assert.strictEqual(ViewModel.nextRoleFilter(chips, ""), "gateway")
+  assert.strictEqual(ViewModel.nextRoleFilter(chips, "gateway"), "switching")
+  assert.strictEqual(ViewModel.nextRoleFilter(chips, "switching"), "accessPoint")
+  // WRAPS, unlike the page keys, which SPEC-AMD-5 clamps. `f` is the only
+  // keyboard route to this filter: clamped, it would strand the user on the
+  // last role with no way back but the mouse.
+  assert.strictEqual(ViewModel.nextRoleFilter(chips, "accessPoint"), "")
+
+  // A filter for a role that is no longer offered — its last device went away
+  // between polls — lands on "All" rather than throwing or sticking.
+  assert.strictEqual(ViewModel.nextRoleFilter(chips, "switching-that-left"), "")
+  assert.strictEqual(ViewModel.nextRoleFilter(chips, null), "")
+  // Nothing to cycle: the key does nothing rather than inventing a filter.
+  assert.strictEqual(ViewModel.nextRoleFilter([], "gateway"), "")
+  assert.strictEqual(ViewModel.nextRoleFilter(null, "gateway"), "")
+
+  // One full lap returns to where it started, for however many roles the site
+  // has. A cycle that does not close is one the user cannot undo.
+  let at = ""
+  for (let i = 0; i < chips.length; i++) at = ViewModel.nextRoleFilter(chips, at)
+  assert.strictEqual(at, "")
+})
+
+test("REQ-B10a: the chooser reaches the model the page is built from", () => {
   const snapshot = snapshotWith([
     device({ id: "gw", name: "Gateway", roles: ["gateway"] }),
     device({ id: "ap", name: "attic-ap", roles: ["accessPoint"] })
-  ], [])
+  ], [], { devicesTotal: 2, clients: 0, offlineTotal: 0,
+           gateways: { online: 1 }, accessPoints: { online: 1 } })
+
   const filtered = ViewModel.deviceListModel(snapshot, { role: "accessPoint" })
-  assert.strictEqual(filtered.filterText, "Access points only")
-  // And it really is filtered, so the chip is not describing a page that shows
-  // everything anyway.
+  assert.deepStrictEqual(filtered.filterChips.map((c) => c.value),
+    ["", "gateway", "accessPoint"])
+  // `role` is what the chooser paints as selected, so it has to survive.
+  assert.strictEqual(filtered.role, "accessPoint")
   assert.strictEqual(filtered.rows.length, 1)
   assert.strictEqual(filtered.rows[0].nameText, "attic-ap")
 
-  assert.strictEqual(ViewModel.deviceListModel(snapshot, {}).filterText, "")
-  assert.strictEqual(ViewModel.deviceListModel(snapshot, {}).rows.length, 2)
+  // The chips do NOT change when a filter is applied — same list, filtered or
+  // not. This is the "options move when you choose one" defect.
+  const unfiltered = ViewModel.deviceListModel(snapshot, {})
+  assert.deepStrictEqual(unfiltered.filterChips, filtered.filterChips)
+  assert.strictEqual(unfiltered.role, "")
+  assert.strictEqual(unfiltered.rows.length, 2)
 
-  // The Clients page has no filter dimension, and carries the key regardless —
-  // one `BrowseList` renders both, and a key on one model and not the other
-  // reads as `undefined` on one of the two pages.
-  assert.strictEqual(ViewModel.clientListModel(snapshot, {}).filterText, "")
-  // Including with no service at all, which is the first frame (REQ-013b).
+  // The Clients page has no filter dimension and carries the key regardless —
+  // one `BrowseList` renders both pages.
+  assert.deepStrictEqual(ViewModel.clientListModel(snapshot, {}).filterChips, [])
   const empty = ViewModel.forNullService()
-  assert.strictEqual(empty.deviceList.filterText, "")
-  assert.strictEqual(empty.clientList.filterText, "")
+  assert.deepStrictEqual(empty.deviceList.filterChips, [])
+  assert.deepStrictEqual(empty.clientList.filterChips, [])
 })
 
-test("REQ-B10a: the chip survives typing, because it is not a search modifier", () => {
+test("REQ-B10a: the filter survives typing, because it is not a search modifier", () => {
   // The filter is a condition on the page and the search is a condition on the
-  // rows. Clearing one must not clear the other — which is why the chip is
-  // rendered above the field rather than beside it.
+  // rows. Neither clears the other — which is why the chooser is drawn above
+  // the search field rather than beside it.
   const snapshot = snapshotWith([
     device({ id: "a", name: "attic-ap", roles: ["accessPoint"] }),
     device({ id: "b", name: "barn-ap", roles: ["accessPoint"] }),
     device({ id: "gw", name: "Gateway", roles: ["gateway"] })
-  ], [])
+  ], [], { devicesTotal: 3, clients: 0, offlineTotal: 0,
+           gateways: { online: 1 }, accessPoints: { online: 2 } })
   const both = ViewModel.deviceListModel(snapshot, { role: "accessPoint", search: "barn" })
-  assert.strictEqual(both.filterText, "Access points only")
-  assert.strictEqual(both.rows.length, 1)
+  assert.strictEqual(both.role, "accessPoint")
   assert.strictEqual(both.searchText, "barn")
-  // Search cleared, filter still on.
+  assert.strictEqual(both.rows.length, 1)
+
   const filterOnly = ViewModel.deviceListModel(snapshot, { role: "accessPoint" })
-  assert.strictEqual(filterOnly.filterText, "Access points only")
+  assert.strictEqual(filterOnly.role, "accessPoint")
   assert.strictEqual(filterOnly.rows.length, 2)
 })
 

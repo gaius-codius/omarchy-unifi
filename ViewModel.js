@@ -1262,10 +1262,12 @@ function deviceListModel(snapshot, ui) {
     matched: rows.length,
     searchText: term,
     role: role,
-    // Non-empty exactly when the page is filtered. The view binds `visible` to
-    // that, which is the idiom every other conditional string in this list
-    // model already uses.
-    filterText: roleFilterText(role),
+    // The chooser, and with it the answer to "what am I looking at" — the
+    // selected chip names the filter the way the page chips above it name the
+    // page. It replaced a sentence reading "Access points only ✕" (SPEC-AMD-8);
+    // a control that shows the state AND offers every other one says strictly
+    // more, and two of them would be the same fact twice.
+    filterChips: roleChips(counts),
     truncated: total > listed.length,
     truncationText: truncationText(listed.length, total, "device"),
     emptyText: rows.length === 0
@@ -1304,7 +1306,7 @@ function clientListModel(snapshot, ui) {
     // because both pages are rendered by one `BrowseList` and a key present on
     // one model and not the other is a binding that reads `undefined` on one of
     // the two pages — which is what the "identical shapes" case exists to stop.
-    filterText: "",
+    filterChips: [],
     truncated: total > listed.length,
     truncationText: truncationText(listed.length, total, "client"),
     emptyText: rows.length === 0
@@ -1341,14 +1343,62 @@ function searchTerm(value) {
 // `own` rather than `ROLE_PLURAL[role]`: `role` reaches this from the panel's
 // state, and an unrecognised one must produce no chip rather than the string
 // "function valueOf() { [native code] } only".
-// No `typeof role === "string"` guard, deliberately. One was written and a
-// mutation pass removed it with every test still green — `own` already answers
-// `undefined` for "", for null, for a number and for an object, because none of
-// them is an own key of `ROLE_PLURAL`. The guard was three ways of saying what
-// the next line says once.
-function roleFilterText(role) {
-  const plural = own(ROLE_PLURAL, role)
-  return plural === undefined ? "" : wordCase(plural) + " only"
+// REQ-B10a (SPEC-AMD-9). The role filter, offered on the page it applies to
+// rather than only from the Overview row that used to be its one entry point.
+//
+// Built from `counts`, NOT from the rows on screen. The offer is a property of
+// the site, so choosing a filter must not reshuffle the choices — a chooser
+// whose options move when you pick one is unusable, and reading the filtered
+// rows would leave exactly one chip standing the moment you used it.
+//
+// Same drop rule as `countRows` (SPEC-AMD-3): a role with no devices at all is
+// not offered, because "Switches" on a site with none is a filter whose only
+// possible outcome is an empty list. `total` is summed over all five classes,
+// as `countRows` sums it, so a role that exists only in the `unknown` class is
+// still offered.
+//
+// The labels come from `ROLE_PLURAL` — the same map `emptyText` reads for its
+// noun — so a chip cannot come to disagree with the sentence shown when that
+// chip is selected and matches nothing.
+function roleChips(counts) {
+  if (!counts) return []
+  const keys = ["gateways", "switches", "accessPoints"]
+  const chips = []
+  for (let i = 0; i < keys.length; i++) {
+    const bucket = counts[keys[i]]
+    if (!bucket) continue
+    let total = 0
+    for (let j = 0; j < CLASS_ORDER.length; j++) {
+      const value = bucket[CLASS_ORDER[j]]
+      if (typeof value === "number") total += value
+    }
+    if (total === 0) continue
+    const role = ROLE_FOR_COUNT_KEY[keys[i]]
+    chips.push({ value: role, label: wordCase(own(ROLE_PLURAL, role)) })
+  }
+  // No roles, no chooser — and no lone "All" chip, which would be a control
+  // offering one choice that is already made.
+  if (chips.length === 0) return []
+  return [{ value: "", label: "All" }].concat(chips)
+}
+
+// REQ-B15 (SPEC-AMD-9): what `f` does. WRAPPING, unlike the page keys, which
+// SPEC-AMD-5 clamps because three chips in a row are a position. This is a
+// dedicated cycle key with no other way back: clamped, `f` would strand the
+// user on the last filter with only the mouse to undo it. "All" is first, so
+// wrapping past the end is also how the keyboard clears the filter.
+//
+// A `current` that is in no chip — a filter for a role whose last device just
+// went away — lands on index 0, which is "All". That is the recoverable answer
+// rather than the arithmetically tidy one.
+function nextRoleFilter(chips, current) {
+  const list = chips || []
+  if (list.length === 0) return ""
+  let at = -1
+  for (let i = 0; i < list.length; i++) {
+    if (list[i].value === current) at = i
+  }
+  return list[(at + 1) % list.length].value
 }
 
 function truncationText(listedCount, total, noun) {
@@ -1415,7 +1465,7 @@ function emptyBrowseList() {
     matched: 0,
     searchText: "",
     role: "",
-    filterText: "",
+    filterChips: [],
     truncated: false,
     truncationText: "",
     emptyText: "",
@@ -2012,7 +2062,8 @@ if (typeof module !== "undefined") module.exports = {
   deviceListModel: deviceListModel,
   clientListModel: clientListModel,
   truncationText: truncationText,
-  roleFilterText: roleFilterText,
+  roleChips: roleChips,
+  nextRoleFilter: nextRoleFilter,
   emptyText: emptyText,
   emptyBrowseList: emptyBrowseList,
   browseView: browseView,
