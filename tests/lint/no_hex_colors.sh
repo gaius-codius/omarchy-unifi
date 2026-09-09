@@ -11,7 +11,11 @@ ROOT="$(gate_root "${1:-}")"
 while IFS= read -r -d '' rel; do
   while IFS= read -r hit; do
     gate_violation "${rel#./}:$hit  (use a theme token, not a literal — REQ-001a)"
-  done < <(gate_code_lines "$ROOT/${rel#./}" | grep -E '"#[0-9a-fA-F]{3,8}"' || true)
+  # Both quote styles. QML and JS accept them identically, so a rule that saw
+  # only "#e5534b" was one apostrophe away from being bypassed — and the bypass
+  # looks like ordinary code, not like an evasion.
+  done < <(gate_code_lines "$ROOT/${rel#./}" \
+             | grep -E "['\"]#[0-9a-fA-F]{3,8}['\"]" || true)
 done < <(gate_files "$ROOT" -name '*.qml')
 
 gate_done

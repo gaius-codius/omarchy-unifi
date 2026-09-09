@@ -40,8 +40,15 @@ for f in "${modules[@]}"; do
     gate_violation "$rel:$hit  (locale-dependent; V4 and V8 disagree)"
   done < <(gate_code_lines "$f" | grep -E '(^|[^A-Za-z0-9_$])(Intl\b|toLocaleString|toLocaleDateString|toLocaleTimeString)' || true)
 
-  if ! grep -qE 'typeof[[:space:]]+module[[:space:]]*!==[[:space:]]*"undefined"' "$f" \
-     || ! grep -q 'module\.exports' "$f"; then
+  # Through `gate_code_lines`, like every other check in this file. Grepping the
+  # RAW file meant a commented-out tail satisfied it — so the one gate standing
+  # between `node --test` and an empty module could be defeated by a `//`, which
+  # is precisely the silent failure the header above calls the worst in the plan.
+  # Process substitution, not a pipeline: see no_exec_for_dashboard.sh on how
+  # `set -o pipefail` plus `grep -q` silently inverts this kind of test.
+  if ! grep -qE 'typeof[[:space:]]+module[[:space:]]*!==[[:space:]]*"undefined"' \
+         < <(gate_code_lines "$f") \
+     || ! grep -q 'module\.exports' < <(gate_code_lines "$f"); then
     gate_violation "$rel: missing the dual-export tail; node --test would load an empty module"
   fi
 done

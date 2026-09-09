@@ -73,11 +73,35 @@ check js_dialect copy \
 check no_hex_colors copy \
   'printf "import QtQuick\nItem { property color c: \"#ff0000\" }\n" > Seed.qml'
 
+# The same literal in SINGLE quotes. QML accepts both identically, so for as
+# long as the gate's pattern named only `"`, this was a one-apostrophe bypass
+# that looked like ordinary code rather than an evasion.
+check no_hex_colors copy \
+  'q=$(printf "\047"); printf "import QtQuick\nItem { property color c: %s#ff0000%s }\n" "$q" "$q" > Seed.qml'
+
 check no_default_ssl_context copy \
   'mkdir -p helper && printf "import ssl\nctx = ssl.create_default_context()\n" > helper/seed.py'
 
 check no_exec_for_dashboard copy \
   'printf "import QtQuick\nimport Quickshell\nItem { function go(u) { Quickshell.execDetached([\"xdg-open\", u]) } }\n" > Seed.qml'
+
+# The gate's SECOND rule — a panel acquiring its own Process — and the seed is
+# deliberately LONG with the violation near the top. That is not decoration.
+# The rule was dead for months precisely because `grep -q` exited at an early
+# match, killed the producer with SIGPIPE, and `set -o pipefail` turned that
+# into a non-zero status the `if` read as "no match". A short seed, or one whose
+# violation sits at the end, reproduces none of that and would have certified
+# the broken gate as working. Keep it over ~200 lines and keep Process first.
+check no_exec_for_dashboard copy \
+  '{ printf "import QtQuick\nimport Quickshell.Io\nItem {\n  Process { id: seed; command: [] }\n";
+     seq 400 | while read -r i; do printf "  property int p%s: %s\n" "$i" "$i"; done;
+     printf "}\n"; } > Seed.qml'
+
+# A COMMENTED-OUT export tail. The check used to grep the raw file, so this
+# passed — the one gate between `node --test` and an empty module, defeated by
+# two slashes a contributor would add while debugging under QML.
+check js_dialect copy \
+  'printf "const ok = 1\n// if (typeof module !== \"undefined\") module.exports = { ok }\n" > Seed.js'
 
 check no_symlinks copy \
   'ln -s /etc/passwd seed-link'

@@ -65,9 +65,12 @@ bash tests/lint/no_repo_writes.sh "$REPO" --record "$BASELINE"
 # Every invocation carries -B (HC-14), -E and -s (SEC: ignore PYTHON* env and
 # the user site directory, so the suite cannot be steered by the environment).
 PYFLAGS=(-B -E -s)
+pinned_pythons() {
+  awk -F'"' '/^python *=/ {for(i=2;i<=NF;i+=2) print $i}' mise.toml
+}
 pythons() {
   local v p
-  for v in $(awk -F'"' '/^python *=/ {for(i=2;i<=NF;i+=2) print $i}' mise.toml); do
+  for v in $(pinned_pythons); do
     p="$(mise which python --tool=python@"$v" 2>/dev/null || true)"
     [[ -n $p ]] && printf '%s\t%s\n' "$v" "$p"
   done
@@ -112,11 +115,40 @@ shopt -s nullglob
 py_tests=(tests/test_*.py)
 shopt -u nullglob
 if (( ${#py_tests[@]} )); then
-  while IFS=$'\t' read -r ver bin; do
-    for t in "${py_tests[@]}"; do
-      step "python $ver: $t" "$bin" "${PYFLAGS[@]}" "$t"
+  # FAIL CLOSED. `pythons()` swallows mise's stderr, so an unresolved interpreter
+  # used to leave this loop iterating zero times: no step registered, nothing
+  # printed, nothing counted, and `SUITE PASS` at the end. A fresh clone hits it
+  # every time — mise refuses an untrusted mise.toml — so the tier most worth
+  # running was the one silently skipped, on exactly the machine least likely to
+  # notice. `secrets.sh` has always failed closed on a missing binary; this now
+  # does too.
+  #
+  # Resolving SOME of the pins is also a failure. Dropping 3.9 while 3.14 runs
+  # turns the declared support floor back into the assertion this tier exists to
+  # replace, and it would do so without a word.
+  mapfile -t pinned   < <(pinned_pythons)
+  mapfile -t resolved < <(pythons)
+  if (( ${#resolved[@]} != ${#pinned[@]} )); then
+    printf '\n=== python suite: PINNED INTERPRETERS NOT RESOLVED\n' >&2
+    printf '    mise.toml pins %d (%s); mise resolved %d.\n' \
+      "${#pinned[@]}" "$(IFS=,; echo "${pinned[*]}")" "${#resolved[@]}" >&2
+    for v in "${pinned[@]}"; do
+      if ! printf '%s\n' "${resolved[@]}" | grep -q "^$v"$'\t'; then
+        printf '    missing: python@%s — %s\n' "$v" \
+          "$(mise which python --tool=python@"$v" 2>&1 | head -1)" >&2
+      fi
     done
-  done < <(pythons)
+    printf '    Run `mise trust && mise install`. Refusing to report a pass\n' >&2
+    printf '    for %d test file(s) that did not run.\n' "${#py_tests[@]}" >&2
+    failures=$((failures + 1)); FAILED+=("python suite: pinned interpreters not resolved")
+  else
+    for entry in "${resolved[@]}"; do
+      IFS=$'\t' read -r ver bin <<< "$entry"
+      for t in "${py_tests[@]}"; do
+        step "python $ver: $t" "$bin" "${PYFLAGS[@]}" "$t"
+      done
+    done
+  fi
 else
   printf '\n=== python suite: not written yet (Phase 5)\n'
 fi
