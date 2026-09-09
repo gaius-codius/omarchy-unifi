@@ -2805,7 +2805,7 @@ class NormalizedModel(unittest.TestCase):
 
     def test_every_accept_envelope_is_reproduced_byte_for_byte(self):
         cases = normalize_inputs.cases()
-        self.assertEqual(len(cases), 19)
+        self.assertEqual(len(cases), 20)
         for case in sorted(cases):
             with self.subTest(case=case):
                 data, _warnings = self.normalized(case)
@@ -2995,8 +2995,65 @@ class NormalizedModel(unittest.TestCase):
         data, _warnings = self.normalized("success_optional_gaps")
         self.assertIsNone(data["wan"]["uptimeSec"])
         self.assertIsNone(data["wan"]["downloadBps"])
-        self.assertIsNone(data["gateways"][0]["uptimeSec"])
+        # No body arrived for this gateway, so the CONTAINER is null. Not an
+        # object of nulls: that would be the controller answering emptily.
+        self.assertIsNone(data["gateways"][0]["metrics"])
         self.assertIsNone(data["counts"]["clients"])
+
+    # --- REQ-008a: the three states of `gateways[].metrics` ---------------
+    #
+    # `collect._gateway_statistics` records a gateway only on success, so
+    # "never asked" and "asked and refused" are the same absence here and are
+    # told apart by the warnings, not by this dict. What normalize alone must
+    # keep apart is ABSENCE from an EMPTY BODY — and while the three figures
+    # were inline on the record it could not, because both encoded to three
+    # nulls. Every assertion below fails against that shape.
+
+    def test_a_gateway_with_no_body_carries_a_null_container(self):
+        data, _warnings = self.normalized("success_gateway_metrics_states")
+        for index in (2, 4):
+            with self.subTest(gateway=index):
+                self.assertIn("metrics", data["gateways"][index],
+                              "the KEY is unconditional; only the VALUE is null")
+                self.assertIsNone(data["gateways"][index]["metrics"])
+
+    def test_a_gateway_whose_body_arrived_empty_is_not_a_gateway_with_no_body(self):
+        # The case the flat record could not express, and the reason for the
+        # container. The controller ANSWERED for gateway 2 and reported no
+        # figures; nobody obtained a body for gateway 5. Inline, both were
+        # `uptimeSec: null, downloadBps: null, uploadBps: null`.
+        data, _warnings = self.normalized("success_gateway_metrics_states")
+        answered = data["gateways"][1]["metrics"]
+        self.assertEqual(answered, {"uptimeSec": None, "downloadBps": None,
+                                    "uploadBps": None})
+        self.assertNotEqual(answered, data["gateways"][4]["metrics"])
+
+    def test_a_gateway_that_answered_carries_its_figures(self):
+        data, _warnings = self.normalized("success_gateway_metrics_states")
+        self.assertEqual(data["gateways"][0]["metrics"],
+                         {"uptimeSec": 864000, "downloadBps": 12000000,
+                          "uploadBps": 3000000})
+
+    def test_the_gateway_record_has_exactly_the_documented_keys(self):
+        # The three figures are GONE from the record, not kept alongside the
+        # container. Two encodings of one fact is how they drift apart, and the
+        # panel would have no rule for which to believe.
+        data, _warnings = self.normalized("success_gateway_metrics_states")
+        for entry in data["gateways"]:
+            self.assertEqual(sorted(entry),
+                             ["class", "id", "metrics", "model", "name", "state"])
+
+    def test_wan_still_reports_the_primary_gateways_figures(self):
+        # REQ-008a is unchanged by the container: `wan` reads the same body,
+        # flattened, and a primary gateway with no body still yields three
+        # nulls rather than raising on a null container.
+        data, _warnings = self.normalized("success_gateway_metrics_states")
+        self.assertEqual(data["wan"], {"status": "up", "uptimeSec": 864000,
+                                       "downloadBps": 12000000,
+                                       "uploadBps": 3000000})
+        gaps, _gap_warnings = self.normalized("success_optional_gaps")
+        self.assertEqual(gaps["wan"], {"status": "up", "uptimeSec": None,
+                                       "downloadBps": None, "uploadBps": None})
 
     def test_a_zero_metric_the_controller_reported_survives_as_zero(self):
         inputs = normalize_inputs.cases()["success_healthy"]
@@ -3291,7 +3348,12 @@ class CollectionPolicy(unittest.TestCase):
     def test_a_statistics_failure_costs_only_that_gateway(self):
         batch = self.run_batch(
             overrides={"device_statistics": errors.NetworkError("x")})
-        self.assertIsNone(batch.data["gateways"][0]["uptimeSec"])
+        # No body was obtained, so the container is null — and the
+        # `statistics_unavailable` warning below is what says the request was
+        # made and refused rather than never made. Those are the two facts a
+        # null container leaves open, and between them they are the whole of
+        # what this envelope claims.
+        self.assertIsNone(batch.data["gateways"][0]["metrics"])
         self.assertIsNone(batch.data["wan"]["uptimeSec"])
         self.assertIn("statistics_unavailable", self.warnings.codes())
         self.assertEqual(batch.data["counts"]["devicesTotal"], 5)
@@ -3408,7 +3470,8 @@ class CollectionPolicy(unittest.TestCase):
         # nothing missing to report. The warning now counts what is ABSENT
         # rather than what the cap declined, which is a smaller and truer claim.
         self.assertNotIn("gateway_statistics_truncated", self.warnings.codes())
-        self.assertTrue(all(entry["uptimeSec"] is not None
+        self.assertTrue(all(entry["metrics"] is not None
+                            and entry["metrics"]["uptimeSec"] is not None
                             for entry in batch.data["gateways"]))
 
         # 1. `wan` is populated, so the primary gateway was among those fetched.
@@ -3417,7 +3480,7 @@ class CollectionPolicy(unittest.TestCase):
         primary_order = [d["id"] for d
                          in normalize.gateway_order(devices)[:4]]
         with_metrics = {entry["id"] for entry in batch.data["gateways"]
-                        if entry["uptimeSec"] is not None}
+                        if entry["metrics"] is not None}
         self.assertTrue(set(primary_order) <= with_metrics)
         # 3. No device is asked twice. The browse tier skips what REQ-008a
         #    already fetched, so the union is what is requested and not the sum.
@@ -3469,7 +3532,7 @@ class CollectionPolicy(unittest.TestCase):
         self.assertGreater(len(ordered), bounds.DEVICE_DETAIL_MAX)
         # And `wan` still has its metrics.
         self.assertEqual(batch.data["wan"]["uptimeSec"], 864000)
-        self.assertEqual(batch.data["gateways"][0]["uptimeSec"], 864000)
+        self.assertEqual(batch.data["gateways"][0]["metrics"]["uptimeSec"], 864000)
 
 
 def _page_of(records, url):

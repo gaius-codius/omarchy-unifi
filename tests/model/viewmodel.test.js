@@ -425,8 +425,9 @@ const HEALTHY = {
   site: { id: "s-1", name: "Home" },
   wan: { status: "up", uptimeSec: 864000, downloadBps: 12000000, uploadBps: 3000000 },
   gateways: [{ id: "g-1", name: "UDM Pro", model: "UDM-Pro", state: "ONLINE",
-               class: "online", uptimeSec: 864000, downloadBps: 12000000,
-               uploadBps: 3000000 }],
+               class: "online",
+               metrics: { uptimeSec: 864000, downloadBps: 12000000,
+                          uploadBps: 3000000 } }],
   counts: {
     clients: 42, devicesTotal: 5, offlineTotal: 0,
     byClass: { online: 5, transitional: 0, down: 0, impaired: 0, unknown: 0 },
@@ -637,12 +638,11 @@ test("REQ-008a: the WAN status word is total over the domain", () => {
 test("REQ-008a: each gateway is listed, and 'not fetched' is not 'unknown'", () => {
   const rows = ViewModel.gatewayRows([
     { id: "g-1", name: "UDM Pro", model: "UDM-Pro", class: "online",
-      uptimeSec: 3600, downloadBps: 1000, uploadBps: 2000 },
-    // Past REQ-008a's four-gateway statistics bound: never fetched, so all
-    // three metrics are absent together. That is a different fact from one
-    // metric failing, and the panel says so.
-    { id: "g-5", name: null, model: null, class: "down",
-      uptimeSec: null, downloadBps: null, uploadBps: null }
+      metrics: { uptimeSec: 3600, downloadBps: 1000, uploadBps: 2000 } },
+    // Past REQ-008a's four-gateway statistics bound: no body was obtained, so
+    // the CONTAINER is null. That is a different fact from one metric failing,
+    // and a different fact again from a body that arrived carrying nothing.
+    { id: "g-5", name: null, model: null, class: "down", metrics: null }
   ])
   assert.strictEqual(rows[0].nameText, "UDM Pro")
   assert.strictEqual(rows[0].classText, "online")
@@ -666,11 +666,11 @@ test("REQ-008a / REQ-014: a metric-less gateway says which kind of nothing it is
   // only what the envelope proves.
   const gateways = [
     { id: "g-1", name: "UDM Pro", model: "UDM-Pro", class: "online",
-      uptimeSec: 3600, downloadBps: 1000, uploadBps: 2000 },
+      metrics: { uptimeSec: 3600, downloadBps: 1000, uploadBps: 2000 } },
     { id: "g-2", name: "USG Backup", model: "USG-3P", class: "down",
-      uptimeSec: null, downloadBps: null, uploadBps: null },
+      metrics: null },
     { id: "g-3", name: "USG Spare", model: "USG-3P", class: "online",
-      uptimeSec: null, downloadBps: null, uploadBps: null }
+      metrics: null }
   ]
   // protocol-v1.md's table: `statistics_unavailable` is raised only for a
   // device whose `statistics/latest` request was MADE and failed, and its
@@ -719,7 +719,7 @@ test("REQ-008a / REQ-014: a metric-less gateway says which kind of nothing it is
   // out of the prototype chain.
   assert.strictEqual(
     ViewModel.gatewayRows([{ id: "constructor", model: "m", class: "online",
-      uptimeSec: null, downloadBps: null, uploadBps: null }], [])[0].metricsState,
+      metrics: null }], [])[0].metricsState,
     "absent")
 
   assert.deepStrictEqual(Object.keys(ViewModel.statisticsFailedIds([
@@ -739,6 +739,102 @@ test("REQ-008a / REQ-014: a metric-less gateway says which kind of nothing it is
   })
   assert.deepStrictEqual(model.gatewayRows.map((r) => r.metricsState),
     ["reported", "absent", "unavailable"])
+})
+
+test("REQ-008a: an empty statistics body is not a missing one", () => {
+  // The defect the `metrics` container was added to make unrepresentable.
+  // `collect` records a gateway's statistics only on success, so `metrics:
+  // null` is "no body was obtained" — and while the three figures sat INLINE
+  // on the record, a body that arrived carrying nothing encoded to exactly the
+  // same three nulls. The panel then told a user whose controller had answered
+  // that no statistics had been fetched, and sent them to look at the plugin.
+  //
+  // Every assertion in this test passes on the flat shape only by accident of
+  // wording; the two rows below were one row before the container existed.
+  const rows = ViewModel.gatewayRows([
+    // The controller answered and reported nothing. A statement about the
+    // CONTROLLER.
+    { id: "g-1", name: "UDM Pro", model: "UDM-Pro", class: "online",
+      metrics: { uptimeSec: null, downloadBps: null, uploadBps: null } },
+    // No body arrived. A statement about the HELPER.
+    { id: "g-2", name: "USG Backup", model: "USG-3P", class: "online",
+      metrics: null }
+  ], [])
+
+  assert.strictEqual(rows[0].metricsState, "empty")
+  assert.strictEqual(rows[1].metricsState, "absent")
+  assert.notStrictEqual(rows[0].detailText, rows[1].detailText,
+    "a controller that answered emptily and a helper that never asked "
+      + "must not render as the same sentence")
+  assert.strictEqual(rows[0].detailText, "UDM-Pro  ·  statistics reported no figures")
+  assert.strictEqual(rows[1].detailText, "USG-3P  ·  no statistics in this reading")
+
+  // `hasMetrics` keeps its meaning — "there are figures to print" — so the
+  // view's numeric rows stay empty for both. It is `metricsState` that carries
+  // the new distinction, which is what keeps the caption honest without making
+  // the panel print three "unknown"s.
+  assert.strictEqual(rows[0].hasMetrics, false)
+  assert.strictEqual(rows[1].hasMetrics, false)
+  assert.strictEqual(rows[0].uptimeText, "unknown")
+
+  // A body that arrived carrying ONE figure is `reported`: BIZ-003 makes each
+  // field independently nullable, and the row prints what it has.
+  const partial = ViewModel.gatewayRows([
+    { id: "g-3", model: "UXG-Pro", class: "online",
+      metrics: { uptimeSec: 3600, downloadBps: null, uploadBps: null } }
+  ], [])
+  assert.strictEqual(partial[0].metricsState, "reported")
+  assert.strictEqual(partial[0].detailText,
+    "UXG-Pro  ·  up 1h 0m  ·  unknown down  ·  unknown up")
+
+  // A refused request outranks nothing: the warning names a gateway whose
+  // container is null, and cannot contradict a body that arrived.
+  const named = ViewModel.gatewayRows([
+    { id: "g-1", model: "UDM-Pro", class: "online",
+      metrics: { uptimeSec: null, downloadBps: null, uploadBps: null } },
+    { id: "g-2", model: "USG-3P", class: "online", metrics: null }
+  ], [{ code: "statistics_unavailable", message: "x", detail: { deviceId: "g-1" } },
+      { code: "statistics_unavailable", message: "x", detail: { deviceId: "g-2" } }])
+  assert.deepStrictEqual(named.map((r) => r.metricsState), ["empty", "unavailable"])
+
+  // The figures are read from the CONTAINER and never from the record. A
+  // producer that kept the old inline fields alongside a null container is
+  // exactly the two-sources-of-truth case this shape removed, and the row must
+  // believe the container.
+  const stale = ViewModel.gatewayRows([
+    { id: "g-9", model: "UXG-Pro", class: "online", metrics: null,
+      uptimeSec: 999999, downloadBps: 5, uploadBps: 5 }
+  ], [])
+  assert.strictEqual(stale[0].metricsState, "absent")
+  assert.strictEqual(stale[0].hasMetrics, false)
+  assert.strictEqual(stale[0].uptimeText, "unknown")
+
+  // And a container that is not an object at all — which `checkGatewayRecord`
+  // has already refused at the wire — must not be read as a body either.
+  for (const junk of [42, "none", true]) {
+    assert.strictEqual(
+      ViewModel.gatewayRows([{ id: "g-x", model: "m", class: "online",
+        metrics: junk }], [])[0].metricsState, "absent", String(junk))
+  }
+})
+
+test("REQ-008a: the three states reach the panel from a real envelope", () => {
+  // End to end from the corpus, because the four states above are only worth
+  // having if the helper's own output produces them. `success_gateway_metrics_states`
+  // is normalize.py's output asserted byte for byte by the Python suite.
+  const envelope = JSON.parse(fs.readFileSync(
+    path.join(ACCEPT, "success_gateway_metrics_states.json"), "utf8"))
+  const model = ViewModel.build({
+    snapshot: envelope.data,
+    warnings: envelope.warnings,
+    level: { level: "green" }
+  })
+  assert.deepStrictEqual(model.gatewayRows.map((r) => r.metricsState),
+    ["reported", "empty", "unavailable", "reported", "absent"])
+  // Gateway 2 answered emptily and gateway 5 was never asked. Distinct
+  // sentences, which is the whole of the change the envelope shape bought.
+  assert.notStrictEqual(model.gatewayRows[1].detailText,
+    model.gatewayRows[4].detailText)
 })
 
 test("REQ-009: role rows carry their non-empty classes in a fixed order", () => {

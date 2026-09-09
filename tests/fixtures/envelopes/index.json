@@ -300,6 +300,16 @@
       "shape": "success",
       "verdict": "accept"
     },
+    "success_gateway_metrics_states": {
+      "consumedBy": [
+        "service (Protocol.js must accept)",
+        "helper (normalize.py must be able to produce)"
+      ],
+      "errorKind": null,
+      "note": "REQ-008a / BIZ-003: the three gateway statistics states in one reading. Gateway 1 and 4 answered with figures; gateway 2 answered with an EMPTY body (metrics present, every figure null); gateway 3's request was made and refused (statistics_unavailable, metrics null); gateway 5 is past the four-gateway bound and was never asked (metrics null, no warning naming it). The second and the fifth are the pair a flat record encoded identically.",
+      "shape": "success",
+      "verdict": "accept"
+    },
     "success_healthy": {
       "consumedBy": [
         "service (Protocol.js must accept)",
@@ -393,9 +403,9 @@
   },
   "contract": "docs/protocol-v1.md",
   "coverage": {
-    "acceptFixtures": 39,
+    "acceptFixtures": 40,
     "errorKinds": 19,
-    "rejectFixtures": 59,
+    "rejectFixtures": 62,
     "rejectionClasses": 37
   },
   "generatedBy": "tests/tools/gen_envelopes.py",
@@ -543,6 +553,27 @@
     },
     "data_schema_violation_device_state_null": {
       "note": "A device whose `state` is null. DATA-B01 marks it NON-nullable and nothing enforced that — the one field in the group where `null` is not merely the wrong type but a value the contract forbids outright.",
+      "publishedAs": "malformed_response",
+      "rejectedBy": "service",
+      "rejectionClass": "data_schema_violation",
+      "rule": "DATA-008 / data_schema_violation"
+    },
+    "data_schema_violation_gateway_metrics": {
+      "note": "A gateway whose `metrics` is a number. The container is the only thing that separates a gateway nobody asked about from one whose body arrived empty, so a value that is neither an object nor a null leaves the panel with a state it cannot name.",
+      "publishedAs": "malformed_response",
+      "rejectedBy": "service",
+      "rejectionClass": "data_schema_violation",
+      "rule": "DATA-008 / data_schema_violation"
+    },
+    "data_schema_violation_gateway_metrics_absent": {
+      "note": "A gateway with NO `metrics` key at all. The device half of this rule has had a fixture since DEV-7; the gateway half is the same statement — 'the producer forgot' is not 'the producer did not ask', and only the second has an encoding.",
+      "publishedAs": "malformed_response",
+      "rejectedBy": "service",
+      "rejectionClass": "data_schema_violation",
+      "rule": "DATA-008 / data_schema_violation"
+    },
+    "data_schema_violation_gateway_not_object": {
+      "note": "A gateway entry that is a string. `Health.js` reads `class` off every entry in this array to decide REQ-002 rule 3, so a non-object here would be asked whether it is `down` and would answer no.",
       "publishedAs": "malformed_response",
       "rejectedBy": "service",
       "rejectionClass": "data_schema_violation",

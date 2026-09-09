@@ -13,25 +13,25 @@
       },
       "byClass": {
         "down": 0,
-        "impaired": 1,
-        "online": 2,
+        "impaired": 0,
+        "online": 5,
         "transitional": 0,
         "unknown": 0
       },
-      "clients": 12,
-      "devicesTotal": 3,
+      "clients": 11,
+      "devicesTotal": 5,
       "gateways": {
         "down": 0,
-        "impaired": 1,
-        "online": 1,
+        "impaired": 0,
+        "online": 5,
         "transitional": 0,
         "unknown": 0
       },
-      "offlineTotal": 1,
+      "offlineTotal": 0,
       "switches": {
         "down": 0,
         "impaired": 0,
-        "online": 2,
+        "online": 0,
         "transitional": 0,
         "unknown": 0
       }
@@ -46,35 +46,59 @@
           "uploadBps": 3000000,
           "uptimeSec": 864000
         },
-        "model": "UDM-Pro",
-        "name": "UDM Pro",
+        "model": "UXG-Pro",
+        "name": "Gateway 1",
         "state": "ONLINE"
       },
       {
-        "class": "impaired",
+        "class": "online",
         "id": "00000000-0000-5000-9000-00000000000b",
+        "metrics": {
+          "downloadBps": null,
+          "uploadBps": null,
+          "uptimeSec": null
+        },
+        "model": "UXG-Pro",
+        "name": "Gateway 2",
+        "state": "ONLINE"
+      },
+      {
+        "class": "online",
+        "id": "00000000-0000-5000-9000-00000000000c",
         "metrics": null,
         "model": "UXG-Pro",
-        "name": "UXG Backup",
-        "state": "ISOLATED"
-      }
-    ],
-    "offlineDevices": [
+        "name": "Gateway 3",
+        "state": "ONLINE"
+      },
       {
-        "class": "impaired",
-        "id": "00000000-0000-5000-9000-00000000000b",
+        "class": "online",
+        "id": "00000000-0000-5000-9000-00000000000d",
+        "metrics": {
+          "downloadBps": 1000,
+          "uploadBps": 2000,
+          "uptimeSec": 3600
+        },
         "model": "UXG-Pro",
-        "name": "UXG Backup",
-        "state": "ISOLATED"
+        "name": "Gateway 4",
+        "state": "ONLINE"
+      },
+      {
+        "class": "online",
+        "id": "00000000-0000-5000-9000-00000000000e",
+        "metrics": null,
+        "model": "UXG-Pro",
+        "name": "Gateway 5",
+        "state": "ONLINE"
       }
     ],
+    "offlineDevices": [],
     "site": {
       "id": "00000000-0000-5000-9000-000000000001",
-      "name": "Home"
+      "name": "Depot"
     },
     "wan": {
       "downloadBps": 12000000,
-      "status": "degraded",
+      "status": "up",
       "uploadBps": 3000000,
       "uptimeSec": 864000
     }
@@ -92,5 +116,21 @@
   "observedAt": "2026-01-15T12:00:02Z",
   "ok": true,
   "protocolVersion": 1,
-  "warnings": []
+  "warnings": [
+    {
+      "code": "statistics_unavailable",
+      "detail": {
+        "deviceId": "00000000-0000-5000-9000-00000000000c"
+      },
+      "message": "Gateway statistics unavailable."
+    },
+    {
+      "code": "gateway_statistics_truncated",
+      "detail": {
+        "fetched": 3,
+        "total": 5
+      },
+      "message": "Statistics fetched for 3 of 5 gateways."
+    }
+  ]
 }

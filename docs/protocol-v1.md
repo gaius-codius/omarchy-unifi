@@ -157,7 +157,8 @@ Present only on success, and only in this exact shape (DATA-006).
   "wan":     { "status": "up", "uptimeSec": 864000, "downloadBps": 12000000, "uploadBps": 3000000 },
   "gateways": [
     { "id": "…", "name": "UDM Pro", "model": "UDMPRO", "state": "ONLINE",
-      "class": "online", "uptimeSec": 864000, "downloadBps": 12000000, "uploadBps": 3000000 }
+      "class": "online",
+      "metrics": { "uptimeSec": 864000, "downloadBps": 12000000, "uploadBps": 3000000 } }
   ],
   "counts": {
     "clients": 42,
@@ -229,8 +230,67 @@ Domain `up`, `down`, `degraded`, `unknown`, derived from gateway devices only:
 `wan`'s metrics are those of the **primary gateway**: the first `online` gateway
 in ascending `id` order, or the first gateway in ascending `id` order when none
 is online. Statistics are fetched for at most four gateways per batch, in that
-order; the rest are listed without metrics and raise
+order; the rest are listed with `metrics: null` and raise
 `gateway_statistics_truncated`.
+
+`wan`'s three figures are the primary gateway's `metrics` flattened, and `wan`
+is flat on purpose — it answers "how is the uplink", one reading, and BIZ-003
+already makes each figure `null` when unknown. It therefore cannot say whether
+a body arrived at all. `gateways[]` is where that is recorded, and the panel
+reads it there.
+
+### `gateways` (REQ-008a)
+
+Every device REQ-000 calls a gateway, ordered by ascending `id`, bounded to 64
+— see Bounds. The panel lists these individually beneath the single `wan`
+reading.
+
+| Field | Type | Nullable | Notes |
+|---|---|---|---|
+| `id` | uuid | no | |
+| `name` | string | yes | |
+| `model` | string | yes | |
+| `state` | string | no | the raw API value, unmapped |
+| `class` | class | no | REQ-000, the same mapping the counters use |
+| `metrics` | object \| null | yes | `null` means **no body was obtained** |
+
+```json
+"metrics": { "uptimeSec": 864000, "downloadBps": 12000000, "uploadBps": 3000000 }
+```
+
+Every `metrics` field is nullable and each independently so, per BIZ-003.
+`downloadBps` and `uploadBps` come from `uplink.{rxRateBps, txRateBps}`, which
+for a gateway is the WAN.
+
+**`metrics: null` and a `metrics` object whose three fields are null are
+different facts and must render differently.** This is the same rule
+`devices[].detail` states — the helper did not ask, against the controller
+answered and had nothing to report — applied to the container `gateways[]` did
+not have. Until it had one the three figures were inline, so all three null was
+the encoding of BOTH facts, byte for byte, and the panel had no way to tell them
+apart. There are three states and the encoding expressed one:
+
+| State | `metrics` | Warnings |
+|---|---|---|
+| never asked — past the four-gateway bound | `null` | `gateway_statistics_truncated` |
+| asked, and the request failed | `null` | `statistics_unavailable` naming the device, and `gateway_statistics_truncated` |
+| answered | an object; fields independently null | none |
+
+`gateway_statistics_truncated` counts what is missing from the envelope and
+names no device, so it does not by itself separate the first two rows;
+`statistics_unavailable` is what does. A gateway past the bound may still be
+answered, because REQ-B02's browse tier fetches statistics for the head of
+REQ-B11's order and the two selections are independent.
+
+A consumer may not read the ABSENCE of `statistics_unavailable` as proof that
+nobody asked. The browse tier reports a failure of either of its two requests as
+`device_detail_unavailable`, which does not say which one failed. So
+`metrics: null` with no `statistics_unavailable` proves exactly one thing — the
+helper obtained no body — and the panel may say that and no more.
+
+The `metrics` key is always present. Absent and null are different statements,
+"the producer forgot" against "the producer did not ask", and only the second is
+acceptable.
 
 ### `counts`
 
@@ -403,7 +463,7 @@ to parse prose.
 | `sites_discovered` | no `siteId` committed and several sites exist; paired with `site_unselected` | `{ "sites": [ { "id": "…", "name": "…" } ] }` |
 | `clients_unavailable` | optional `/clients` failed (BIZ-004) | `null` |
 | `statistics_unavailable` | optional `statistics/latest` failed | `{ "deviceId": "…" }` |
-| `gateway_statistics_truncated` | more than four gateways (REQ-008a) | `{ "fetched": 4, "total": 6 }` |
+| `gateway_statistics_truncated` | the envelope lists more gateways than it carries metrics for (REQ-008a) | `{ "fetched": 4, "total": 6 }` |
 | `offline_list_truncated` | more than ten offline devices (REQ-010) | `{ "listed": 10, "total": 17 }` |
 | `gateway_list_truncated` | more than 64 gateways | `{ "listed": 64, "total": 70 }` |
 | `device_detail_truncated` | detail fetched for some devices only (REQ-B02a/B02b) | `{ "fetched": 40, "total": 96 }` |
@@ -613,7 +673,7 @@ exists for each.
 | `success_observed_at_unordered` | not `attemptedAt <= observedAt <= receiptTime` |
 | `success_data_missing` | `ok: true` with `data` absent or `null` |
 | `success_data_empty` | `ok: true` with `data: {}` |
-| `data_schema_violation` | `data` fails the DATA-006 shape — missing `site.id`/`site.name`, a `wan.status` outside its domain, a missing count bucket, a missing class within a bucket, a negative or non-integer total, `offlineDevices` not an array; or the DATA-B01/B02 shape — a device with no `id`, a `class` outside REQ-000, a role outside the three, `detail`/`metrics` neither an object nor an explicit `null`, a client with no `id` or a non-string `type`; or a **declared field type** — `state` absent or not a non-empty string, `firmwareUpdatable` neither a boolean nor an explicit `null`, or any nullable string field (`name`, `model`, `ipAddress`, `macAddress`, `firmwareVersion`, `uplinkDeviceId`, `accessType`, `connectedAt`) neither a string nor an explicit `null` |
+| `data_schema_violation` | `data` fails the DATA-006 shape — missing `site.id`/`site.name`, a `wan.status` outside its domain, a missing count bucket, a missing class within a bucket, a negative or non-integer total, `offlineDevices` not an array; a gateway entry that is not an object or whose `metrics` is neither an object nor an explicit `null`; or the DATA-B01/B02 shape — a device with no `id`, a `class` outside REQ-000, a role outside the three, `detail`/`metrics` neither an object nor an explicit `null`, a client with no `id` or a non-string `type`; or a **declared field type** — `state` absent or not a non-empty string, `firmwareUpdatable` neither a boolean nor an explicit `null`, or any nullable string field (`name`, `model`, `ipAddress`, `macAddress`, `firmwareVersion`, `uplinkDeviceId`, `accessType`, `connectedAt`) neither a string nor an explicit `null` |
 | `byclass_sum_mismatch` | `sum(byClass) != devicesTotal` |
 | `byclass_offline_mismatch` | `byClass.down + byClass.impaired != offlineTotal` |
 | `list_exceeds_total` | `devices` or `clients` holds MORE entries than `counts` says exist |

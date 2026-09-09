@@ -392,6 +392,13 @@ test("every success fixture in the accept corpus yields its documented level", (
     success_multi_feature_roles: { level: "green", rule: 5 },
     success_featureless_device: { level: "green", rule: 5 },
     success_500_down_bounded_list: { level: "red", rule: 3 },
+    // Five online gateways, nothing down or impaired, WAN up — so rule 5, and
+    // that is the point. This fixture exists to exercise the three `metrics`
+    // states (a body, a body of nulls, and no body at all), and health must be
+    // blind to all three: whether the helper obtained a gateway's statistics
+    // says nothing about whether the site is healthy. If a metrics change ever
+    // moves this level, the health rules have started reading the wrong thing.
+    success_gateway_metrics_states: { level: "green", rule: 5 },
     success_optional_gaps: { level: "green", rule: 5 },
     success_five_gateways_truncated: { level: "green", rule: 5 },
     success_insecure_tls: { level: "green", rule: 5 },

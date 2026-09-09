@@ -76,7 +76,8 @@ def success_data():
         "gateways": [{
             "id": "00000000-0000-5000-9000-00000000000a", "name": "UDM Pro",
             "model": "UDM-Pro", "state": "ONLINE", "class": "online",
-            "uptimeSec": 864000, "downloadBps": 12000000, "uploadBps": 3000000,
+            "metrics": {"uptimeSec": 864000, "downloadBps": 12000000,
+                        "uploadBps": 3000000},
         }],
         "counts": {
             "clients": 42, "devicesTotal": 5, "offlineTotal": 0,
@@ -128,15 +129,21 @@ def degraded_data():
         "gateways": [
             {"id": "00000000-0000-5000-9000-00000000000a", "name": "UDM Pro",
              "model": "UDM-Pro", "state": "ONLINE", "class": "online",
-             "uptimeSec": 864000, "downloadBps": 12000000, "uploadBps": 3000000},
-            # Past the statistics bound in spirit: no metrics at all, and no
+             "metrics": {"uptimeSec": 864000, "downloadBps": 12000000,
+                         "uploadBps": 3000000}},
+            # Past the statistics bound in spirit: no body was obtained, and no
             # `statistics_unavailable` naming it either. The panel must render
             # that as one sentence rather than three separate unknowns — and,
             # since nothing here says whether the helper asked, as a sentence
             # that does not claim it never did.
+            #
+            # `metrics: null`, not an object of nulls. That distinction is the
+            # whole reason the container exists: an object would say the
+            # controller answered and had nothing to report, which is a claim
+            # this scenario is specifically not making.
             {"id": "00000000-0000-5000-9000-00000000000b", "name": "USG Backup",
              "model": "USG-3P", "state": "OFFLINE", "class": "down",
-             "uptimeSec": None, "downloadBps": None, "uploadBps": None},
+             "metrics": None},
         ],
         "counts": {
             "clients": 42, "devicesTotal": 12, "offlineTotal": 7,

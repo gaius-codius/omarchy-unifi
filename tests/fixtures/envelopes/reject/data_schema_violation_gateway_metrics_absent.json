@@ -48,11 +48,6 @@
         {
           "class": "online",
           "id": "00000000-0000-5000-9000-00000000000a",
-          "metrics": {
-            "downloadBps": 12000000,
-            "uploadBps": 3000000,
-            "uptimeSec": 864000
-          },
           "model": "UDM-Pro",
           "name": "UDM Pro",
           "state": "ONLINE"
@@ -82,16 +77,16 @@
     "nonce": "b7c1d4e9f2a68035",
     "observedAt": "2026-01-15T12:00:02Z",
     "ok": true,
-    "protocolVersion": "1",
+    "protocolVersion": 1,
     "warnings": []
   },
-  "id": "protocol_version_string",
+  "id": "data_schema_violation_gateway_metrics_absent",
   "neverEmittedBy": "helper",
-  "note": "protocolVersion is the STRING \"1\". It must be the integer.",
+  "note": "A gateway with NO `metrics` key at all. The device half of this rule has had a fixture since DEV-7; the gateway half is the same statement — 'the producer forgot' is not 'the producer did not ask', and only the second has an encoding.",
   "publishedAs": "malformed_response",
   "rejectedBy": "service",
-  "rejectionClass": "protocol_version_wrong",
-  "rule": "DATA-008 / protocol_version_wrong",
+  "rejectionClass": "data_schema_violation",
+  "rule": "DATA-008 / data_schema_violation",
   "stdout": null,
   "synthesize": null
 }

@@ -8,9 +8,11 @@ it — happens again in the other direction.
 
 Three rules that are easy to get subtly wrong:
 
-**Missing is `null`, never `0`.** BIZ-003. A gateway whose statistics call
-failed has `uptimeSec: null`, not `uptimeSec: 0`, because zero is a value the
-controller can actually report and "unknown" is not.
+**Missing is `null`, never `0`.** BIZ-003. A gateway whose statistics body
+arrived without an uptime has `metrics.uptimeSec: null`, not `0`, because zero
+is a value the controller can actually report and "unknown" is not. A gateway
+whose body never arrived has `metrics: null`, which is the same rule one level
+up: no body and an empty body are different facts.
 
 **`byClass` is a partition; the role objects are not.** A Dream Machine reports
 `gateway`, `switching` and `accessPoint` at once and is counted in all three
@@ -599,28 +601,39 @@ def _offline_entry(device, klass):
 
 
 def _gateway_entry(device, statistics):
-    metrics = _metrics(statistics.get(_identifier(device)))
     return {
         "id": sanitize.clean(_identifier(device)),
         "name": sanitize.clean(device.get("name")),
         "model": sanitize.clean(device.get("model")),
         "state": _state(device.get("state")),
         "class": classify_state(device.get("state")),
-        "uptimeSec": metrics["uptimeSec"],
-        "downloadBps": metrics["downloadBps"],
-        "uploadBps": metrics["uploadBps"],
+        # Null when no body was obtained. The KEY is always present: absent and
+        # null are different statements, the same rule `_device_entry` follows.
+        #
+        # A CONTAINER and not three inline figures, because the three states
+        # this list has to distinguish are three and the flat shape carried two.
+        # `collect._gateway_statistics` records a gateway only on success, so a
+        # gateway past GATEWAY_STATISTICS_MAX (never asked) and one whose
+        # request was refused (`statistics_unavailable`) are both missing from
+        # `statistics` — and a gateway that ANSWERED with an empty body
+        # flattened to `uptimeSec: None, downloadBps: None, uploadBps: None`,
+        # which was byte-identical to both. The panel then told a user whose
+        # controller had answered that no statistics were fetched.
+        "metrics": _metrics(statistics.get(_identifier(device))),
     }
 
 
 def _metrics(body):
-    """Pull the three optional metrics out of a `statistics/latest` body.
+    """A `statistics/latest` body as `gateways[].metrics`, or None for no body.
 
-    Every one is optional in the API (api-contract.md), so every one is `null`
-    when absent. `uplink` is an object that may itself be missing.
+    Every figure is optional in the API (api-contract.md), so every one is
+    `null` when absent and `uplink` is an object that may itself be missing. An
+    all-null container is therefore a real and reachable reading — the
+    controller answered and had nothing to say — which is why "no body" is
+    None here rather than an all-null container it could not be told from.
     """
-    empty = {"uptimeSec": None, "downloadBps": None, "uploadBps": None}
     if not isinstance(body, dict):
-        return empty
+        return None
     uplink = body.get("uplink")
     uplink = uplink if isinstance(uplink, dict) else {}
     return {
@@ -669,7 +682,15 @@ def _wan(ordered_gateways, statistics):
     else:
         status = WAN_UP
 
+    # REQ-008a: `wan`'s figures are the primary gateway's, read from the same
+    # container `gateways[]` publishes so the two can never disagree about what
+    # that gateway reported. `wan` is FLAT and stays flat: it answers "how is
+    # the uplink" with one reading, and BIZ-003 already makes each figure null
+    # when unknown. It has nowhere to put "no body arrived" and does not claim
+    # to — that fact lives in `gateways[].metrics`, where the panel reads it.
     primary = _metrics(statistics.get(_identifier(ordered_gateways[0])))
+    if primary is None:
+        primary = {"uptimeSec": None, "downloadBps": None, "uploadBps": None}
     return {
         "status": status,
         "uptimeSec": primary["uptimeSec"],

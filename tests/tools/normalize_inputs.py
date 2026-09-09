@@ -331,6 +331,33 @@ def cases():
         "applicationVersion": "9.1.0",
     }
 
+    # REQ-008a / BIZ-003: the three states a gateway's statistics can be in,
+    # in one site. Five gateways, and only the STATISTICS dict differs between
+    # them — which is the point, because `normalize` has nothing else to read.
+    #
+    #   uid(10), uid(13)  a body with figures
+    #   uid(11)           a body with NO figures. `stats()` with no arguments is
+    #                     a real route-4 response carrying no uptime and no
+    #                     uplink, which is what a controller returns for a
+    #                     device it has not measured yet. It must normalize to a
+    #                     metrics OBJECT of nulls.
+    #   uid(12), uid(14)  absent from the dict: `collect` records a gateway only
+    #                     on success, so a refused request and a request never
+    #                     made both land here. Both must normalize to
+    #                     `metrics: null`, and the envelope's warnings — not
+    #                     this dict — are what tell them apart.
+    out["success_gateway_metrics_states"] = {
+        "site": {"id": uid(1), "name": "Depot"},
+        "devices": [device(10 + i, "ONLINE", GATEWAY,
+                           "Gateway %d" % (i + 1), "UXG-Pro")
+                    for i in range(5)],
+        "clients": 11,
+        "statistics": {uid(10): stats(864000, 12000000, 3000000),
+                       uid(11): stats(),
+                       uid(13): stats(3600, 1000, 2000)},
+        "applicationVersion": "9.1.0",
+    }
+
     # REQ-010 / AC-063: 500 devices down, a list bounded to ten, and an
     # offlineTotal that is not the list's length.
     bulk = [device(100 + i, "OFFLINE", SWITCH, "Bulk Switch %03d" % i,

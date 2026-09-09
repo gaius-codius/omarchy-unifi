@@ -40,53 +40,59 @@
     "gateways": [
       {
         "class": "online",
-        "downloadBps": 12000000,
         "id": "00000000-0000-5000-9000-00000000000a",
+        "metrics": {
+          "downloadBps": 12000000,
+          "uploadBps": 3000000,
+          "uptimeSec": 864000
+        },
         "model": "UXG-Pro",
         "name": "Gateway 1",
-        "state": "ONLINE",
-        "uploadBps": 3000000,
-        "uptimeSec": 864000
+        "state": "ONLINE"
       },
       {
         "class": "online",
-        "downloadBps": 12000000,
         "id": "00000000-0000-5000-9000-00000000000b",
+        "metrics": {
+          "downloadBps": 12000000,
+          "uploadBps": 3000000,
+          "uptimeSec": 867600
+        },
         "model": "UXG-Pro",
         "name": "Gateway 2",
-        "state": "ONLINE",
-        "uploadBps": 3000000,
-        "uptimeSec": 867600
+        "state": "ONLINE"
       },
       {
         "class": "online",
-        "downloadBps": 12000000,
         "id": "00000000-0000-5000-9000-00000000000c",
+        "metrics": {
+          "downloadBps": 12000000,
+          "uploadBps": 3000000,
+          "uptimeSec": 871200
+        },
         "model": "UXG-Pro",
         "name": "Gateway 3",
-        "state": "ONLINE",
-        "uploadBps": 3000000,
-        "uptimeSec": 871200
+        "state": "ONLINE"
       },
       {
         "class": "online",
-        "downloadBps": 12000000,
         "id": "00000000-0000-5000-9000-00000000000d",
+        "metrics": {
+          "downloadBps": 12000000,
+          "uploadBps": 3000000,
+          "uptimeSec": 874800
+        },
         "model": "UXG-Pro",
         "name": "Gateway 4",
-        "state": "ONLINE",
-        "uploadBps": 3000000,
-        "uptimeSec": 874800
+        "state": "ONLINE"
       },
       {
         "class": "online",
-        "downloadBps": null,
         "id": "00000000-0000-5000-9000-00000000000e",
+        "metrics": null,
         "model": "UXG-Pro",
         "name": "Gateway 5",
-        "state": "ONLINE",
-        "uploadBps": null,
-        "uptimeSec": null
+        "state": "ONLINE"
       }
     ],
     "offlineDevices": [],

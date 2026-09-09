@@ -40,13 +40,15 @@
     "gateways": [
       {
         "class": "online",
-        "downloadBps": 9000000,
         "id": "00000000-0000-5000-9000-00000000000a",
+        "metrics": {
+          "downloadBps": 9000000,
+          "uploadBps": 2000000,
+          "uptimeSec": 3600
+        },
         "model": "UDM-Pro",
         "name": "UDM Pro",
-        "state": "ONLINE",
-        "uploadBps": 2000000,
-        "uptimeSec": 3600
+        "state": "ONLINE"
       }
     ],
     "offlineDevices": [],

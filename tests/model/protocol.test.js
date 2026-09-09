@@ -73,7 +73,7 @@ function runReject(fixture) {
 
 test("every accept fixture is accepted, and yields what the service needs", async (t) => {
   const keys = casesUnder("envelopes/accept/")
-  assert.strictEqual(keys.length, 39, "the accept corpus changed size")
+  assert.strictEqual(keys.length, 40, "the accept corpus changed size")
 
   for (const key of keys) {
     await t.test(key.split("/").pop(), () => {
@@ -116,7 +116,7 @@ test("the accept corpus covers all nineteen DATA-007 kinds", () => {
 
 test("every reject fixture is rejected with the class the index names", async (t) => {
   const keys = casesUnder("envelopes/reject/")
-  assert.strictEqual(keys.length, 59, "the reject corpus changed size")
+  assert.strictEqual(keys.length, 62, "the reject corpus changed size")
 
   for (const key of keys) {
     await t.test(key.split("/").pop(), () => {
@@ -213,6 +213,51 @@ test("AC-044: the success shape rejects each named schema defect", () => {
   assert.strictEqual(mutate((e) => { e.ok = 1 }).rejectionClass, "ok_not_boolean")
   assert.strictEqual(mutate((e) => { e.ok = "true" }).rejectionClass, "ok_not_boolean")
   assert.strictEqual(mutate((e) => { delete e.ok }).rejectionClass, "ok_not_boolean")
+})
+
+test("DATA-006: `gateways[].metrics` is an object or an explicit null", () => {
+  // The same rule `devices[].metrics` has followed since DATA-B01, arriving on
+  // the list that needed it just as much. `null` is "the helper obtained no
+  // body"; an object is "a body arrived", and its three figures are then
+  // independently nullable per BIZ-003 — so an OBJECT OF NULLS is a real
+  // reading, the controller having answered and reported nothing.
+  //
+  // That is why absence is a rejection here rather than a default. Read as
+  // "no body", a forgotten key would silently turn every gateway on a
+  // future producer's site into one nobody asked about.
+  const good = load("envelopes/accept/success_healthy")
+  const batch = batchFor(good)
+  const accepted = (mutation) => {
+    const copy = JSON.parse(JSON.stringify(good))
+    mutation(copy)
+    return Protocol.acceptEnvelope({ envelope: copy, batch: batch })
+  }
+
+  assert.strictEqual(accepted((e) => { e.data.gateways[0].metrics = null })
+    .accepted, true, "an explicit null is the documented not-fetched value")
+  assert.strictEqual(accepted((e) => {
+    e.data.gateways[0].metrics = { uptimeSec: null, downloadBps: null, uploadBps: null }
+  }).accepted, true, "an empty body is a reading, not a defect")
+
+  for (const bad of [42, "none", true, [], "", 0]) {
+    const result = accepted((e) => { e.data.gateways[0].metrics = bad })
+    assert.strictEqual(result.accepted, false,
+      JSON.stringify(bad) + " was accepted as a metrics container")
+    assert.strictEqual(result.rejectionClass, "data_schema_violation",
+      JSON.stringify(bad))
+  }
+  assert.strictEqual(accepted((e) => { delete e.data.gateways[0].metrics })
+    .rejectionClass, "data_schema_violation", "an absent key")
+  assert.strictEqual(accepted((e) => { e.data.gateways[0] = "UDM Pro" })
+    .rejectionClass, "data_schema_violation", "a gateway that is not an object")
+
+  // Rejection is WHOLE-ENVELOPE, so the cost of being wrong here is the
+  // user's reading. The corpus is what says this rule does not fire on
+  // anything the helper actually emits.
+  const states = load("envelopes/accept/success_gateway_metrics_states")
+  assert.strictEqual(
+    Protocol.acceptEnvelope({ envelope: states, batch: batchFor(states) }).accepted,
+    true, "the three-state envelope must be accepted intact")
 })
 
 test("`wan` is a closed key set, so an invented metric is rejected", () => {

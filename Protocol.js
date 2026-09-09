@@ -421,6 +421,13 @@ function checkData(data, reasons) {
   } else if (data.gateways.length > GATEWAYS_MAX) {
     reject(reasons, "bound_exceeded",
       "gateways: " + data.gateways.length + " entries exceeds " + GATEWAYS_MAX)
+  } else {
+    // Only when the array is usable, the same order `checkBrowseLists` uses:
+    // an over-bound array is already rejected, and walking it would add a
+    // second reason for one defect.
+    for (let i = 0; i < data.gateways.length; i++) {
+      checkGatewayRecord(data.gateways[i], i, reasons)
+    }
   }
 
   if (!Array.isArray(data.offlineDevices)) {
@@ -537,6 +544,35 @@ function checkListShape(value, name, bound, reasons) {
     return false
   }
   return true
+}
+
+// DATA-006's gateway record. Only `metrics` is checked, and that is the whole
+// of the contract's shape rule for this list: `class` is checked nowhere here
+// because `Health.js` treats any class but `down` as not-down and a strange one
+// is therefore safe, while a strange `metrics` is not.
+//
+// `metrics` is the same nullable container `devices[]` carries and means the
+// same thing: `null` is "the helper obtained no body", an object is "a body
+// arrived". The three figures used to sit inline on this record, where all
+// three null was ALSO what a body carrying nothing encoded to — so `gateways[]`
+// could not distinguish a gateway nobody asked about from one the controller
+// answered emptily, and the panel printed the same sentence for both.
+//
+// An ABSENT key is rejected: "the producer forgot" and "the producer did not
+// ask" are different statements. No `hasOwnProperty` test is needed to enforce
+// that, and one here would be dead code — a missing key reads as `undefined`,
+// which is neither `null` nor an object, so the check below already rejects it.
+// The same note `checkDeviceRecord` carries, for the same reason.
+function checkGatewayRecord(entry, index, reasons) {
+  const at = "gateways[" + index + "]"
+  if (!isObject(entry)) {
+    reject(reasons, "data_schema_violation", at + ": not an object")
+    return
+  }
+  if (entry.metrics !== null && !isObject(entry.metrics)) {
+    reject(reasons, "data_schema_violation",
+      at + ".metrics: neither an object nor an explicit null")
+  }
 }
 
 function checkDeviceRecord(device, index, reasons) {
@@ -1052,6 +1088,7 @@ if (typeof module !== "undefined") module.exports = {
   NONCE_MAX_CHARS: NONCE_MAX_CHARS,
   OFFLINE_DEVICES_MAX: OFFLINE_DEVICES_MAX,
   checkClientRecord: checkClientRecord,
+  checkGatewayRecord: checkGatewayRecord,
   checkNullableString: checkNullableString,
   checkNullableBoolean: checkNullableBoolean,
   checkRequiredString: checkRequiredString,

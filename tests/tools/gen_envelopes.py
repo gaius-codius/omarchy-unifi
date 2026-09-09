@@ -196,9 +196,37 @@ def cls(**kwargs):
     return out
 
 
-def gateway(index, name, model, state, klass, uptime=None, down=None, up=None):
+def gateway_metrics(uptime=None, down=None, up=None):
+    """A `statistics/latest` body as `gateways[].metrics` — a body that ARRIVED.
+
+    Called with no arguments it is the empty body: the controller answered and
+    reported nothing. That is a different fixture from `metrics=None`, and the
+    difference is the whole point of the container — while the three figures
+    were inline on the record, these two cases had one encoding.
+    """
+    return {"uptimeSec": uptime, "downloadBps": down, "uploadBps": up}
+
+
+NO_METRICS = object()
+
+
+def gateway(index, name, model, state, klass, uptime=None, down=None, up=None,
+            metrics=NO_METRICS):
+    """One `gateways[]` record.
+
+    The three positional figures are shorthand for a body that arrived carrying
+    them. Supplying none of them means `metrics: null` — no body — which is
+    what every pre-container fixture meant by three inline nulls and is what
+    keeps those fixtures describing the case they were written for. The third
+    state, a body that arrived empty, has no shorthand and is written out as
+    `metrics=gateway_metrics()`, because it is the one a reader would otherwise
+    mistake for the second.
+    """
+    if metrics is NO_METRICS:
+        metrics = (None if uptime is None and down is None and up is None
+                   else gateway_metrics(uptime, down, up))
     return {"id": uid(index), "name": name, "model": model, "state": state,
-            "class": klass, "uptimeSec": uptime, "downloadBps": down, "uploadBps": up}
+            "class": klass, "metrics": metrics}
 
 
 def offline_device(index, name, model, state, klass):
@@ -595,6 +623,51 @@ def accept_success():
                 [warning("gateway_statistics_truncated",
                          "Statistics fetched for 4 of 5 gateways.",
                          {"fetched": 4, "total": 5})])))
+
+    # The three states `gateways[].metrics` exists to keep apart, in one
+    # envelope, because they are only distinguishable side by side. Five
+    # gateways: REQ-008a asks about the first four in primary order, the
+    # controller answers two of them, refuses one and returns an EMPTY body for
+    # one, and the fifth is never asked about at all.
+    #
+    # Gateway 2 is the case the flat record could not encode. Its body arrived —
+    # the controller answered — and carried no figures, which is a statement
+    # about the controller; gateway 5's `metrics: null` is a statement about the
+    # helper. Inline, both were three nulls.
+    out.append(("success_gateway_metrics_states",
+                "REQ-008a / BIZ-003: the three gateway statistics states in one "
+                "reading. Gateway 1 and 4 answered with figures; gateway 2 "
+                "answered with an EMPTY body (metrics present, every figure "
+                "null); gateway 3's request was made and refused "
+                "(statistics_unavailable, metrics null); gateway 5 is past the "
+                "four-gateway bound and was never asked (metrics null, no "
+                "warning naming it). The second and the fifth are the pair a "
+                "flat record encoded identically.",
+                success(data(
+                    "Depot",
+                    wan("up", 864000, 12000000, 3000000),
+                    [gateway(10, "Gateway 1", "UXG-Pro", "ONLINE", "online",
+                             864000, 12000000, 3000000),
+                     gateway(11, "Gateway 2", "UXG-Pro", "ONLINE", "online",
+                             metrics=gateway_metrics()),
+                     gateway(12, "Gateway 3", "UXG-Pro", "ONLINE", "online"),
+                     gateway(13, "Gateway 4", "UXG-Pro", "ONLINE", "online",
+                             3600, 1000, 2000),
+                     gateway(14, "Gateway 5", "UXG-Pro", "ONLINE", "online")],
+                    counts(11, 5, 0,
+                           cls(online=5),
+                           cls(online=5), zero(), zero()),
+                    [],
+                ),
+                [warning("statistics_unavailable",
+                         "Gateway statistics unavailable.",
+                         {"deviceId": uid(12)}),
+                 # Counts what is MISSING from the envelope, not what the cap
+                 # skipped: three of the five carry a body, and the two that do
+                 # not got there by different routes.
+                 warning("gateway_statistics_truncated",
+                         "Statistics fetched for 3 of 5 gateways.",
+                         {"fetched": 3, "total": 5})])))
 
     out.append(("success_insecure_tls",
                 "allowInsecureTls in force. UX-009 needs this to reach the panel, "
@@ -1225,6 +1298,29 @@ def reject_cases():
                        "data.clients": [
                            mutate(client_record(70, "a", "WIRED"),
                                   connectedAt=1768209240)]}))
+
+    case("data_schema_violation_gateway_metrics", "data_schema_violation",
+         "A gateway whose `metrics` is a number. The container is the only "
+         "thing that separates a gateway nobody asked about from one whose "
+         "body arrived empty, so a value that is neither an object nor a null "
+         "leaves the panel with a state it cannot name.",
+         mutate(ok, **{"data.gateways": [
+             mutate(gateway(10, "UDM Pro", "UDM-Pro", "ONLINE", "online",
+                            864000, 12000000, 3000000), metrics=42)]}))
+    case("data_schema_violation_gateway_metrics_absent", "data_schema_violation",
+         "A gateway with NO `metrics` key at all. The device half of this rule "
+         "has had a fixture since DEV-7; the gateway half is the same statement "
+         "— 'the producer forgot' is not 'the producer did not ask', and only "
+         "the second has an encoding.",
+         mutate(ok, **{"data.gateways": [
+             {k: v for k, v in gateway(
+                 10, "UDM Pro", "UDM-Pro", "ONLINE", "online",
+                 864000, 12000000, 3000000).items() if k != "metrics"}]}))
+    case("data_schema_violation_gateway_not_object", "data_schema_violation",
+         "A gateway entry that is a string. `Health.js` reads `class` off every "
+         "entry in this array to decide REQ-002 rule 3, so a non-object here "
+         "would be asked whether it is `down` and would answer no.",
+         mutate(ok, **{"data.gateways": ["UDM Pro"]}))
 
     case("data_schema_violation_device_metrics", "data_schema_violation",
          "A device whose `metrics` is a number. `detail` had a fixture for this "

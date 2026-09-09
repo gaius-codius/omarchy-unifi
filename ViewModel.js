@@ -385,22 +385,45 @@ function statisticsFailedIds(warnings) {
 // and refused, which is the one reading that sends them to look at the plugin
 // instead of at the controller.
 //
-// Three states now, and each one claims only what the envelope proves:
+// Four states now, and each one claims only what the envelope proves:
 //
-//   reported     at least one metric arrived; print the numbers.
-//   unavailable  a `statistics_unavailable` warning names this gateway: the
-//                request was made and it failed.
-//   absent       no metrics and no warning naming it. The envelope does not
-//                say whether the helper asked — REQ-008a's four-gateway bound
-//                may have skipped it, or REQ-B02's browse tier may have
-//                fetched it and been handed an empty body — so the row states
-//                the fact it has (no numbers in this reading) and nothing
-//                about how that came about.
+//   reported     a body arrived carrying at least one figure; print them.
+//   empty        a body arrived and every figure in it is null. The controller
+//                answered and had nothing to report — which is a statement
+//                about the CONTROLLER, and the only one of these four that is.
+//   unavailable  no body, and a `statistics_unavailable` warning names this
+//                gateway: the request was made and it failed.
+//   absent       no body and no warning naming it.
+//
+// `did a body arrive` is read from the CONTAINER and not inferred from the
+// figures. It could not be inferred: until `gateways[].metrics` existed the
+// three figures sat inline on the record, so `empty` and `absent` had the same
+// encoding down to the byte, and the panel told a user whose controller had
+// answered that nothing had been fetched. That is the defect this container
+// exists to make unrepresentable, and reading `entry.uptimeSec` again here
+// would reintroduce it above a wire format that had been fixed.
+//
+// `absent` still says only "no statistics in this reading", and deliberately
+// not "the helper never asked". `metrics: null` with no `statistics_unavailable`
+// does not prove nobody asked: REQ-B02's browse tier reports a failure of
+// either of its two requests as `device_detail_unavailable`, which does not say
+// which one failed. The row states the fact it has and stops there.
 //
 // The position in the array is NOT used to infer the bound. It stopped being
 // sound when REQ-B02 gave the browse tier its own statistics fetch: a gateway
 // past the fourth can now arrive with metrics, so "index >= 4 means nobody
 // asked" is an assertion about a code path that no longer exists alone.
+// `null` is the documented "no body arrived". Anything that is not an object is
+// read the same way: a row cannot take figures out of a number, and
+// `Protocol.checkGatewayRecord` has already refused the envelope that would
+// carry one — so this is a backstop against a caller that is not the wire, not
+// a second opinion about the contract. The same shape `Protocol.isObject` uses,
+// arrays included, because `metrics[0]` is not a reading either.
+function metricsBody(value) {
+  return value !== null && typeof value === "object" && !Array.isArray(value)
+    ? value : null
+}
+
 function gatewayRows(gateways, warnings) {
   const list = Array.isArray(gateways) ? gateways : []
   const failed = statisticsFailedIds(warnings)
@@ -408,22 +431,29 @@ function gatewayRows(gateways, warnings) {
   for (let i = 0; i < list.length; i++) {
     const entry = list[i] || {}
     const id = typeof entry.id === "string" ? entry.id : ""
-    const hasMetrics = entry.uptimeSec !== null && entry.uptimeSec !== undefined
-      || entry.downloadBps !== null && entry.downloadBps !== undefined
-      || entry.uploadBps !== null && entry.uploadBps !== undefined
+    // `null` is the documented "no body"; anything that is not an object is
+    // treated the same way, because a row cannot read figures out of it either.
+    const metrics = metricsBody(entry.metrics)
+    const figures = metrics || {}
+    const hasMetrics = figures.uptimeSec !== null && figures.uptimeSec !== undefined
+      || figures.downloadBps !== null && figures.downloadBps !== undefined
+      || figures.uploadBps !== null && figures.uploadBps !== undefined
     const modelText = typeof entry.model === "string" && entry.model !== ""
       ? entry.model : "unknown model"
-    const uptimeText = formatUptime(entry.uptimeSec)
-    const downloadText = formatBps(entry.downloadBps)
-    const uploadText = formatBps(entry.uploadBps)
-    const metricsState = hasMetrics
-      ? "reported" : (id !== "" && failed[id] === true ? "unavailable" : "absent")
+    const uptimeText = formatUptime(figures.uptimeSec)
+    const downloadText = formatBps(figures.downloadBps)
+    const uploadText = formatBps(figures.uploadBps)
+    const metricsState = metrics !== null
+      ? (hasMetrics ? "reported" : "empty")
+      : (id !== "" && failed[id] === true ? "unavailable" : "absent")
     const metricsText = metricsState === "reported"
       ? "up " + uptimeText + "  ·  " + downloadText + " down  ·  "
         + uploadText + " up"
-      : (metricsState === "unavailable"
-        ? "statistics unavailable"
-        : "no statistics in this reading")
+      : (metricsState === "empty"
+        ? "statistics reported no figures"
+        : (metricsState === "unavailable"
+          ? "statistics unavailable"
+          : "no statistics in this reading"))
     rows.push({
       id: id,
       nameText: displayName(entry),

@@ -358,10 +358,13 @@ ShellRoot {
           }
         }
 
-        // 98 since DEV-7: three accept fixtures and seventeen reject ones added
-        // by SPEC-v1.1-browse.md. A literal, so a corpus that silently shrank
-        // would fail here rather than quietly proving less under V4 than V8.
-        check("the whole envelope corpus was driven", 98, checked)
+        // 102 since gateways gained a `metrics` container: one accept fixture
+        // covering its three states, and three reject ones for the shapes the
+        // consumer must refuse. Was 98 after DEV-7 added three accept and
+        // seventeen reject fixtures for SPEC-v1.1-browse.md. A literal, so a
+        // corpus that silently shrank fails here rather than quietly proving
+        // less under V4 than V8.
+        check("the whole envelope corpus was driven", 102, checked)
         if (wrong.length === 0) {
           ok("V4 agrees with V8 on all " + checked + " envelopes")
         } else {
