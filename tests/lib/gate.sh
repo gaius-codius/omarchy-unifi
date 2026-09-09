@@ -38,11 +38,22 @@ gate_done() {
   printf 'ok   %s\n' "$GATE_NAME"
 }
 
-# Files a gate should look at. Deliberately excludes .git and any path the
-# gate's caller asked to skip. Emits NUL-separated paths relative to ROOT.
+# Files a gate should look at. Deliberately excludes .git, nested worktrees, and
+# any path the gate's caller asked to skip. Emits NUL-separated paths relative
+# to ROOT.
+#
+# `.claude/worktrees/` holds git worktrees — each a COMPLETE second copy of this
+# repository. Scanning one makes every gate report every file twice, and the
+# duplicates are attributed to paths that are not part of the plugin. That is
+# not merely noisy: `no_exec_for_dashboard` failed on the copy's own
+# `Service.qml` and `runner.qml`, and a real violation in the actual tree would
+# have arrived as one more line in a wall of false ones. A gate whose output
+# cannot be trusted at a glance stops being read.
 gate_files() {
   local root="$1"; shift
-  ( cd "$root" && find . -name .git -prune -o -type f "$@" -print0 )
+  ( cd "$root" && find . \
+      \( -name .git -o -path './.claude/worktrees' \) -prune -o \
+      -type f "$@" -print0 )
 }
 
 # Emit "<lineno>:<text>" for every line of a file that is not a whole-line
