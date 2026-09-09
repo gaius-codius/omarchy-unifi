@@ -368,6 +368,16 @@ the cursor on Refresh some hundreds of pixels below the visible edge. AC-B17
 asserts Tab "reaches every control" and it did — this is that criterion's
 evident intent rather than a change to it, so no amendment.
 
+*Corrected 2026-09-10.* Leaving the search field **gives the keyboard back to
+the panel**. Clearing focus on a Qt item hands it to nobody, so Tab out of the
+search box left the panel's key catcher live but unfocused: Escape, the arrows,
+Enter, `r`, `f` and `hjkl` all stopped working and the panel could only be
+dismissed by clicking outside it. Changing page is the same defect by another
+route — Qt clears focus when an item is disabled, not when it is hidden, so the
+caret stayed in the search box of the page that had just been hidden, filtering
+a list nobody could see. Both are the stated requirement failing to hold rather
+than a change to it, so no amendment.
+
 *Amended by SPEC-AMD-9, 2026-09-09, extended by SPEC-AMD-10:* `f` cycles the
 filter of whichever browse page is showing — the Devices page's role filter or
 the Clients page's connection-type filter — wrapping — and wrapping past the last role is how the keyboard clears it. It is
@@ -385,6 +395,17 @@ again).
 **REQ-B17 — relative times.** "Connected 3d ago" and every other relative string
 recompute on the service's existing freshness tick. No widget owns a timer
 (REQ-014, UX-011). This is AC-071's guarantee, extended to the new strings.
+
+*Corrected 2026-09-10.* Recomputing the strings **must not move the list**. The
+tick rebuilds the whole model, a rebuilt model is a new rows array, and a
+`ListView` handed a new array returns to the top — so a large site scrolled with
+the mouse snapped back every five seconds, indefinitely. The list keeps its
+position across a rebuild, clamped to whatever content the new rows have, and
+returns to the top only when the page's own search or filter changed. AC-B18
+already requires a list "longer than the panel" to scroll; a list that scrolls
+and then undoes it on a timer meets neither that criterion's letter nor
+REQ-B17's promise that a freshness tick only refreshes text, so this is a
+correction rather than an amendment.
 
 ---
 

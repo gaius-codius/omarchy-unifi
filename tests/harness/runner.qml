@@ -685,6 +685,11 @@ ShellRoot {
 
   property var panelWidget: null
   property var openedUrls: []
+  // AC-B18's scroll cases act in `setup` and read the result a turn later in
+  // `assert` — the restoration is deferred by a `Qt.callLater`, exactly as the
+  // list's own `keepCurrentVisible` is — so what was measured before the act
+  // has to survive between the two.
+  property var scrollProbe: null
 
   // The stub bar. Only what the widget and the qs.Ui components actually
   // touch, so a new host dependency shows up here as an undefined rather than
@@ -1868,6 +1873,91 @@ ShellRoot {
       }
     })
 
+    // --- REQ-B15, corrected 2026-09-10 --------------------------------------
+    //
+    // The defect: Tab out of the search field and the panel went deaf. Escape,
+    // the arrows, Enter, `r`, `f` and hjkl all stopped, and the only way to
+    // dismiss the panel was to click outside it.
+    //
+    // `BrowseList.releaseSearch` sets `searchField.focus = false`, which clears
+    // focus within the scope and hands it to NOBODY: the window's contentItem
+    // is left holding active focus and `keyCatcher` is a DESCENDANT of it, so
+    // nothing reaches it — key events travel down a focus chain, not down the
+    // item tree. `KeyboardPanel.focusTarget` covers the panel opening and
+    // nothing after it.
+    //
+    // Un-blocking the catcher is not the same as giving it the keyboard, which
+    // is why the case above passed throughout: it asserts `blocked`, and
+    // `blocked` was correct. These two assert `activeFocus` — the property that
+    // decides whether a key arrives at all.
+    pending.push({
+      name: "REQ-B15: Tab out of the search field hands the keyboard back",
+      // The restoration is deferred a turn, as the host defers its own
+      // (network/Panel.qml:351-358): it is made from inside the notification of
+      // the focus change that provoked it.
+      waitMs: 60,
+      setup: function () {
+        if (panelWidget === null) return
+        ensurePanelOpen()
+        panelWidget.resetBrowse()
+        panelWidget.setView("devices")
+        var field = panelWidget.activeBrowse()
+        if (field === null) return
+        // The `/` path, both halves of it (Panel.qml's `onTextKey`).
+        panelWidget.focusStop = "search"
+        field.focusSearch()
+        // And what `Keys.onTabPressed` does inside the field, all of it.
+        field.releaseSearch()
+        panelWidget.moveFocus(1)
+      },
+      assert: function () {
+        if (panelWidget === null) return
+        var catcher = findByObjectName(panelWidget, "unifi-key-catcher", 0)
+        if (catcher === null) { bad("the key catcher is reachable"); return }
+        check("the caret has left the field", false, panelWidget.searchHasFocus)
+        check("so the catcher is live", false, catcher.blocked)
+        // The assertion the defect survived: live and unfocused is a panel that
+        // reads keys nobody is sending it. If this fails while the case above
+        // passes, the panel is deaf from the first Tab onwards.
+        check("and it HOLDS the keyboard", true, catcher.activeFocus)
+        check("Tab still moved the stop", "list", panelWidget.focusStop)
+      }
+    })
+
+    pending.push({
+      name: "REQ-B15: changing page takes the caret off the page being hidden",
+      waitMs: 60,
+      setup: function () {
+        if (panelWidget === null) return
+        ensurePanelOpen()
+        panelWidget.resetBrowse()
+        panelWidget.setView("devices")
+        var field = panelWidget.activeBrowse()
+        if (field === null) return
+        panelWidget.focusStop = "search"
+        field.focusSearch()
+        // Clicking the other page's chip mid-search. Qt clears focus when an
+        // item is DISABLED, not when it is hidden, so the Devices field kept
+        // the caret behind the Clients page: every keystroke filtering a list
+        // nobody could see, and `PanelKeyCatcher` blocked the whole time
+        // because the panel was correctly reporting that a field had focus.
+        // `Panel.releaseHiddenSearch` is what makes this a path out.
+        panelWidget.setView("clients")
+      },
+      assert: function () {
+        if (panelWidget === null) return
+        var catcher = findByObjectName(panelWidget, "unifi-key-catcher", 0)
+        if (catcher === null) { bad("the key catcher is reachable"); return }
+        check("the hidden page's field gave the caret up", false,
+              panelWidget.searchHasFocus)
+        var hidden = panelWidget.browseFor("devices")
+        if (hidden === null) { bad("the device page is reachable by name"); return }
+        check("named directly, the same answer", false, hidden.editing)
+        check("so the catcher is live", false, catcher.blocked)
+        check("and holds the keyboard", true, catcher.activeFocus)
+      }
+    })
+
     pending.push({
       name: "AC-B18: a list shorter than its viewport is not a drag surface",
       waitMs: 0,
@@ -1899,6 +1989,126 @@ ShellRoot {
         panelWidget.setSearch("")
         check("and the rule still holds once it refills", true,
               list.interactive === (list.contentHeight > list.height))
+      }
+    })
+
+    // --- AC-B18, corrected 2026-09-10 ---------------------------------------
+    //
+    // The defect: a 200-device site, mouse-scrolled to the bottom, snapped back
+    // to the top every five seconds and did it forever. The rows are a plain JS
+    // array that `deviceListModel` rebuilds on every recompute, the freshness
+    // tick recomputes whether or not anything moved (REQ-B17), and a `ListView`
+    // handed a new array sends `contentY` to 0. `currentIndex` was the only
+    // thing putting it back and it is -1 whenever the list is not the
+    // keyboard's stop — every mouse user, every poll.
+    //
+    // `ViewModel.scrollAfterRowsChange` decides where the list lands and node
+    // covers its branches. What only this layer can show is that the position
+    // survives a REAL rebuild of the real model through the real ListView —
+    // that the swap goes through `adoptRows`, which reads the position before
+    // the assignment destroys it, rather than through a binding.
+    function browseListFor(page) {
+      panelWidget.resetBrowse()
+      panelWidget.setView(page)
+      return findByObjectName(panelWidget, "unifi-browse-list", 0)
+    }
+
+    // The fixture site is five devices against a 320 px viewport, so nothing
+    // here scrolls on its own. The viewport is shrunk rather than the site
+    // grown: "content taller than the viewport" is the whole of the condition,
+    // and the code path a 200-device site takes is the same one. Restored in
+    // `teardown`, because breaking a binding for the rest of the run would
+    // leave a later case measuring a 60 px list.
+    function shrinkBrowseList(list) {
+      scrollProbe = { list: list, at: 0 }
+      list.height = 60
+      var reach = list.contentHeight - list.height
+      if (reach <= 0) return false
+      list.contentY = Math.min(80, reach)
+      scrollProbe.at = list.contentY
+      return true
+    }
+
+    // The list is captured in a LOCAL before the probe is cleared: a binding
+    // written against `scrollProbe.list` would be re-evaluated after this
+    // function set `scrollProbe` to null, and would throw on every frame from
+    // then on.
+    function restoreBrowseList() {
+      if (scrollProbe === null) return
+      var list = scrollProbe.list
+      scrollProbe = null
+      if (list === null || list === undefined) return
+      list.height = Qt.binding(function () {
+        return Math.min(list.contentHeight, Style.space(320))
+      })
+    }
+
+    pending.push({
+      name: "AC-B18: a poll leaves the list where the reader scrolled it",
+      // A turn is all the restoration needs; 80 ms is a turn with room.
+      waitMs: 80,
+      setup: function () {
+        if (panelWidget === null || service === null) return
+        ensurePanelOpen()
+        var list = browseListFor("devices")
+        if (list === null || !shrinkBrowseList(list)) return
+        // The five-second tick, called by name. `_recompute` is the function
+        // `freshnessTimer` fires, and it rebuilds both list models from the
+        // snapshot already in hand — no controller, no network, and the same
+        // new-array-every-time that the defect is made of.
+        service._recompute()
+      },
+      teardown: function () { restoreBrowseList() },
+      assert: function () {
+        if (panelWidget === null || service === null) return
+        if (scrollProbe === null) { bad("the device list was reached"); return }
+        var list = scrollProbe.list
+        if (scrollProbe.at <= 0) {
+          bad("the fixture list is tall enough to scroll",
+              "contentHeight=" + list.contentHeight + " height=" + list.height)
+          return
+        }
+        check("the poll left the list where the reader put it",
+              scrollProbe.at, list.contentY)
+        // And it is showing the REBUILT rows, not the ones whose position it
+        // kept: a swap that quietly stopped happening would preserve every
+        // position perfectly and freeze "3d ago" at whatever it said an hour
+        // ago (REQ-B17).
+        check("and it is showing the rows the poll rebuilt",
+              panelWidget.vm.deviceList.rows.length, list.count)
+        if (list.count > 0) {
+          check("row for row, the model's",
+                panelWidget.vm.deviceList.rows[0].nameText, list.model[0].nameText)
+        }
+      }
+    })
+
+    pending.push({
+      name: "AC-B18: a search returns the list to the top, position or not",
+      waitMs: 80,
+      setup: function () {
+        if (panelWidget === null || service === null) return
+        ensurePanelOpen()
+        var list = browseListFor("devices")
+        if (list === null || !shrinkBrowseList(list)) return
+        // Not a poll: the rows underneath are a different question's answer.
+        // The cursor goes back to 0 on the same keystroke, and a viewport left
+        // half-way down the matches would disagree with it and hide the match
+        // the reader typed towards.
+        panelWidget.setSearch("e")
+      },
+      teardown: function () { restoreBrowseList() },
+      assert: function () {
+        if (panelWidget === null || service === null) return
+        if (scrollProbe === null) { bad("the device list was reached"); return }
+        var list = scrollProbe.list
+        if (scrollProbe.at <= 0) {
+          bad("the fixture list is tall enough to scroll",
+              "contentHeight=" + list.contentHeight + " height=" + list.height)
+          return
+        }
+        check("a search puts the list back at the top", 0, list.contentY)
+        panelWidget.setSearch("")
       }
     })
 

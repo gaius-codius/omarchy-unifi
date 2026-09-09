@@ -1701,6 +1701,66 @@ function num(value, fallback) {
   return isNum(value) ? value : fallback
 }
 
+// AC-B18 / REQ-B17. Where a browse list must sit after its rows were REPLACED.
+//
+// The rows are a plain JS array that `deviceListModel` builds fresh on every
+// recompute, and the service recomputes every five seconds so that "3d ago"
+// stays true (REQ-B17, AC-071). Assigning a new array to a `ListView.model`
+// sends `contentY` straight back to 0 — so a user reading the end of a
+// 200-device list was thrown to the top every five seconds, for as long as they
+// left the panel open, and the row under the pointer was rebuilt from under
+// them with it. The list's `currentIndex` did not cover this: it is -1 whenever
+// the list is not the keyboard's stop, which is exactly the case where the
+// mouse is doing the scrolling.
+//
+// Two questions, answered together because the view can only ask once — after
+// the swap, when the new content has been laid out and the old position is
+// still in hand:
+//
+//   1. Does the old position still MEAN anything? It does not when the page's
+//      own condition changed under it.
+//   2. Does it still EXIST? A list that shortened has less to scroll through,
+//      and a `contentY` past the end shows blank space a Flickable will not
+//      scroll back from.
+//
+// Pure arithmetic and a pair of string comparisons, here rather than in
+// BrowseList.qml for the reason the whole model layer exists (REQ-014): every
+// branch below is a jump the user sees and none of them is reachable from
+// `node --test` if it lives in a delegate.
+function scrollAfterRowsChange(previous, next, contentY, contentHeight, viewportHeight) {
+  const at = num(contentY, 0)
+  // A measurement mid-layout. `contentHeight` is `NaN` for a frame while a
+  // `ListView` regenerates its delegates, and a NaN reaching `contentY` scrolls
+  // the list to nowhere and does not come back — so the position is left
+  // exactly where it is rather than trusting the arithmetic to fail harmlessly.
+  // The same rule `scrollToReveal` follows, for the same reason.
+  if (!isNum(contentHeight) || !isNum(viewportHeight)) return at
+  const max = contentHeight - viewportHeight
+  // Nothing to scroll: an emptied or filtered-down list, and the top is the
+  // only position it has.
+  if (max <= 0) return 0
+  // No predecessor to compare with: the first model a page is ever handed, and
+  // a list being filled for the first time belongs at the top. Returning the
+  // position here would let "unknown" mean "unchanged", which is the one thing
+  // this rule must not conclude on its own.
+  if (!previous || !next) return 0
+  const was = previous
+  const now = next
+  // The page's own condition changed — the user typed into the search field or
+  // cycled the filter (REQ-B10a) — so these rows are a different question's
+  // answer and the first match is the one that was asked for. `Panel.setSearch`
+  // and `Panel.setFilter` put the cursor back to 0 on the same keystroke; a
+  // viewport left half-way down a fresh set of matches would disagree with it,
+  // and would hide the match the user typed towards.
+  if (textOf(was.searchText) !== textOf(now.searchText)) return 0
+  if (textOf(was.filterValue) !== textOf(now.filterValue)) return 0
+  return Math.max(0, Math.min(at, max))
+}
+
+function textOf(value) {
+  return typeof value === "string" ? value : ""
+}
+
 // --- REQ-B15: the focus order ---------------------------------------------
 //
 // Here rather than in `Panel.qml` for the reason the whole pure layer exists:
@@ -2303,6 +2363,7 @@ if (typeof module !== "undefined") module.exports = {
   emptyBrowseList: emptyBrowseList,
   browseView: browseView,
   scrollToReveal: scrollToReveal,
+  scrollAfterRowsChange: scrollAfterRowsChange,
   FOCUS_SEGMENTS: FOCUS_SEGMENTS,
   FOCUS_SEARCH: FOCUS_SEARCH,
   FOCUS_LIST: FOCUS_LIST,
