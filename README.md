@@ -344,6 +344,9 @@ because it installs into `~/.config/omarchy/plugins/`.
 
 `docs/feature-specs/omarchy-unifi-plugin/` holds the spec and the verified host
 and API contracts; `docs/protocol-v1.md` holds the envelope contract.
+`docs/glossary.md` resolves the identifiers the code cites — deviations (`DEV-`),
+plan amendments (`AMD-`), phases, checkpoints, gates and risks — for the ones
+whose working documents are not published.
 
 ## Licence
 

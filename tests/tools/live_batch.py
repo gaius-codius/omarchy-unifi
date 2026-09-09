@@ -149,7 +149,8 @@ def main():
         sys.stderr.write(
             "live_batch.py: REFUSED.\n\n"
             "    This sends live traffic to the user's own UniFi controller.\n"
-            "    SPEC.md §15 classifies that as stop-and-ask (gate G-CONTROLLER).\n"
+            "    SPEC.md §15 classifies that as stop-and-ask; docs/glossary.md\n"
+            "    records it as gate G-CONTROLLER.\n"
             "    Obtain explicit approval, then re-run with %s=1.\n\n"
             "    Nothing was sent.\n" % APPROVAL_ENV)
         return 2

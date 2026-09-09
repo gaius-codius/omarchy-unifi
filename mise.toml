@@ -1,4 +1,5 @@
-# Project-scoped toolchain (AMD-3).
+# Project-scoped toolchain. Recorded as plan amendment AMD-3 — see
+# docs/glossary.md, and note it is NOT the unrelated SPEC-AMD-3.
 #
 # This file exists so the Phase 0 gates have named, reproducible tools:
 #   - gitleaks  is AC-013's scanner and is not in the system PATH.

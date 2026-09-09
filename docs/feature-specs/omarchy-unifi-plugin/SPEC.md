@@ -8,6 +8,14 @@ Related issues / PRs: none — greenfield repository
 Supersedes: `PLAN.md` at the repository root (the pre-skill design document, retained as the origin record)
 Supporting documents: `api-contract.md`, `unifi-network-v1-readonly-subset.json` (this directory)
 
+*Editorial note, 2026-09-10: the working documents this spec cites — `PLAN.md`
+at the repository root and in this directory, `DEVIATION_LOG.md`, and
+`docs/implementation-notes.md` — are the process record and are not published,
+so the pointers to them here and in §11, §13, §14 and §15 lead outside the
+repository. `docs/glossary.md` resolves every identifier they defined —
+deviations, plan amendments, phases, checkpoints, gates and risks — and says
+where each pointer's subject matter now lives. No requirement below changes.*
+
 **Extended by `SPEC-v1.1-browse.md` (2026-09-07).** The Devices and Clients
 views add requirements in a separate `REQ-B` / `AC-B` / `DATA-B` number space
 and do not edit anything below, with four exceptions, each marked in place:

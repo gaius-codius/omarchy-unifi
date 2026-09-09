@@ -178,9 +178,9 @@ if (( LIVE_STAGED )); then
     cat >&2 <<'GATE'
 !!! REFUSED: --live-staged installs this plugin into ~/.config/omarchy/plugins/.
 
-    SPEC.md §15 classifies staging as stop-and-ask (gate G-STAGING), so it is
-    not something a test run may decide to do. Obtain explicit approval, then
-    re-run with OMARCHY_UNIFI_STAGING_APPROVED=1.
+    SPEC.md §15 classifies staging as stop-and-ask; docs/glossary.md records it
+    as gate G-STAGING. It is not something a test run may decide to do. Obtain
+    explicit approval, then re-run with OMARCHY_UNIFI_STAGING_APPROVED=1.
 
     Nothing has been installed.
 GATE
