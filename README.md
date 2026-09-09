@@ -345,6 +345,14 @@ tests/run.sh --gates  # additionally prove each lint gate fails on a seeded viol
 Wayland session. `--live-staged` is refused unless explicitly authorised,
 because it installs into `~/.config/omarchy/plugins/`.
 
+CI runs `tests/run.sh --gates` on every push and pull request, on a stock
+Ubuntu runner. Read its result carefully: a runner is not an Omarchy system, so
+`omarchy plugin validate` and the `qmllint` gate cannot run there, and neither
+can the Quickshell harness. Those steps are reported as skipped and the run
+ends in `SUITE PASS (PARTIAL)` rather than `SUITE PASS`. **The QML layer is
+covered only by running the harness on a real machine** — please do that before
+sending a change that touches it.
+
 `docs/feature-specs/omarchy-unifi-plugin/` holds the spec and the verified host
 and API contracts; `docs/protocol-v1.md` holds the envelope contract.
 `docs/glossary.md` resolves the identifiers the code cites — deviations (`DEV-`),

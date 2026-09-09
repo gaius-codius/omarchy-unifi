@@ -1,0 +1,123 @@
+# The AUTO tier of tests/run.sh, on a machine that has never seen this
+# repository before.
+#
+# That last clause is the point of the file. The argument for CI here is not
+# hypothetical: a fresh clone silently ran ZERO Python tests for most of this
+# project's life. mise refuses an untrusted config, `pythons()` in tests/run.sh
+# swallowed the error, and a `for` loop over an empty list prints nothing and
+# passes. Every machine that had ever run the suite had already trusted the
+# config, so the one environment that could expose it was the one nobody had.
+# A runner is that environment, permanently, on every push.
+#
+# WHAT THIS DOES NOT COVER, and it is a lot:
+#
+#   * `omarchy plugin validate` needs the omarchy CLI.
+#   * The qmllint gate needs Qt 6's qmllint AND /usr/share/omarchy/shell as an
+#     import root, so two of the fifteen gate self-tests do not run either.
+#   * The Quickshell harness needs a live Wayland session (HC-11). It is not
+#     attempted at all, so the QML layer is exercised here only through the
+#     pure-JS model tests.
+#
+# OMARCHY_UNIFI_CI=1 tells tests/run.sh to tolerate the first two BY NAME — the
+# check is for the tool, not for the variable, so this same workflow on an Arch
+# container carrying the shell tree would run them. A tolerated absence is
+# printed, counted, and turns the last line into `SUITE PASS (PARTIAL)`. A green
+# tick here does not mean the suite passed; it means the part of it that can run
+# off an Omarchy host passed.
+name: tests
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+
+# Note there is deliberately no `paths-ignore` for docs.
+# tests/test_suite_integrity.js reads SPEC.md and docs/protocol-v1.md as test
+# INPUT — it parses the DATA-007 kind list, the REQ-013 state list and the
+# DATA-010b outcome table out of the prose and asserts the counts — so a
+# documentation-only commit can genuinely break the suite. Filtering docs out
+# would skip the run that catches it.
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  auto:
+    name: AUTO tier (no Omarchy host)
+    # A normal VM job, NOT `container:`, and that is load-bearing. A container
+    # job runs as root, and `helper/unifi/paths.py` gates the key file and the
+    # custom CA on `st_uid not in (0, os.getuid())` — as root those two
+    # branches collapse into one and the AC-016 permission tests stop
+    # discriminating. Verified: under `unshare -r` (uid mapped to 0) the same
+    # tree fails 16 of 19 in tests/test_end_to_end.js and 2 AC-016 cases, all
+    # green again as an ordinary user. If this job ever moves into a container
+    # to pick up qmllint, give it a non-root user first.
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      OMARCHY_UNIFI_CI: 1
+      # mise refuses to load an untrusted mise.toml, which is precisely the
+      # fresh-clone failure described above. Trusting the checkout here is what
+      # makes the pinned interpreters resolve; if it ever stops working, the
+      # fail-closed branch in tests/run.sh reports it instead of skipping.
+      MISE_TRUSTED_CONFIG_PATHS: ${{ github.workspace }}
+
+    steps:
+      # Third-party actions are pinned to a COMMIT SHA, not a tag. A tag is
+      # mutable and can be repointed by whoever owns the repository; a SHA
+      # cannot. The trailing comment records which release each SHA was.
+      #
+      # fetch-depth: 0 is REQUIRED, not a preference — see the guard below.
+      - name: Checkout (full history)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      # A positive control, in the same spirit as the one inside
+      # tests/lint/secrets.sh. That gate scans FULL GIT HISTORY for a committed
+      # key (AC-013 part 2). Under actions/checkout's default shallow fetch
+      # there is no history to scan, so the scan finds nothing and reports a
+      # clean result — the exact shape of failure the gate's own canary exists
+      # to rule out. Asserting the history is here turns the requirement into
+      # something that breaks loudly rather than a comment nobody reads.
+      - name: Positive control — git history is really present
+        run: |
+          set -euo pipefail
+          depth="$(git rev-list --count HEAD)"
+          printf 'commits reachable from HEAD: %s\n' "$depth"
+          if [[ -f .git/shallow ]] || (( depth < 2 )); then
+            printf '::error::Shallow checkout. tests/lint/secrets.sh would scan an empty history and pass for the wrong reason. Restore fetch-depth: 0.\n'
+            exit 1
+          fi
+
+      # The toolchain comes from mise.toml and nowhere else: gitleaks 8.29.0,
+      # node, and BOTH ends of the SPEC §11 Python support range. Deliberately
+      # not setup-python/setup-node, which would put the versions CI tests in a
+      # second place that can drift from the one developers use.
+      - name: Install pinned toolchain
+        uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
+        with:
+          install: true
+          cache: true
+
+      - name: Toolchain report
+        run: |
+          set -euo pipefail
+          mise ls
+          node --version
+          python3 --version
+          openssl version   # tests/tools/tls_stub.py mints certs with it (SEC-006, SEC-007a)
+          gitleaks version
+
+      # --gates rather than the bare default: it adds tests/lint/selftest.sh,
+      # which proves each gate both passes a clean tree and fails a seeded
+      # violation. Thirteen of the fifteen can prove that here; the two qmllint
+      # seeds report as skipped.
+      - name: tests/run.sh --gates
+        run: bash tests/run.sh --gates

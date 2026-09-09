@@ -20,7 +20,28 @@ LINT="$ROOT/tests/lint"
 WORK="$(mktemp -d "${TMPDIR:-/tmp}/unifi-gate-selftest.XXXXXX")"
 trap 'rm -rf "$WORK"' EXIT
 
-pass=0 fail=0
+pass=0 fail=0 skipped=0
+
+# The one gate that cannot prove itself off an Omarchy host: qmllint needs Qt
+# 6's binary AND /usr/share/omarchy/shell as an import root, so on a generic CI
+# runner its two seeds would report a failure that belongs to the runner rather
+# than to the gate. OMARCHY_UNIFI_CI=1 tolerates that, and only that — the test
+# below is for the TOOL, so an Arch container carrying the shell tree gets the
+# coverage back with no change here, and the other thirteen gates still prove
+# themselves in both directions either way. A skip is counted and printed; it
+# never silently becomes a pass.
+SELFTEST_SKIP_REASON=""
+gate_unavailable() {
+  local gate="$1" t missing=()
+  [[ ${OMARCHY_UNIFI_CI:-0} == 1 ]] || return 1
+  [[ $gate == qmllint ]] || return 1
+  for t in /usr/lib/qt6/bin/qmllint /usr/share/omarchy/shell; do
+    [[ -e $t ]] || missing+=("$t")
+  done
+  (( ${#missing[@]} )) || return 1
+  SELFTEST_SKIP_REASON="not on this host: ${missing[*]}"
+  return 0
+}
 
 # Build a scratch tree. `git clone` for gates that need history, plain copy
 # otherwise (cheaper, and proves the gates do not secretly require a repo).
@@ -40,6 +61,11 @@ scratch() {
 
 check() {  # check <gate> <mode> <seed-shell-snippet>
   local gate="$1" mode="$2" seed="$3" dir out
+
+  if gate_unavailable "$gate"; then
+    printf 'skip %-24s %s\n' "$gate" "$SELFTEST_SKIP_REASON"
+    skipped=$((skipped + 1)); return 0
+  fi
 
   dir="$(scratch "$gate" "$mode")"
   if out="$(bash "$LINT/$gate.sh" "$dir" 2>&1)"; then
@@ -140,5 +166,10 @@ check no_latency_metric copy \
 check secrets clone \
   '_a=glpat-; _b=9mQ4vRt7WzY2nBc8LxK3; printf "token = %s%s\n" "$_a" "$_b" > seed-secret.txt'
 
-printf '\n%d gate(s) proven, %d failure(s)\n' "$pass" "$fail"
+if (( skipped )); then
+  printf '\n%d gate(s) proven, %d skipped (not an Omarchy host), %d failure(s)\n' \
+    "$pass" "$skipped" "$fail"
+else
+  printf '\n%d gate(s) proven, %d failure(s)\n' "$pass" "$fail"
+fi
 [[ $fail -eq 0 ]]

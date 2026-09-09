@@ -35,10 +35,12 @@ for arg in "$@"; do
 done
 
 failures=0
+steps_run=0
 declare -a FAILED=()
 
 step() {  # step <label> <command...>
   local label="$1"; shift
+  steps_run=$((steps_run + 1))
   printf '\n=== %s\n' "$label"
   if "$@"; then
     return 0
@@ -47,6 +49,44 @@ step() {  # step <label> <command...>
   failures=$((failures + 1))
   FAILED+=("$label")
   return 0   # keep going; a full report beats a first-failure abort
+}
+
+declare -a SKIPPED=()
+
+# --- steps that need an Omarchy host ---------------------------------------
+# Two AUTO steps cannot run anywhere but an Omarchy system: `omarchy plugin
+# validate` needs the omarchy CLI, and the qmllint gate needs Qt 6's qmllint
+# AND /usr/share/omarchy/shell as an import root. Both fail closed when their
+# tool is absent, which is correct on a developer machine and fatal on a
+# generic CI runner that will never have either.
+#
+# OMARCHY_UNIFI_CI=1 authorises TOLERATING that absence. Read the three limits
+# carefully, because they are what stop this from being an off switch:
+#
+#   * It disables nothing. The test is for the tool, not for the variable, so
+#     the same run on a host that HAS qmllint still runs qmllint. If CI ever
+#     moves to an Arch container carrying the Omarchy shell tree, the coverage
+#     comes back with no change here.
+#   * It covers exactly two steps, named below. It is not a wildcard, and in
+#     particular it can never reach the secrets gate, which has always failed
+#     closed on a missing gitleaks and still does.
+#   * A skip is carried to the final report and changes the last line of
+#     output. `SUITE PASS` is reserved for a run that skipped nothing.
+#
+# That last point is the whole design. A fresh clone spent this project's
+# lifetime running zero Python tests and reporting a pass, because a step that
+# does not run prints nothing. Anything allowed to go quiet eventually does.
+host_missing() {  # host_missing <label> <path-or-command>...
+  local label="$1"; shift
+  local t missing=()
+  for t in "$@"; do
+    [[ -e $t ]] || command -v "$t" >/dev/null 2>&1 || missing+=("$t")
+  done
+  (( ${#missing[@]} )) || return 1          # present: run the step
+  [[ ${OMARCHY_UNIFI_CI:-0} == 1 ]] || return 1   # not CI: fail closed as designed
+  SKIPPED+=("$label — not on this host: ${missing[*]}")
+  printf '\n=== SKIPPED %s (not present: %s)\n' "$label" "${missing[*]}"
+  return 0
 }
 
 # --- HC-14: prove the suite writes nothing into the tree -------------------
@@ -82,11 +122,18 @@ if (( GATES )); then
 fi
 
 for g in tests/lint/*.sh; do
-  [[ "$(basename "$g")" == selftest.sh ]] && continue
-  step "lint: $(basename "$g" .sh)" bash "$g"
+  gate="$(basename "$g" .sh)"
+  [[ $gate == selftest ]] && continue
+  if [[ $gate == qmllint ]] \
+     && host_missing "lint: qmllint" /usr/lib/qt6/bin/qmllint /usr/share/omarchy/shell; then
+    continue
+  fi
+  step "lint: $gate" bash "$g"
 done
 
-step "omarchy plugin validate" omarchy plugin validate "$REPO"
+if ! host_missing "omarchy plugin validate" omarchy; then
+  step "omarchy plugin validate" omarchy plugin validate "$REPO"
+fi
 
 # --- AUTO: model layer -----------------------------------------------------
 shopt -s nullglob
@@ -197,7 +244,19 @@ step "no repo writes (post-run)" bash tests/lint/no_repo_writes.sh "$REPO" "$BAS
 
 # --- report ----------------------------------------------------------------
 printf '\n---------------------------------------------\n'
+if (( ${#SKIPPED[@]} )); then
+  printf '%d step(s) SKIPPED — this is not an Omarchy host:\n' "${#SKIPPED[@]}"
+  printf '  - %s\n' "${SKIPPED[@]}"
+fi
 if (( failures == 0 )); then
+  if (( ${#SKIPPED[@]} )); then
+    # Deliberately not the word a reader greps for. A partial run is a partial
+    # result, and it should not be possible to mistake one for the other at a
+    # glance or in a CI summary line.
+    printf 'SUITE PASS (PARTIAL) — %d of %d steps skipped\n' \
+      "${#SKIPPED[@]}" "$(( ${#SKIPPED[@]} + steps_run ))"
+    exit 0
+  fi
   printf 'SUITE PASS\n'
   exit 0
 fi
