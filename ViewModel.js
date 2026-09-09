@@ -342,28 +342,101 @@ function wanRows(wan) {
   ]
 }
 
+// The device ids named by `statistics_unavailable`. That code means one thing
+// and only one thing in protocol-v1.md's table: `statistics/latest` WAS
+// requested for that device and the request failed (BIZ-004 keeps the batch
+// successful anyway). It is the only evidence in the envelope that a
+// particular device's statistics were asked for, so it is the only thing that
+// can separate "nobody asked" from "we asked and got nothing".
+//
+// `device_detail_unavailable` deliberately does NOT count here. It is raised
+// when the browse tier's detail call OR its statistics call failed, and when
+// the detail call is the one that failed the statistics call was never made —
+// so reading it as a failed statistics request would put the panel back to
+// asserting something it cannot know, in the other direction.
+function statisticsFailedIds(warnings) {
+  const list = Array.isArray(warnings) ? warnings : []
+  // A bare object literal would let a device id of `constructor` answer true
+  // out of the prototype. Device ids are uuids, but the lookup is not the
+  // place to rely on that.
+  const failed = Object.create(null)
+  for (let i = 0; i < list.length; i++) {
+    const entry = list[i] || {}
+    if (entry.code !== "statistics_unavailable") continue
+    const detail = entry.detail || {}
+    if (typeof detail.deviceId === "string" && detail.deviceId !== "") {
+      failed[detail.deviceId] = true
+    }
+  }
+  return failed
+}
+
 // REQ-008a: `wan` carries the aggregate status plus the PRIMARY gateway's
 // metrics, and the panel additionally lists every gateway individually. This is
-// that list. Gateways beyond the fourth carry no statistics (they were never
-// fetched), and say so rather than reporting them as unknown-for-some-reason.
-function gatewayRows(gateways) {
+// that list, including the whole second line as one pre-rendered string —
+// REQ-014, and not a formality here: the sentence branches on business state,
+// and while it was composed in StatusPanel.qml no test in this file could read
+// what it said.
+//
+// What it said was wrong. `hasMetrics` is "at least one of the three metrics
+// is present", so all-null had exactly one rendering — "statistics not
+// fetched" — and a gateway whose `statistics/latest` call FAILED got it too.
+// That row told the user the helper never asked about a request that was made
+// and refused, which is the one reading that sends them to look at the plugin
+// instead of at the controller.
+//
+// Three states now, and each one claims only what the envelope proves:
+//
+//   reported     at least one metric arrived; print the numbers.
+//   unavailable  a `statistics_unavailable` warning names this gateway: the
+//                request was made and it failed.
+//   absent       no metrics and no warning naming it. The envelope does not
+//                say whether the helper asked — REQ-008a's four-gateway bound
+//                may have skipped it, or REQ-B02's browse tier may have
+//                fetched it and been handed an empty body — so the row states
+//                the fact it has (no numbers in this reading) and nothing
+//                about how that came about.
+//
+// The position in the array is NOT used to infer the bound. It stopped being
+// sound when REQ-B02 gave the browse tier its own statistics fetch: a gateway
+// past the fourth can now arrive with metrics, so "index >= 4 means nobody
+// asked" is an assertion about a code path that no longer exists alone.
+function gatewayRows(gateways, warnings) {
   const list = Array.isArray(gateways) ? gateways : []
+  const failed = statisticsFailedIds(warnings)
   const rows = []
   for (let i = 0; i < list.length; i++) {
     const entry = list[i] || {}
+    const id = typeof entry.id === "string" ? entry.id : ""
     const hasMetrics = entry.uptimeSec !== null && entry.uptimeSec !== undefined
       || entry.downloadBps !== null && entry.downloadBps !== undefined
       || entry.uploadBps !== null && entry.uploadBps !== undefined
+    const modelText = typeof entry.model === "string" && entry.model !== ""
+      ? entry.model : "unknown model"
+    const uptimeText = formatUptime(entry.uptimeSec)
+    const downloadText = formatBps(entry.downloadBps)
+    const uploadText = formatBps(entry.uploadBps)
+    const metricsState = hasMetrics
+      ? "reported" : (id !== "" && failed[id] === true ? "unavailable" : "absent")
+    const metricsText = metricsState === "reported"
+      ? "up " + uptimeText + "  ·  " + downloadText + " down  ·  "
+        + uploadText + " up"
+      : (metricsState === "unavailable"
+        ? "statistics unavailable"
+        : "no statistics in this reading")
     rows.push({
-      id: typeof entry.id === "string" ? entry.id : "",
+      id: id,
       nameText: displayName(entry),
-      modelText: typeof entry.model === "string" && entry.model !== ""
-        ? entry.model : "unknown model",
+      modelText: modelText,
       classText: classWord(entry.class),
-      uptimeText: formatUptime(entry.uptimeSec),
-      downloadText: formatBps(entry.downloadBps),
-      uploadText: formatBps(entry.uploadBps),
-      hasMetrics: hasMetrics
+      uptimeText: uptimeText,
+      downloadText: downloadText,
+      uploadText: uploadText,
+      hasMetrics: hasMetrics,
+      metricsState: metricsState,
+      metricsText: metricsText,
+      // The whole caption line. The view binds this and composes nothing.
+      detailText: modelText + "  ·  " + metricsText
     })
   }
   return rows
@@ -464,6 +537,57 @@ function metaRows(meta, snapshot, warnings) {
     { key: "commitGeneration", label: "Config generation",
       value: formatOptional(data.commitGeneration) }
   ])
+}
+
+// --- REQ-013a: one warning list -------------------------------------------
+//
+// protocol-v1.md, `warnings`: "The service may append warnings of the same
+// shape for conditions it owns — invalid inline settings (DATA-002a), a
+// plain-`http` dashboard URL (UX-010) — so the panel has one list to render."
+//
+// That append was never made. `Settings.classifyLayout` raised
+// `settings_invalid` for a hand-edited `"refreshIntervalSec": "30"` in
+// shell.json, `Service.qml` parked it in a property that only the `status` IPC
+// handler read, and the panel's Warnings section showed nothing — so the widget
+// polled on a 30 s default the user had not chosen, with no way on screen to
+// find out why the 99999 they typed had no effect. A warning nothing renders is
+// a warning nobody raised.
+//
+// The merge is here rather than in `Service.qml` because which warnings the
+// panel shows is a decision, and REQ-014 keeps decisions in this file where
+// `node --test` can read them.
+//
+// Service-owned warnings go LAST, as "append" says. Exact duplicates are
+// dropped: DATA-002 deliberately accepts several `gaius-codius.unifi` entries
+// that differ only in presentation, every entry is resolved on its own, and two
+// entries carrying the same bad `compactMetric` would otherwise print the
+// identical sentence twice.
+//
+// Nothing is truncated here. The helper bounds its own list at 32 (warn.py) and
+// the service adds at most one warning per validated key per bar entry, so the
+// list is already bounded — while a cap applied at this point would drop the
+// tail, which is exactly where the settings warning lands, and the settings
+// warning is the only one in the list the user can act on directly.
+function mergeWarnings(envelopeWarnings, serviceWarnings) {
+  const merged = []
+  const seen = Object.create(null)
+  const sources = [envelopeWarnings, serviceWarnings]
+  for (let s = 0; s < sources.length; s++) {
+    const list = Array.isArray(sources[s]) ? sources[s] : []
+    for (let i = 0; i < list.length; i++) {
+      const entry = list[i]
+      if (!entry || typeof entry.code !== "string" || entry.code === "") continue
+      // Code AND message: `settings_invalid` is one code covering three keys,
+      // so deduplicating on the code alone would silently hide the second
+      // mistake in a shell.json that has two.
+      const key = entry.code + "\u0000" + (typeof entry.message === "string"
+        ? entry.message : "")
+      if (seen[key] === true) continue
+      seen[key] = true
+      merged.push(entry)
+    }
+  }
+  return merged
 }
 
 // --- REQ-013a: the warning rows ------------------------------------------
@@ -1931,7 +2055,11 @@ function build(input) {
   // is a function and holding it would make the panel's contents depend on how
   // many times the function had been called.
   const browse = state.browse || {}
-  const warnings = state.warnings || []
+  // DATA-002a's warnings arrive on their own input rather than pre-mixed into
+  // `warnings`, so this module can still tell whose warning is whose — the
+  // helper's codes are the closed set in protocol-v1.md and the service's are
+  // not, and `sitesFromWarnings` reads a helper code out of the same list.
+  const warnings = mergeWarnings(state.warnings, state.settingsWarnings)
   const error = state.error || null
   return complete({
     state: panel,
@@ -1952,7 +2080,7 @@ function build(input) {
     wan: snapshot ? snapshot.wan : null,
     wanRows: snapshot ? wanRows(snapshot.wan) : [],
     gateways: snapshot ? (snapshot.gateways || []) : [],
-    gatewayRows: snapshot ? gatewayRows(snapshot.gateways) : [],
+    gatewayRows: snapshot ? gatewayRows(snapshot.gateways, warnings) : [],
     counts: counts,
     countRows: countRows(counts),
     clientsText: formatOptional(counts ? counts.clients : null),
@@ -2106,8 +2234,10 @@ if (typeof module !== "undefined") module.exports = {
   wanStatusWord: wanStatusWord,
   wanRows: wanRows,
   gatewayRows: gatewayRows,
+  statisticsFailedIds: statisticsFailedIds,
   countRows: countRows,
   metaRows: metaRows,
+  mergeWarnings: mergeWarnings,
   warningRows: warningRows,
   hasWarning: hasWarning,
   WARNINGS_WITH_THEIR_OWN_ROW: WARNINGS_WITH_THEIR_OWN_ROW,

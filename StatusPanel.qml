@@ -109,15 +109,14 @@ Column {
           width: parent.width
         }
         Text {
-          // REQ-008a's four-gateway statistics bound is visible here rather
-          // than hidden: a gateway past the bound reads "not fetched", not
-          // "unknown", because those are different facts and only one of them
-          // is a fault.
-          text: modelData.hasMetrics
-            ? modelData.modelText + "  ·  up " + modelData.uptimeText
-              + "  ·  " + modelData.downloadText + " down  ·  "
-              + modelData.uploadText + " up"
-            : modelData.modelText + "  ·  statistics not fetched"
+          // Pre-rendered, because this line has to say WHY there are no
+          // numbers and that is a branch on business state. Composed here, it
+          // read "statistics not fetched" for every gateway whose three
+          // metrics were null — including one whose `statistics/latest` call
+          // was made and failed, which is the envelope telling the user the
+          // opposite of what happened. `ViewModel.gatewayRows` separates the
+          // two, and a Node test can now read the sentence.
+          text: modelData.detailText
           color: root.dim
           font.family: root.fontFamily
           font.pixelSize: Style.font.caption

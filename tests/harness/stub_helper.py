@@ -129,9 +129,11 @@ def degraded_data():
             {"id": "00000000-0000-5000-9000-00000000000a", "name": "UDM Pro",
              "model": "UDM-Pro", "state": "ONLINE", "class": "online",
              "uptimeSec": 864000, "downloadBps": 12000000, "uploadBps": 3000000},
-            # Past the statistics bound in spirit: no metrics at all, which the
-            # panel must render as "statistics not fetched" and not as three
-            # separate unknowns.
+            # Past the statistics bound in spirit: no metrics at all, and no
+            # `statistics_unavailable` naming it either. The panel must render
+            # that as one sentence rather than three separate unknowns — and,
+            # since nothing here says whether the helper asked, as a sentence
+            # that does not claim it never did.
             {"id": "00000000-0000-5000-9000-00000000000b", "name": "USG Backup",
              "model": "USG-3P", "state": "OFFLINE", "class": "down",
              "uptimeSec": None, "downloadBps": None, "uploadBps": None},

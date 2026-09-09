@@ -1143,12 +1143,20 @@ ShellRoot {
 
         // REQ-008a: two gateways, and the second has no statistics at all —
         // a different fact from one metric being unknown.
+        //
+        // The envelope carries no `statistics_unavailable` naming this
+        // gateway, so the model cannot say whether the helper asked, and the
+        // row must not claim it did or did not. The panel used to print
+        // "statistics not fetched" for every metric-less gateway, including
+        // ones whose statistics call was made and failed.
         check("both gateways are listed", 2, model.gatewayRows.length)
         check("the online gateway is on screen", true, panelTextContains("UDM Pro"))
         check("the down gateway is on screen", true, panelTextContains("USG Backup"))
         check("the metric-less gateway says so", false, model.gatewayRows[1].hasMetrics)
-        check("'statistics not fetched' is on screen", true,
-              panelTextContains("statistics not fetched"))
+        check("it claims nothing about whether the helper asked", "absent",
+              model.gatewayRows[1].metricsState)
+        check("the honest sentence is on screen", true,
+              panelTextContains("no statistics in this reading"))
 
         // REQ-010 / AC-063: two listed, seven down. The remainder comes from
         // counts.offlineTotal and never from the array's length.
