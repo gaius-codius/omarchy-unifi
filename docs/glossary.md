@@ -15,7 +15,7 @@ identifier a reader can meet in a tracked file, with the substance of the
 decision rather than an expansion of the acronym.
 
 Identifiers that already resolve are **not** repeated here. `REQ-`, `AC-`,
-`DATA-`, `BIZ-`, `SEC-`, `UX-`, `SPEC-AMD-` and the risks `R1`…`R8` are in
+`DATA-`, `BIZ-`, `SEC-`, `UX-`, `SPEC-AMD-3` onwards and the risks `R1`…`R8` are in
 [`SPEC.md`](feature-specs/omarchy-unifi-plugin/SPEC.md); `REQ-B`/`AC-B`/`DATA-B`
 and phases `B0`…`B4` are in
 [`SPEC-v1.1-browse.md`](feature-specs/omarchy-unifi-plugin/SPEC-v1.1-browse.md);
