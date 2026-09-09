@@ -40,7 +40,7 @@ Item {
   property string copiedKey: ""
 
   signal toggleRequested()
-  signal hoverRequested()
+  signal hoverRequested(point at)
   signal copyRequested(string key, string text)
 
   readonly property color _secondary: emphasis ? emphasis.secondary : foreground
@@ -237,7 +237,14 @@ Item {
     hoverEnabled: true
     acceptedButtons: Qt.LeftButton
     cursorShape: Qt.PointingHandCursor
-    onContainsMouseChanged: if (containsMouse) root.hoverRequested()
+    // The pointer's position goes with the signal, in SCENE coordinates so it
+    // survives the row moving underneath it. `ViewModel.focusAfterHover` is
+    // what needs it: this handler fires both when the user aims at the row and
+    // when the freshness tick rebuilds the delegates under a hand that has not
+    // moved, and the position is the only thing in the event that differs.
+    onContainsMouseChanged: if (containsMouse) {
+      root.hoverRequested(mapToItem(null, mouseX, mouseY))
+    }
     onClicked: root.toggleRequested()
   }
 }

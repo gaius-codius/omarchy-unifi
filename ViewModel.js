@@ -1811,6 +1811,68 @@ function focusAfterViewChange(view, stop) {
   return focusStops(view).indexOf(stop) === -1 ? FOCUS_SEGMENTS : stop
 }
 
+// REQ-B15. Where the focus stop goes when the pointer lands on a list row.
+//
+// The CURSOR follows the pointer unconditionally and that is not in question:
+// pointing at a row and pressing Enter must open the row that was pointed at.
+// The focus RING is a different claim — it says which control the keyboard is
+// talking to — and there are two ways a hover arrives at this panel that are
+// not the user aiming at anything.
+//
+// The caret. `/` puts it in the search field, and `PanelKeyCatcher` is blocked
+// for as long as it is there. Moving the stop to the list then drew the ring
+// around a row while every keystroke went on filtering the search box: the
+// visible focus and the thing receiving keys pointed at different controls,
+// and the next Tab moved from the one the user could not see. Resting the
+// mouse over the list — not moving it, resting it — was enough.
+//
+// The poll. The 5 s freshness tick replaces the rows array, `ListView`
+// destroys and rebuilds every delegate, and Qt re-delivers hover to whatever
+// is now under the pointer. Measured on Qt 6.11.2 rather than assumed: a fresh
+// `MouseArea` under a stationary pointer reports `containsMouse`, and raises
+// the same `entered` and the same `positionChanged`, at the same coordinates,
+// as a real movement. Nothing in the event tells the two apart. So a user who
+// pointed at a row and then Tabbed to Refresh had the stop dragged back to the
+// list every five seconds, indefinitely, with their hand nowhere near the
+// mouse — REQ-B17's freshness tick moving focus, which is the same defect
+// class as the tick that used to unscroll the list.
+//
+// What DOES tell them apart is the pointer's position. A pointer that is
+// exactly where it was the last time a row reported a hover has not travelled
+// to this row; something arrived underneath it. So the stop moves on evidence
+// that the pointer is somewhere it was not, and on nothing else.
+//
+// The residual case, written down because it is a real cost and not an
+// oversight: leaving the list and coming back to the very same pixel with no
+// hover in between is a genuine movement this reads as none, and the ring stays
+// where the keyboard left it. That state is visible on screen, Enter acts on
+// the control the ring is actually around, and any further mouse movement
+// undoes it — where the alternative, treating an unmoved pointer as intent, is
+// the defect above.
+function focusAfterHover(stop, searchHasCaret, was, now) {
+  if (searchHasCaret === true) return stop
+  if (!pointerMoved(was, now)) return stop
+  return FOCUS_LIST
+}
+
+// A position we cannot read is NOT movement. The panel is the only caller and
+// it always has one, so the direction this fails in is a hover that declines to
+// take the stop — never one that hands the poll the stop back.
+//
+// `was` absent IS movement: the first hover of a browse is a pointer that has
+// just arrived, and there is nothing to compare it against.
+function pointerMoved(was, now) {
+  if (!isPointerPosition(now)) return false
+  if (!isPointerPosition(was)) return true
+  return was.x !== now.x || was.y !== now.y
+}
+
+function isPointerPosition(point) {
+  if (point === null || point === undefined) return false
+  return typeof point.x === "number" && isFinite(point.x)
+    && typeof point.y === "number" && isFinite(point.y)
+}
+
 // REQ-B10. The panel's current page, defaulting to Overview — which is also
 // where it returns when it closes, because the widget's job is health and
 // reopening it should answer that question rather than resume a browse.
@@ -2371,5 +2433,6 @@ if (typeof module !== "undefined") module.exports = {
   FOCUS_DASHBOARD: FOCUS_DASHBOARD,
   focusStops: focusStops,
   nextFocus: nextFocus,
-  focusAfterViewChange: focusAfterViewChange
+  focusAfterViewChange: focusAfterViewChange,
+  focusAfterHover: focusAfterHover
 }

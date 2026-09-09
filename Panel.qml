@@ -86,6 +86,14 @@ Panel {
   property int deviceCursor: 0
   property int clientCursor: 0
 
+  // Where the pointer was the last time a row reported a hover, in scene
+  // coordinates. `hoverList` is the only writer and `ViewModel.focusAfterHover`
+  // the only reader: it is the evidence that the pointer MOVED, which nothing
+  // else in a hover event carries — a delegate rebuilt under a stationary
+  // pointer raises the same signals at the same coordinates as a real
+  // movement. Null when the panel has heard from no row yet.
+  property var lastHoverPoint: null
+
   // One instance, passed down rather than instantiated per delegate — a
   // 200-row list would otherwise allocate 200 copies of three constants.
   readonly property Emphasis emphasis: emphasisTokens
@@ -305,11 +313,22 @@ Panel {
   }
 
   // The mouse landing on a row puts the panel cursor there, so the two never
-  // point at different rows. It moves the focus STOP too: pressing Enter after
-  // pointing at a row should open the row that was pointed at.
-  function hoverList(index) {
+  // point at different rows. Whether it also moves the focus STOP is
+  // `ViewModel.focusAfterHover`, and the answer is no longer always yes: a
+  // hover arrives when the user aims at a row, and it arrives again when the
+  // caret is in the search field with the mouse merely resting, and again when
+  // the freshness tick rebuilds the delegates under a hand that has not moved.
+  // Only the first of the three is a reason to take the ring off the control
+  // the keyboard is on. The cursor follows all three, because pointing at a row
+  // and pressing Enter must still open the row that was pointed at.
+  function hoverList(index, at) {
     if (!browsing) return
-    focusStop = ViewModel.FOCUS_LIST
+    focusStop = ViewModel.focusAfterHover(focusStop, searchHasFocus,
+                                          lastHoverPoint, at)
+    // Recorded whichever way that went. It is where the pointer IS, not what
+    // was decided about it, and a position dropped on a refused hover is a
+    // position the next poll's re-delivered hover would read as a movement.
+    lastHoverPoint = at
     if (view === "devices") deviceCursor = index
     else clientCursor = index
   }
@@ -491,6 +510,11 @@ Panel {
     deviceCursor = 0
     clientCursor = 0
     focusStop = ViewModel.FOCUS_SEGMENTS
+    // Forgotten with the rest of the browse state. A position held across a
+    // close would be compared against the pointer's position in a session that
+    // has nothing to do with it — and if the panel reopened under a motionless
+    // mouse, the first genuine hover of the new browse would be read as none.
+    lastHoverPoint = null
   }
 
   // REQ-001a lives in exactly one file. The panel hero needs the same
@@ -805,7 +829,7 @@ Panel {
             onToggleRequested: function (id) { root.toggleExpanded(id) }
             onTabRequested: function (direction) { root.moveFocus(direction) }
             onEscapeRequested: root.escapePressed()
-            onCursorHovered: function (index) { root.hoverList(index) }
+            onCursorHovered: function (index, at) { root.hoverList(index, at) }
             // REQ-B10a. Wired on BOTH pages though only Devices can raise it:
             // the two blocks are deliberately parallel, and a handler that
             // exists on one of them is the asymmetry that gets missed when a
@@ -836,7 +860,7 @@ Panel {
             onToggleRequested: function (id) { root.toggleExpanded(id) }
             onTabRequested: function (direction) { root.moveFocus(direction) }
             onEscapeRequested: root.escapePressed()
-            onCursorHovered: function (index) { root.hoverList(index) }
+            onCursorHovered: function (index, at) { root.hoverList(index, at) }
             // REQ-B10a. Wired on BOTH pages though only Devices can raise it:
             // the two blocks are deliberately parallel, and a handler that
             // exists on one of them is the asymmetry that gets missed when a

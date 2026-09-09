@@ -46,7 +46,7 @@ Column {
   // propagate would mean Escape did nothing at all. Forwarded explicitly.
   signal escapeRequested()
   signal toggleRequested(string id)
-  signal cursorHovered(int index)
+  signal cursorHovered(int index, point at)
   signal copyRequested(string key, string text)
   // REQ-B10a. Emitted by the filter chooser below; the panel owns `roleFilter`
   // and is the only thing that may change it.
@@ -330,7 +330,7 @@ Column {
       // its list rows (bluetooth/Panel.qml:940-945) — and unlike the segmented
       // control, which the mouse must cross to reach anything, a row under the
       // pointer IS the row the user is pointing at.
-      onHoverRequested: root.cursorHovered(index)
+      onHoverRequested: function (at) { root.cursorHovered(index, at) }
     }
   }
 }

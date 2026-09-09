@@ -386,6 +386,24 @@ order above is unchanged**. Wrapping and not clamping, unlike the page keys:
 `f` is the filter's only keyboard route, and clamped it would strand the user
 on the last role with only the mouse to undo it.
 
+*Corrected 2026-09-10.* Hover moves the focus ring **only when the pointer
+moved**. Pointing at a row puts the panel cursor on it and takes the focus stop,
+so that Enter opens the row that was pointed at — but a hover also arrives twice
+when nobody is aiming at anything. With the caret in the search field the ring
+went round a list row while every keystroke went on filtering the search box, so
+the focus the user could see and the focus receiving keys named two different
+controls. And REQ-B17's freshness tick replaces the rows array, which rebuilds
+every delegate, and Qt re-delivers hover to whatever is under the pointer:
+measured on Qt 6.11.2, a rebuilt `MouseArea` under a stationary pointer reports
+`containsMouse` and raises the same `entered` and `positionChanged`, at the same
+coordinates, as a real movement. A user who pointed at a row and then Tabbed to
+Refresh had the stop dragged back to the list every five seconds with their hand
+nowhere near the mouse. The panel now moves the stop on the one thing that
+separates the cases — the pointer being somewhere it was not — and never while
+the search field holds the caret. The cursor still follows the pointer in every
+case. Both are REQ-B15's stated behaviour failing to hold rather than a change
+to it, so no amendment.
+
 **REQ-B16 — empty and truncated states.** A filtered list with no matches says
 so and names the term. An unfiltered list with no entries says so. A truncated
 list shows "showing 200 of 412 devices", computed from the independently carried

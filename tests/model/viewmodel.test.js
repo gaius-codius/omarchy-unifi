@@ -2715,6 +2715,92 @@ test("REQ-B15: a view change keeps the stop when it survives and resets when it 
   assert.strictEqual(ViewModel.focusAfterViewChange("overview", "dashboard"), "dashboard")
 })
 
+test("REQ-B15: a hover never takes the stop from the caret in the search field", () => {
+  // `/` puts the caret in the search field and `PanelKeyCatcher` is blocked for
+  // as long as it is there. A hover that moved the stop to the list then drew
+  // the ring around a row while the keystrokes went on filtering the search
+  // box — the focus the user can SEE and the focus that receives keys naming
+  // two different controls, and the next Tab starting from the invisible one.
+  // The pointer really has moved in this case; it is still not a reason.
+  const moved = [{ x: 10, y: 10 }, { x: 10, y: 40 }]
+  for (const stop of ["segments", "search", "list", "refresh", "dashboard"]) {
+    assert.strictEqual(
+      ViewModel.focusAfterHover(stop, true, moved[0], moved[1]), stop, stop)
+  }
+  // And with the caret elsewhere the same hover does move it, so the case above
+  // is the search field's doing and not the rule refusing everything.
+  assert.strictEqual(
+    ViewModel.focusAfterHover("refresh", false, moved[0], moved[1]), "list")
+})
+
+test("REQ-B15: a hover from a pointer that has not moved moves nothing", () => {
+  // The 5 s freshness tick replaces the rows array, ListView rebuilds every
+  // delegate, and Qt re-delivers hover to whatever is under the pointer.
+  // Measured on Qt 6.11.2: the rebuilt MouseArea reports `containsMouse` and
+  // raises `entered` and `positionChanged` at the same coordinates a real
+  // movement produces, so the POSITION is the only thing that separates them.
+  // Without this the stop was dragged off Refresh and back onto the list every
+  // five seconds, indefinitely, with the mouse untouched.
+  const at = { x: 120, y: 88 }
+  for (const stop of ["segments", "search", "list", "refresh", "dashboard"]) {
+    assert.strictEqual(ViewModel.focusAfterHover(stop, false, at, { x: 120, y: 88 }),
+      stop, stop)
+  }
+  // One axis at a time: a rule that compared only x would let the poll through
+  // on every list, because a row rebuild keeps the pointer's x exactly.
+  assert.strictEqual(
+    ViewModel.focusAfterHover("refresh", false, at, { x: 121, y: 88 }), "list")
+  assert.strictEqual(
+    ViewModel.focusAfterHover("refresh", false, at, { x: 120, y: 89 }), "list")
+})
+
+test("REQ-B15: a pointer that has arrived, or moved, does take the stop", () => {
+  // The first hover of a browse has nothing to compare against and is a pointer
+  // that has just arrived, so it counts. Refusing it would leave the mouse
+  // unable to move the stop at all until it had hovered twice.
+  assert.strictEqual(
+    ViewModel.focusAfterHover("segments", false, null, { x: 1, y: 2 }), "list")
+  assert.strictEqual(
+    ViewModel.focusAfterHover("segments", false, undefined, { x: 1, y: 2 }), "list")
+  // Re-entering the row the cursor is already on is a real movement and is
+  // honoured: the pointer left and came back, and it names a position it was
+  // not at. This is the case an index comparison — "the hover names the row we
+  // are already on, so ignore it" — would have thrown away.
+  assert.strictEqual(
+    ViewModel.focusAfterHover("refresh", false, { x: 40, y: 60 }, { x: 40, y: 61 }),
+    "list")
+})
+
+test("REQ-B15: an unreadable position is not movement", () => {
+  // The panel always has a position, so this is a backstop rather than a live
+  // path — and it is pointed the safe way. Treating a junk value as movement
+  // would hand the poll back the stop it was stealing, which is the defect;
+  // treating it as none costs a hover the mouse can repeat.
+  const was = { x: 1, y: 2 }
+  for (const junk of [null, undefined, {}, { x: 1 }, { x: "1", y: "2" },
+    { x: NaN, y: 2 }, { x: 1, y: Infinity }, 7, "x,y"]) {
+    assert.strictEqual(ViewModel.focusAfterHover("refresh", false, was, junk),
+      "refresh", JSON.stringify(junk))
+  }
+  // A junk PRIOR position is the "we have nothing to compare against" case, and
+  // reads as an arrival.
+  assert.strictEqual(
+    ViewModel.focusAfterHover("refresh", false, { x: NaN, y: 2 }, { x: 1, y: 2 }),
+    "list")
+})
+
+test("REQ-B15: the stop a hover moves to is the list stop, by its constant", () => {
+  assert.strictEqual(
+    ViewModel.focusAfterHover("segments", false, null, { x: 0, y: 0 }),
+    ViewModel.FOCUS_LIST)
+  // `searchHasCaret` is compared with `=== true`: the panel binds a bool, and a
+  // rule that accepted any truthy value would let a stray non-empty string
+  // suspend hover focus for the rest of the session.
+  assert.strictEqual(
+    ViewModel.focusAfterHover("refresh", "no", { x: 1, y: 1 }, { x: 2, y: 2 }),
+    "list")
+})
+
 test("REQ-B15: every stop name is a constant, so no caller spells one", () => {
   // The names are compared with `===` in QML and a misspelling there is a stop
   // that silently never matches — Tab would appear to skip it. Exported so
