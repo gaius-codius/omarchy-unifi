@@ -14,8 +14,9 @@ anything on your controller.
 > The v1.1 **Devices and Clients** views are built and measured against that
 > controller: a full batch — both lists, plus per-device ports, radios and
 > statistics — completed in **under half a second** against a 25 s budget, with
-> detail fetched for every device. What is left is Phase 13: manual QA across
-> themes, packaging and release.
+> detail fetched for every device. What is left before a tagged release is
+> manual QA across light and dark themes, packaging, and confirming the plugin
+> against UniFi Network versions other than 10.6.
 
 ## What it shows
 
@@ -85,12 +86,22 @@ present; `scripts/configure` checks for it and reports a clear message rather
 than failing obscurely if it is missing or too old.
 
 A UniFi controller exposing the **Network Integration API**, and an API key for
-it, created in the UniFi console.
+it, created in the UniFi console under **Settings → Control Plane → Integrations**
+(older firmware: **Settings → System → Advanced**). Create the key there, copy it
+once — the console will not show it again — and keep it for the configure step
+below.
+
+**Controller version.** The helper accepts UniFi Network **10.6.x** and refuses
+anything else with an `unsupported` panel rather than guessing at an API it has
+not been checked against. Only 10.6 has been exercised against real hardware. If
+your controller is on a different version this plugin will not work for you yet,
+and the panel will say so on the first poll — please open an issue with your
+`applicationVersion` so the list can grow.
 
 ## Install
 
 ```bash
-omarchy plugin add https://github.com/<you>/omarchy-unifi
+omarchy plugin add https://github.com/gaius-codius/omarchy-unifi
 omarchy plugin enable gaius-codius.unifi
 ```
 
@@ -110,12 +121,37 @@ Controller details and the credential live outside the plugin folder, in
 | `api-key` | the API key and nothing else |
 | `commit.json` | written by `scripts/configure`; do not edit by hand |
 
-Run `scripts/configure` to create them:
+Run `scripts/configure` to create them. `omarchy plugin add` installs the plugin
+into `~/.config/omarchy/plugins/gaius-codius.unifi/`, so that is where the script
+lives — it is not on your `PATH`:
+
+Write the key to a file first. `--api-key-file` reads it directly, which keeps
+the credential out of both argv and your shell history:
 
 ```bash
-printf '%s' "$YOUR_API_KEY" | scripts/configure \
-  --api-root https://<console-ip>/proxy/network/integration --api-key-stdin
+cd ~/.config/omarchy/plugins/gaius-codius.unifi
+
+install -m 600 /dev/null /tmp/unifi-key      # created 0600, before anything is in it
+cat > /tmp/unifi-key                          # paste the key, then press Ctrl-D
+
+./scripts/configure --api-root https://unifi.local/proxy/network/integration \
+  --api-key-file /tmp/unifi-key
+
+shred -u /tmp/unifi-key                       # the key now lives in ~/.config/omarchy-unifi/
 ```
+
+`--api-key-stdin` is the alternative and reads standard input to end-of-file, so
+it suits a pipe (`cat key | ./scripts/configure … --api-key-stdin`). Typing into
+it interactively needs Ctrl-D to finish and echoes the key to your scrollback, so
+prefer the file above. Avoid `printf '%s' "$KEY" | …`: assigning the key to a
+shell variable records it in your history file.
+
+Configuring by **IP address** works, but a UniFi console's certificate is issued
+for its hostname, so an `https://<ip>/…` root cannot be verified and the helper
+fails with a `tls` error. Either use a name the certificate covers, as above, or
+pin the console's own certificate — see *Using a self-signed console
+certificate* below. Do not reach for `--allow-insecure-tls` first; it disables
+verification entirely.
 
 The key is read from standard input or from `--api-key-file`, never from a
 command-line value: argv is world-readable through `/proc`, so an option that
@@ -124,9 +160,11 @@ long as the command ran. It is read by the Python helper directly from
 `api-key` — never placed in `shell.json`, in an environment variable, on a
 command line, or anywhere in this repository.
 
-If your controller has more than one site, the first run reports which ones it
-found; pick one with `scripts/configure --site <uuid>`. A controller with
-exactly one site is selected automatically.
+If your controller has more than one site, `configure` cannot tell you which —
+it never contacts the controller. The **panel** does: once the widget is on the
+bar it lists the sites it found, with their UUIDs. Pick one with
+`./scripts/configure --site <uuid>`. A controller with exactly one site is
+selected automatically and needs none of this.
 
 Other options:
 
@@ -146,7 +184,7 @@ picked up. It exits non-zero if the shell was reachable but could not accept
 the change, and in that case the previous configuration is left exactly as it
 was, so a failed run never leaves you half-configured.
 
-#### Pointing it at your controller
+#### Using a self-signed console certificate
 
 A UniFi console's certificate is self-signed and issued for the name
 **`unifi.local`** — not for its IP address. So configuring it by IP cannot use
@@ -166,20 +204,33 @@ sudo cp /etc/nsswitch.conf /etc/nsswitch.conf.bak
 sudo sed -i 's|^hosts:.*|hosts: mymachines files mdns_minimal [NOTFOUND=return] resolve myhostname dns|' \
   /etc/nsswitch.conf
 
-# 2. save the console's certificate
+# 2. save the console's certificate (mkdir first — configure has not run yet,
+#    so ~/.config/omarchy-unifi/ does not exist)
+mkdir -p -m 700 ~/.config/omarchy-unifi
 openssl s_client -connect 192.168.1.1:443 </dev/null 2>/dev/null \
   | openssl x509 -outform PEM > ~/.config/omarchy-unifi/console.pem
 
+# 2b. CHECK IT IS THE RIGHT CERTIFICATE — see the warning below
+openssl x509 -in ~/.config/omarchy-unifi/console.pem -noout -fingerprint -sha256
+
 # 3. configure
-scripts/configure \
+./scripts/configure \
   --api-root https://unifi.local/proxy/network/integration \
   --custom-ca ~/.config/omarchy-unifi/console.pem \
-  --api-key-stdin
+  --api-key-file /tmp/unifi-key
 ```
 
-That gives verified TLS with the console's own certificate pinned, which is
-stronger than the system trust store would be — nothing but that certificate is
-accepted.
+**Step 2b is not optional.** `openssl s_client` verifies nothing — it saves
+whatever answers on that address at that moment. If someone is between you and
+the console while you run step 2, you will pin *their* certificate, and every
+poll afterwards will complete a perfectly verified handshake to them, carrying
+your API key, with no warning anywhere in the panel. Compare the SHA-256
+fingerprint against the one the console shows in its own UI before you continue.
+Doing this over a network you do not control is exactly when it matters.
+
+Once the right certificate is pinned, TLS is verified against that certificate
+alone — the system trust store is not consulted, so a public CA that mis-issues
+for this name is not trusted either.
 
 Your console may advertise `unifi.local` over mDNS already, in which case steps
 1 and 1b are unnecessary — check with `getent hosts unifi.local` first.
@@ -192,7 +243,12 @@ alter what you are looking at.
 ## Widget settings
 
 Omarchy 4.0.2 ships no settings-form renderer, so these are set by editing your
-`shell.json` layout entry or with `omarchy shell setBarWidget`:
+`shell.json` layout entry or with `omarchy bar set`, for example:
+
+```bash
+omarchy bar set gaius-codius.unifi compactMetric clients
+```
+
 
 | Key | Default | Range |
 |---|---|---|
@@ -238,8 +294,19 @@ so a code change does not take effect until the shell restarts. Everything else
 — your configuration, the bar layout, your credential — is picked up live.
 
 **The panel says the configuration has changed but not been committed.** Run
-`scripts/configure --commit`. That happens when `config.json` or `api-key` is
-edited by hand rather than through the script.
+`~/.config/omarchy/plugins/gaius-codius.unifi/scripts/configure --commit`. That
+happens when `config.json` or `api-key` is edited by hand rather than through
+the script.
+
+**The panel says the controller version is unsupported.** Only UniFi Network
+10.6.x has been verified against hardware, and the helper refuses anything else
+rather than guessing. Please open an issue with the `applicationVersion` your
+console reports so the supported list can grow.
+
+**The panel reports a TLS error.** A UniFi console's certificate is self-signed
+and issued for its hostname, so an `apiRoot` using an IP address can never
+verify. Use the console's name and pin its certificate — see *Using a
+self-signed console certificate* above.
 
 **Two UniFi widgets disagree.** If you have the widget on the bar twice with
 different `refreshIntervalSec` values, polling stops and the panel says so.

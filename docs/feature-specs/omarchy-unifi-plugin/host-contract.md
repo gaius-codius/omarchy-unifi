@@ -44,7 +44,11 @@ Consequences, all load-bearing for this plugin:
 - **`barWidget.defaults` are NOT merged into the `settings` object a widget
   receives.** Defaults must be applied in QML via `setting(name, fallback)`.
 - **There is no settings-form renderer.** Users set inline settings by editing
-  `~/.config/omarchy/shell.json` or via `omarchy shell setBarWidget`.
+  `~/.config/omarchy/shell.json` or via `omarchy bar set <id> <key> <value>`.
+  Not `omarchy shell setBarWidget`: that is the shell METHOD, so the CLI form
+  would be `omarchy shell shell setBarWidget …` — the same one-argument-short
+  mistake HC-6 records for `rescanPlugins`. `omarchy bar set` is the wrapper
+  users are expected to reach for.
 - The manifest `schema` block is still worth authoring — it is forward-looking
   documentation and the validator accepts it — but it cannot be relied on for
   validation or for defaulting.
