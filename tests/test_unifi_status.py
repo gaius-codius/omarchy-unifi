@@ -623,10 +623,38 @@ class TlsVerification(TempTree):
         self.assertEqual(len(pinned), 1,
                          "a pinned context must trust the configured CA and nothing else")
 
+        # The control: `pinned == 1` only means something while the system
+        # store it is being contrasted with is non-empty.
+        #
+        # How to ASK that is platform-dependent, and reading it off
+        # get_ca_certs() alone is what CI caught. OpenSSL loads a `cafile`
+        # eagerly but a `capath` LAZILY, by hashed lookup at verification time,
+        # so get_ca_certs() reports the first and is blind to the second. Arch
+        # ships /etc/ssl/cert.pem and reports ~120 roots; Debian and Ubuntu
+        # ship only the hashed /etc/ssl/certs directory and report none. The
+        # original form therefore measured the platform rather than the code,
+        # and failed on the first runner it ever met.
+        #
+        # Note what this costs on a capath-only platform, because it is real:
+        # if `load_default_certs()` were wrongly added to the pinned branch,
+        # the roots would arrive lazily and `len(pinned) == 1` above would
+        # still hold. The strong form of this test runs where a cafile exists —
+        # which includes Arch, the platform the plugin targets and the one
+        # developers run the suite on.
         default = tlsctx.build_context().get_ca_certs()
-        self.assertGreater(len(default), 1,
-                           "this assertion is only meaningful while the system "
-                           "store is non-empty; it is what `pinned` is compared against")
+        if len(default) > 1:
+            return
+        capath = ssl.get_default_verify_paths().capath
+        self.assertTrue(capath and os.path.isdir(capath),
+                        "no system trust store by either mechanism: get_ca_certs() "
+                        "is empty and there is no capath. Nothing here is meaningful "
+                        "on such a machine, so this fails rather than passing quietly.")
+        hashed = [name for name in os.listdir(capath)
+                  if re.match(r"^[0-9a-f]{8}\.[0-9]+$", name)]
+        self.assertGreater(len(hashed), 1,
+                           "the capath %s holds no hashed trust anchors; the system "
+                           "store is empty and `pinned` is compared against nothing"
+                           % capath)
 
     def test_the_configured_ca_does_not_widen_trust_to_anything_else(self):
         other = tls_stub.mint_ca(self.root, "other")
