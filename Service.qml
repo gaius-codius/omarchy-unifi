@@ -765,6 +765,12 @@ Item {
       errorKind: _errorKind === "" ? null : _errorKind,
       error: _lastError,
       warnings: _warnings,
+      // protocol-v1.md: the service appends the warnings for conditions it
+      // owns, so the panel has ONE list to render. They are handed over
+      // separately and merged in ViewModel.build, because deciding what the
+      // panel shows is the model's job (REQ-014) — this file only reports what
+      // `Settings.classifyLayout` said about the user's shell.json.
+      settingsWarnings: _settingsWarnings,
       isStale: stale,
       settings: _settings,
       pollingSuspended: pollingSuspended,

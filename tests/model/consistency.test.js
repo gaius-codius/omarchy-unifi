@@ -538,3 +538,48 @@ test("the client type words do not claim to be a closed set", () => {
   assert.ok(documented.test(PROTOCOL), "protocol-v1.md changed its mind about `type`")
   assert.strictEqual(ViewModel.clientTypeWord("SOMETHING_NEW"), "SOMETHING_NEW")
 })
+
+
+// --- the two seams the model cannot see for itself ------------------------
+
+test("the service hands its own warnings to the model, not just to `status`", () => {
+  // protocol-v1.md, `warnings`: the service appends the warnings for the
+  // conditions it owns "so the panel has one list to render". It computed them
+  // and did not append them — `_settingsWarnings` was assigned from
+  // `Settings.classifyLayout` and read by exactly one consumer, the `status`
+  // IPC handler. A user who wrote `"refreshIntervalSec": "30"` into shell.json
+  // got the 30 s DEFAULT and an empty Warnings section.
+  //
+  // Asserted over the SOURCE because the wiring is QML: `node --test` can
+  // prove `build` merges the list it is given, and nothing else in the AUTO
+  // layer can prove the service gives it one.
+  const service = fs.readFileSync(path.join(REPO, "Service.qml"), "utf8")
+  const build = /viewModel\s*=\s*ViewModel\.build\(\{([\s\S]*?)\n\s*\}\)/.exec(service)
+  assert.ok(build, "Service.qml: could not locate the ViewModel.build call")
+  assert.ok(/settingsWarnings:\s*_settingsWarnings/.test(build[1]),
+    "Service.qml: ViewModel.build is not given _settingsWarnings, so DATA-002a's "
+    + "warnings are computed and thrown away")
+  // And the model still merges what it is handed — the other half of the seam.
+  const merged = ViewModel.build({
+    warnings: [{ code: "clients_unavailable", message: "a" }],
+    settingsWarnings: [{ code: "settings_invalid", message: "b" }]
+  })
+  assert.deepStrictEqual(merged.warningRows.map((r) => r.code),
+    ["clients_unavailable", "settings_invalid"])
+})
+
+test("the gateway caption is composed in the model, not in the panel", () => {
+  // REQ-014. While StatusPanel.qml composed this line it branched on
+  // `hasMetrics`, which cannot tell "never fetched" from "fetched and
+  // refused", and no test in this directory could read what it said. The view
+  // binds one pre-rendered string now, and this is what keeps it that way.
+  const panel = fs.readFileSync(path.join(REPO, "StatusPanel.qml"), "utf8")
+  const code = panel.split("\n")
+    .filter((line) => !/^\s*\/\//.test(line)).join("\n")
+  assert.ok(/text:\s*modelData\.detailText/.test(code),
+    "StatusPanel.qml must bind the pre-rendered gateway caption")
+  assert.ok(!/statistics/.test(code),
+    "StatusPanel.qml must not word the statistics sentence itself")
+  assert.ok(!/hasMetrics/.test(code),
+    "StatusPanel.qml must not branch on hasMetrics; the model owns that branch")
+})

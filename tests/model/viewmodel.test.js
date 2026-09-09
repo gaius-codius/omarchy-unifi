@@ -656,6 +656,91 @@ test("REQ-008a: each gateway is listed, and 'not fetched' is not 'unknown'", () 
   assert.strictEqual(ViewModel.gatewayRows("nonsense").length, 0)
 })
 
+test("REQ-008a / REQ-014: a metric-less gateway says which kind of nothing it is", () => {
+  // The panel composed this sentence itself and had one branch for three
+  // metrics being null: "statistics not fetched". BIZ-004 makes
+  // `statistics/latest` optional PER DEVICE, so a gateway whose statistics
+  // call was made and REFUSED landed in that same branch and the panel told
+  // the user the helper had never asked — pointing them at the plugin for a
+  // fault that is on the controller. The sentence lives here now, and it says
+  // only what the envelope proves.
+  const gateways = [
+    { id: "g-1", name: "UDM Pro", model: "UDM-Pro", class: "online",
+      uptimeSec: 3600, downloadBps: 1000, uploadBps: 2000 },
+    { id: "g-2", name: "USG Backup", model: "USG-3P", class: "down",
+      uptimeSec: null, downloadBps: null, uploadBps: null },
+    { id: "g-3", name: "USG Spare", model: "USG-3P", class: "online",
+      uptimeSec: null, downloadBps: null, uploadBps: null }
+  ]
+  // protocol-v1.md's table: `statistics_unavailable` is raised only for a
+  // device whose `statistics/latest` request was MADE and failed, and its
+  // detail names that device. It is the whole of the evidence.
+  const rows = ViewModel.gatewayRows(gateways, [
+    { code: "statistics_unavailable",
+      message: "Gateway statistics unavailable; metrics shown as unknown.",
+      detail: { deviceId: "g-3" } }
+  ])
+
+  assert.strictEqual(rows[0].metricsState, "reported")
+  assert.strictEqual(rows[0].detailText,
+    "UDM-Pro  ·  up 1h 0m  ·  1 kbps down  ·  2 kbps up")
+
+  // Nothing names g-2, so the model does not know whether anyone asked — and
+  // the row must not guess in either direction.
+  assert.strictEqual(rows[1].metricsState, "absent")
+  assert.strictEqual(rows[1].detailText, "USG-3P  ·  no statistics in this reading")
+  assert.ok(!/fetch/.test(rows[1].detailText),
+    "a row with no evidence must not claim the helper did or did not ask")
+
+  // g-3 is named, so the request was made and failed. Distinct wording,
+  // because "we did not ask" and "we asked and were refused" send the user to
+  // different places.
+  assert.strictEqual(rows[2].metricsState, "unavailable")
+  assert.strictEqual(rows[2].detailText, "USG-3P  ·  statistics unavailable")
+  assert.notStrictEqual(rows[1].detailText, rows[2].detailText)
+
+  // The warning must name the device to count. A detail-less one is evidence
+  // about nothing in particular and may not silently mark the first gateway.
+  const vague = ViewModel.gatewayRows(gateways,
+    [{ code: "statistics_unavailable", message: "x", detail: null }])
+  assert.deepStrictEqual(vague.map((r) => r.metricsState),
+    ["reported", "absent", "absent"])
+
+  // `device_detail_unavailable` is raised when route 6 OR the statistics call
+  // failed, and when route 6 is the one that failed the statistics call was
+  // never made. Reading it as proof of a refused statistics request would put
+  // the panel back to asserting what it cannot know.
+  const detailFailed = ViewModel.gatewayRows(gateways,
+    [{ code: "device_detail_unavailable", message: "x",
+       detail: { deviceId: "g-2" } }])
+  assert.strictEqual(detailFailed[1].metricsState, "absent")
+
+  // A device id that is also an Object.prototype member must not answer true
+  // out of the prototype chain.
+  assert.strictEqual(
+    ViewModel.gatewayRows([{ id: "constructor", model: "m", class: "online",
+      uptimeSec: null, downloadBps: null, uploadBps: null }], [])[0].metricsState,
+    "absent")
+
+  assert.deepStrictEqual(Object.keys(ViewModel.statisticsFailedIds([
+    { code: "statistics_unavailable", message: "x", detail: { deviceId: "g-9" } },
+    { code: "statistics_unavailable", message: "x", detail: { deviceId: "" } },
+    null
+  ])), ["g-9"])
+
+  // And it reaches the panel through `build`, which is the only route the
+  // view has to it.
+  const model = ViewModel.build({
+    snapshot: { site: { id: "s", name: "Home" }, gateways: gateways,
+                counts: { devicesTotal: 3 } },
+    warnings: [{ code: "statistics_unavailable", message: "x",
+                 detail: { deviceId: "g-3" } }],
+    level: { level: "amber" }
+  })
+  assert.deepStrictEqual(model.gatewayRows.map((r) => r.metricsState),
+    ["reported", "absent", "unavailable"])
+})
+
 test("REQ-009: role rows carry their non-empty classes in a fixed order", () => {
   const rows = ViewModel.countRows(HEALTHY.counts)
   assert.deepStrictEqual(rows.map((r) => r.key),
@@ -939,6 +1024,82 @@ test("a warning with its own panel row is not repeated in the warning list", () 
   assert.strictEqual(model.warningRows.length, 1)
   // And the raw list is untouched, because the service and `status` use it.
   assert.strictEqual(model.warnings.length, 4)
+})
+
+test("DATA-002a: the service's own settings warnings reach the panel's list", () => {
+  // protocol-v1.md, `warnings`: the service appends warnings for the
+  // conditions it owns "so the panel has one list to render". It did not. The
+  // service computed them, stored them where only the `status` IPC handler
+  // looked, and the panel's Warnings section stayed empty — so a shell.json
+  // saying `"refreshIntervalSec": "30"` polled on the 30 s DEFAULT with
+  // nothing on screen to say the typed value had been thrown away.
+  const settingsWarnings = [
+    { code: "settings_invalid",
+      message: "refreshIntervalSec must be a whole number of seconds; using 30.",
+      detail: { key: "refreshIntervalSec", received: "string \"30\"" } }
+  ]
+  const model = ViewModel.build({
+    snapshot: { site: { id: "s", name: "Home" }, counts: { devicesTotal: 1 } },
+    level: { level: "green" },
+    warnings: [{ code: "clients_unavailable", message: "Client list unavailable." }],
+    settingsWarnings: settingsWarnings
+  })
+  const codes = model.warningRows.map((r) => r.code)
+  assert.ok(codes.indexOf("settings_invalid") !== -1,
+    "a settings warning the service computed must be on screen")
+  // Appended, in protocol-v1.md's word: the envelope's own warnings keep their
+  // order and stay first.
+  assert.deepStrictEqual(codes, ["clients_unavailable", "settings_invalid"])
+  assert.strictEqual(model.warningRows[1].text, settingsWarnings[0].message)
+
+  // REQ-B20: no client name, address or MAC in a warning. Nothing the service
+  // routes through here echoes a user-typed string into the sentence — the
+  // raw value stays in `detail`, which is not rendered.
+  for (const row of model.warningRows) {
+    assert.ok(!/[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+/.test(row.text), row.text)
+    assert.ok(!/([0-9a-f]{2}:){5}[0-9a-f]{2}/i.test(row.text), row.text)
+  }
+
+  // A settings warning is a note about how the reading was configured, not a
+  // reading: REQ-013a says it never recolours the widget.
+  assert.strictEqual(model.healthLevel, "green")
+})
+
+test("REQ-013a: merging the two warning sources keeps every distinct one, once", () => {
+  const envelope = [
+    { code: "clients_unavailable", message: "Client list unavailable." },
+    { code: "statistics_unavailable", message: "A has none." },
+    { code: "statistics_unavailable", message: "B has none." }
+  ]
+  // DATA-002 accepts several `gaius-codius.unifi` entries that differ only in
+  // presentation, and every entry is resolved on its own — so two bar entries
+  // with the same bad `compactMetric` produce the identical warning twice, and
+  // printing it twice would read as two separate mistakes.
+  const service = [
+    { code: "settings_invalid", message: "compactMetric must be one of none, clients; using none." },
+    { code: "settings_invalid", message: "compactMetric must be one of none, clients; using none." },
+    { code: "settings_invalid", message: "dashboardUrl must be a string; falling back." }
+  ]
+  const merged = ViewModel.mergeWarnings(envelope, service)
+  assert.deepStrictEqual(merged.map((w) => w.message), [
+    "Client list unavailable.",
+    "A has none.",
+    "B has none.",
+    "compactMetric must be one of none, clients; using none.",
+    "dashboardUrl must be a string; falling back."
+  ])
+  // Deduplicated on the code AND the message: `settings_invalid` covers three
+  // keys, so collapsing on the code alone would hide the second mistake in a
+  // shell.json that has two.
+  assert.strictEqual(merged.filter((w) => w.code === "statistics_unavailable").length, 2)
+
+  // Junk from either side is dropped rather than rendered as a blank row.
+  assert.deepStrictEqual(ViewModel.mergeWarnings(null, null), [])
+  assert.deepStrictEqual(ViewModel.mergeWarnings("nonsense", [null, {}, { code: "" }]), [])
+
+  // With no service warnings the list is the envelope's, unchanged — the
+  // ordinary case must not be reshaped by the merge.
+  assert.deepStrictEqual(ViewModel.mergeWarnings(envelope, []), envelope)
 })
 
 // =========================================================================
