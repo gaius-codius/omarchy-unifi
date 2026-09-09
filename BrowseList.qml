@@ -53,6 +53,15 @@ Column {
   signal filterChanged(string value)
 
   readonly property var rows: list ? list.rows : []
+
+  // AC-B18. The rows reach the list through `adoptRows()` rather than through a
+  // binding on `model`, because the position has to be read BEFORE the new
+  // array lands: a `ListView` resets `contentY` to 0 inside the assignment
+  // itself, so by the time `onModelChanged` runs the old position is already
+  // gone. Repeated at completion because a page whose `list` arrives with the
+  // component never raises the change signal this handler is on.
+  onRowsChanged: view.adoptRows()
+  Component.onCompleted: view.adoptRows()
   readonly property color _tertiary: emphasis ? emphasis.tertiary : foreground
   readonly property var filterChips: list && list.filterChips ? list.filterChips : []
   readonly property string filterValue: list && list.filterValue ? list.filterValue : ""
@@ -82,7 +91,20 @@ Column {
   readonly property Item listItem: view
 
   function focusSearch() { searchField.forceActiveFocus() }
+  // Clearing focus is all this does, and all it may do: `focus = false` hands
+  // the keyboard to NOBODY, and the item that has to get it back — the panel's
+  // `PanelKeyCatcher` — is not something this file can see. `Panel.qml` watches
+  // `editing` and gives it back there, which also covers the ways out of the
+  // field that never reach this function.
   function releaseSearch() { searchField.focus = false }
+
+  // AC-B18 / REQ-014. Where the list goes when its rows are replaced is the
+  // model's rule (`ViewModel.scrollAfterRowsChange`), handed in rather than
+  // imported: `Panel.qml` and `Service.qml` are the only importers of the pure
+  // modules, which are not `.pragma library` (HC-16) — so a third import would
+  // evaluate the whole of ViewModel.js again in each of the two pages, in every
+  // panel, on every monitor. The panel already holds it.
+  property var scrollAfterRowsChange: null
 
   // The field is uncontrolled — `text` is not bound to `list.searchText`, for
   // the reason given at the binding below — so the panel clearing the MODEL
@@ -227,14 +249,57 @@ Column {
 
     ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
 
-    model: root.rows
+    // NOT `root.rows` — see `adoptRows`. Only that function writes this, so the
+    // one thing that can swap the model is the one thing that remembers where
+    // the user was.
+    model: shownRows
     currentIndex: root.listFocused ? root.cursorIndex : -1
+
+    // What is on screen, and the model it came from. The previous model is kept
+    // because the rule that decides whether the old position still means
+    // anything compares the two — the search term and the filter the rows were
+    // built for (`ViewModel.scrollAfterRowsChange`).
+    property var shownRows: []
+    property var shownList: null
+    property var priorList: null
+    property real keptContentY: 0
+    property bool restorePending: false
+
+    function adoptRows() {
+      // The FIRST swap of a turn is the one that knows where the user was: a
+      // keystroke moves the model twice in some paths, and by the second swap
+      // `contentY` is already the 0 the first one left behind.
+      if (!restorePending) {
+        keptContentY = contentY
+        priorList = shownList
+        restorePending = true
+      }
+      shownList = root.list
+      shownRows = root.rows
+      Qt.callLater(restoreScroll)
+    }
+
+    // Deferred a turn, as `keepCurrentVisible` is and for the same reason: the
+    // clamp needs the height of the content that has just been handed over, and
+    // on this frame the delegates for it have not been laid out.
+    function restoreScroll() {
+      restorePending = false
+      if (!root.scrollAfterRowsChange) return
+      contentY = root.scrollAfterRowsChange(priorList, shownList, keptContentY,
+                                            contentHeight, height)
+    }
 
     // Deferred by a turn, as bluetooth's is and for the same reason: the model
     // is rebuilt on every poll AND on every keystroke, so swapping it resets
     // the view out from under a call made straight from the signal. Bluetooth's
     // comment records that network's list is stable enough not to need this;
     // these lists are bluetooth's case.
+    //
+    // This covers the KEYBOARD only and always did: `currentIndex` is -1
+    // whenever the list is not the focus stop, which is every mouse user on
+    // every poll. `restoreScroll` is the other half. The one path that raises
+    // both — a search keystroke, which rebuilds the rows and puts the cursor
+    // back to 0 — is a path where the two agree on the top of the list.
     onCurrentIndexChanged: if (currentIndex >= 0) Qt.callLater(keepCurrentVisible)
     function keepCurrentVisible() {
       if (currentIndex >= 0) positionViewAtIndex(currentIndex, ListView.Contain)

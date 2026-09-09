@@ -122,18 +122,39 @@ Panel {
     return "copied"
   }
 
-  // Every exit from the state the confirmation describes.
-  // Two things on one signal, because QML permits exactly one handler per
+  // Every exit from the state the confirmation describes, and the two focus
+  // duties a page change carries.
+  // Three things on one signal, because QML permits exactly one handler per
   // signal and a second `onViewChanged` further down the file is not a second
   // handler — it is "Property value set multiple times", which loads as an
   // error and takes the whole panel with it.
   onViewChanged: {
     copiedKey = ""
+    // REQ-B15. The page being hidden may still hold the caret: Qt clears focus
+    // when an item is DISABLED, not when it is made invisible. So clicking the
+    // Clients chip while typing in the Devices search left the caret in a
+    // search box nobody could see — every keystroke filtering the page that is
+    // not on screen, `PanelKeyCatcher` blocked throughout because the panel
+    // correctly reported that a field had focus, and no key reaching the panel
+    // until the user clicked their way out.
+    releaseHiddenSearch()
     // REQ-B15 / UX-008: a page change can move the focus stop without changing
     // it (the same stop on a taller page sits somewhere else), so the reveal is
     // driven from here as well as from `onFocusStopChanged`.
     Qt.callLater(revealFocused)
   }
+
+  // Which is only ever the page that is NOT showing: a field on the page in
+  // front of the user keeps the caret it was given.
+  function releaseHiddenSearch() {
+    if (deviceBrowse && deviceBrowse.editing && view !== "devices") {
+      deviceBrowse.releaseSearch()
+    }
+    if (clientBrowse && clientBrowse.editing && view !== "clients") {
+      clientBrowse.releaseSearch()
+    }
+  }
+
   onExpandedDeviceIdChanged: copiedKey = ""
   onExpandedClientIdChanged: copiedKey = ""
 
@@ -153,6 +174,39 @@ Panel {
   // actually is. `PanelKeyCatcher.blocked` reads this.
   readonly property bool searchHasFocus: (deviceBrowse && deviceBrowse.editing)
     || (clientBrowse && clientBrowse.editing)
+
+  // REQ-B15. When the caret leaves the search field, the keyboard goes BACK to
+  // the key catcher.
+  //
+  // `QQuickItem.focus = false` — which is all `BrowseList.releaseSearch` can do
+  // — clears focus within the scope and hands it to NOBODY: the window's
+  // contentItem is left holding active focus, and `keyCatcher` is a descendant
+  // of it, so nothing reaches it. Key events travel down a focus chain, not
+  // down the item tree. So Tab out of the search field and Escape, the arrows,
+  // Enter, `r`, `f` and hjkl all stopped working for the rest of the panel's
+  // life; the only way out was to click outside it and let the dismiss area
+  // close it. `KeyboardPanel.focusTarget` covers the panel OPENING and nothing
+  // after it.
+  //
+  // Bound to where the caret is rather than added to the one function that
+  // moves it, because Tab is not the only way out: `releaseHiddenSearch` above
+  // is another, and it is not the field's own doing. One handler on the state
+  // itself cannot be the half of the pair that a later exit forgets.
+  //
+  // This is the host's own remedy for its inline editor, at
+  // network/Panel.qml:351-358 (host-contract §7), deferral included.
+  onSearchHasFocusChanged: if (!searchHasFocus && opened) Qt.callLater(restoreKeyFocus)
+
+  // Deferred a turn, as the host defers its own: the focus change is being made
+  // from inside the notification of the focus change that provoked it, and
+  // taking focus there fights whatever else is still reacting to the same
+  // signal. Re-tested rather than trusted, because by the time it runs `/` may
+  // have handed the field the keyboard back.
+  function restoreKeyFocus() {
+    if (!opened || searchHasFocus || !keyCatcher) return
+    keyCatcher.forceActiveFocus()
+  }
+
   readonly property var activeList: view === "devices" ? vm.deviceList
     : view === "clients" ? vm.clientList : null
   readonly property int activeCursor: view === "devices" ? deviceCursor : clientCursor
@@ -732,6 +786,12 @@ Panel {
             visible: root.view === "devices"
             list: root.vm.deviceList
             placeholder: "Search devices"
+            // AC-B18 / REQ-014. The rule for where a rebuilt list sits is the
+            // model's; it is passed down because this file is one of the only
+            // two that may import the pure modules (they are not
+            // `.pragma library`, HC-16, so a third importer would evaluate
+            // ViewModel.js again inside every panel, twice, per monitor).
+            scrollAfterRowsChange: ViewModel.scrollAfterRowsChange
             searchFocused: root.focusStop === ViewModel.FOCUS_SEARCH
             listFocused: root.focusStop === ViewModel.FOCUS_LIST
             cursorIndex: root.deviceCursor
@@ -759,6 +819,10 @@ Panel {
             visible: root.view === "clients"
             list: root.vm.clientList
             placeholder: "Search clients"
+            // Wired on BOTH pages, for the reason the filter handler below is:
+            // a property set on one of two deliberately parallel blocks is the
+            // asymmetry nobody notices until the other page misbehaves.
+            scrollAfterRowsChange: ViewModel.scrollAfterRowsChange
             searchFocused: root.focusStop === ViewModel.FOCUS_SEARCH
             listFocused: root.focusStop === ViewModel.FOCUS_LIST
             cursorIndex: root.clientCursor

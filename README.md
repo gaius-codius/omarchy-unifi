@@ -63,7 +63,10 @@ The whole panel is keyboard-driven: Tab walks the controls, Left/Right move
 between the three pages, `/` jumps to the search field, `f` cycles the current page's
 filter, Up/Down move the list cursor, Enter expands a row, and Escape clears a
 search before it closes the panel. The panel scrolls to whichever control the
-keyboard is on. Clicking an address, a MAC or the site id copies it. MAC addresses are
+keyboard is on, and leaving the search field gives the keyboard straight back to
+the panel. A list you have scrolled stays where you left it while the panel
+refreshes itself, and returns to the top when you change the search or the
+filter. Clicking an address, a MAC or the site id copies it. MAC addresses are
 shown only in an expanded row, and — apart from that deliberate copy — appear in
 no log, warning or `status` output.
 

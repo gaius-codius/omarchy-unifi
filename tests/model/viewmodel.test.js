@@ -2261,6 +2261,145 @@ test("REQ-B15 / UX-008: a measurement mid-layout never moves the panel", () => {
   }
 })
 
+// --- AC-B18: the list keeps its place across a rebuild --------------------
+//
+// The defect: a 200-device site, mouse-scrolled to the bottom, snapped back to
+// the top every five seconds and did it forever. `deviceListModel` builds a new
+// rows array on every recompute and the service recomputes on the freshness
+// tick whether or not anything moved (REQ-B17) — and a `ListView` handed a new
+// array sends `contentY` to 0. The list's `currentIndex` was the only thing
+// putting it back, and that is -1 whenever the list is not the keyboard's stop,
+// which is every mouse user.
+//
+// Nothing about this is visible to the harness in under a five-minute run, and
+// every branch below is a jump the reader sees.
+
+// A list model reduced to the two fields the rule reads. Written as a helper
+// rather than passing whole `deviceListModel` outputs, so a test that changes
+// the search term cannot also change six other fields by accident.
+function shownAs(searchText, filterValue) {
+  return { searchText: searchText, filterValue: filterValue }
+}
+
+test("AC-B18: the five-second poll leaves the list where the reader put it", () => {
+  const after = ViewModel.scrollAfterRowsChange
+  const VIEW = 320
+  const CONTENT = 4000
+
+  // The poll rebuilds the rows and changes nothing about the page: same search,
+  // same filter, same site. The position is the reader's and stays theirs.
+  const was = shownAs("", "")
+  const now = shownAs("", "")
+  assert.strictEqual(after(was, now, 3000, CONTENT, VIEW), 3000)
+  assert.strictEqual(after(was, now, 1, CONTENT, VIEW), 1)
+  // Including a filtered page that is merely being refreshed — the filter is
+  // not new, so neither is the question the reader is scrolling through.
+  assert.strictEqual(after(shownAs("ap", "gateway"), shownAs("ap", "gateway"),
+    2000, CONTENT, VIEW), 2000)
+  // The top is the top. A rule that "restored" a position onto a list already
+  // at the top would be indistinguishable from the defect it replaces.
+  assert.strictEqual(after(was, now, 0, CONTENT, VIEW), 0)
+})
+
+test("AC-B18: a search or a filter change puts the list back at the top", () => {
+  const after = ViewModel.scrollAfterRowsChange
+  const VIEW = 320
+  const CONTENT = 4000
+
+  // These rows are a different question's answer. `Panel.setSearch` and
+  // `Panel.setFilter` put the cursor back to 0 on the same keystroke, and a
+  // viewport left half-way down a fresh set of matches would both disagree with
+  // the cursor and hide the match the reader typed towards.
+  assert.strictEqual(after(shownAs("", ""), shownAs("ap", ""), 3000, CONTENT, VIEW), 0)
+  assert.strictEqual(after(shownAs("ap", ""), shownAs("", ""), 3000, CONTENT, VIEW), 0)
+  assert.strictEqual(after(shownAs("ap", ""), shownAs("apx", ""), 3000, CONTENT, VIEW), 0)
+  // REQ-B10a's filter, on either page — the Devices role and the Clients
+  // connection type reach this through the one field for that reason.
+  assert.strictEqual(after(shownAs("", ""), shownAs("", "gateway"), 3000, CONTENT, VIEW), 0)
+  assert.strictEqual(after(shownAs("", "wired"), shownAs("", ""), 3000, CONTENT, VIEW), 0)
+
+  // The FIRST model a page ever shows has no predecessor, and a list being
+  // populated for the first time belongs at the top.
+  assert.strictEqual(after(null, shownAs("", ""), 3000, CONTENT, VIEW), 0)
+  assert.strictEqual(after(undefined, shownAs("ap", ""), 3000, CONTENT, VIEW), 0)
+  assert.strictEqual(after(shownAs("", ""), null, 3000, CONTENT, VIEW), 0)
+  // A model missing the fields entirely reads as "no search, no filter" on both
+  // sides and is therefore not a change — the page is being polled, not asked
+  // a new question.
+  assert.strictEqual(after({}, {}, 3000, CONTENT, VIEW), 3000)
+  // `emptyBrowseList` is that model in practice: it arrives whenever a page is
+  // drawn without a snapshot (REQ-013b), and two of them in a row are two polls
+  // of the same empty page.
+  const blank = ViewModel.emptyBrowseList()
+  assert.strictEqual(after(blank, ViewModel.emptyBrowseList(), 3000, CONTENT, VIEW), 3000)
+})
+
+test("AC-B18: a position past the end of a shortened list is clamped", () => {
+  const after = ViewModel.scrollAfterRowsChange
+  const VIEW = 320
+  const same = [shownAs("ap", ""), shownAs("ap", "")]
+
+  // The site shrank under the reader — devices went offline, or the controller
+  // returned fewer — with the search unchanged. `contentY` past the end of a
+  // Flickable shows blank space it will not scroll back from.
+  assert.strictEqual(after(same[0], same[1], 3000, 1000, VIEW), 1000 - VIEW)
+  assert.strictEqual(after(same[0], same[1], 680, 1000, VIEW), 680)
+  // Nothing left to scroll: a list shorter than its viewport, and an emptied
+  // one. The top is the only position either of them has.
+  assert.strictEqual(after(same[0], same[1], 3000, 200, VIEW), 0)
+  assert.strictEqual(after(same[0], same[1], 3000, VIEW, VIEW), 0)
+  assert.strictEqual(after(same[0], same[1], 3000, 0, VIEW), 0)
+  // And never above the top, which a negative `contentY` — an overscrolled
+  // Flickable caught mid-bounce — would otherwise carry across.
+  assert.strictEqual(after(same[0], same[1], -50, 4000, VIEW), 0)
+})
+
+test("AC-B18: a measurement mid-layout never moves the list", () => {
+  // `contentHeight` is NaN for a frame while a ListView regenerates its
+  // delegates, and 0 while it has none — the swap this rule runs on is exactly
+  // when both are true. A NaN reaching `contentY` scrolls the list to nowhere
+  // and it does not come back, so an unreadable measurement leaves the position
+  // alone rather than trusting the arithmetic to fail harmlessly. The rule
+  // `scrollToReveal` follows, for the same reason.
+  const after = ViewModel.scrollAfterRowsChange
+  const was = shownAs("", "")
+  for (const bad of [NaN, undefined, null, "4000", {}, Infinity, -Infinity]) {
+    assert.strictEqual(after(was, was, 900, bad, 320), 900, "content " + String(bad))
+    assert.strictEqual(after(was, was, 900, 4000, bad), 900, "viewport " + String(bad))
+  }
+  // A position that cannot be read becomes the top rather than propagating.
+  assert.strictEqual(after(was, was, NaN, 4000, 320), 0)
+  assert.strictEqual(after(was, was, undefined, 4000, 320), 0)
+  // Every good path returns a real number.
+  for (const at of [0, 100, 3680, 5000]) {
+    const out = after(was, was, at, 4000, 320)
+    assert.ok(Number.isFinite(out), at + " gave " + out)
+  }
+})
+
+test("AC-B18: the rule reads the fields the two list models actually publish", () => {
+  // Pinned to the models rather than to the helper above. `searchText` and
+  // `filterValue` are the names both pages carry — `filterValue` and not
+  // `role`, precisely so one rule can serve both — and a rename that left this
+  // function reading `undefined` on both sides would make every comparison
+  // above equal and the list would simply never return to the top.
+  const data = snapshotOf("success_browse_full")
+  const plain = ViewModel.build({ snapshot: data, nowWall: 1768209240 })
+  const searched = ViewModel.build({
+    snapshot: data, nowWall: 1768209240, browse: { deviceSearch: "ap" }
+  })
+  assert.ok("searchText" in plain.deviceList && "filterValue" in plain.deviceList)
+  assert.ok("searchText" in plain.clientList && "filterValue" in plain.clientList)
+  assert.notStrictEqual(plain.deviceList.searchText, searched.deviceList.searchText)
+  assert.strictEqual(ViewModel.scrollAfterRowsChange(
+    plain.deviceList, searched.deviceList, 3000, 4000, 320), 0)
+  // Two consecutive polls of the same page: the rows are rebuilt, the page is
+  // the same page, and the reader keeps their place.
+  assert.strictEqual(ViewModel.scrollAfterRowsChange(
+    plain.deviceList, ViewModel.build({ snapshot: data, nowWall: 1768209245 }).deviceList,
+    3000, 4000, 320), 3000)
+})
+
 test("REQ-B10: the two list models have identical shapes", () => {
   // They are rendered by the same delegate machinery in Phase B3. A key present
   // on one and not the other is a binding that silently reads undefined on one
