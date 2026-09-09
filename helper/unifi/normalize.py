@@ -25,6 +25,7 @@ outage by 98%.
 """
 
 import ipaddress
+import math
 
 from . import errors
 from . import sanitize
@@ -54,6 +55,25 @@ STATE_CLASS = {
     "ISOLATED": CLASS_IMPAIRED,
     "U5G_INCORRECT_TOPOLOGY": CLASS_IMPAIRED,
 }
+
+# What `state` becomes when the controller did not give a usable one.
+#
+# DATA-B01 declares `state` a REQUIRED non-empty string, and `Protocol.js`
+# enforces that with `checkRequiredString` — a WHOLE-ENVELOPE rejection. But
+# `sanitize.clean` returns `None` for a null and `""` for a whitespace-only
+# value, which are precisely the two things that check rejects. So a single
+# device whose firmware reported `"state": null` took down every reading, on
+# every poll, for as long as that device existed. `Protocol.js` even carries a
+# comment arguing these rejections are unreachable from this helper: true for
+# the nullable strings, false for `state`, the one REQUIRED string `clean` can
+# also null.
+#
+# Uppercase to sit alongside the ten real API values, and deliberately not one
+# of them. Nothing is invented by this: `classify_state` already returns
+# `unknown` for a missing state, and `unknown_device_state` already fires
+# carrying the raw value, so the fact that the controller said nothing useful is
+# reported — it is just no longer reported by destroying the envelope.
+STATE_UNKNOWN = "UNKNOWN"
 
 FEATURE_GATEWAY = "gateway"
 FEATURE_SWITCHING = "switching"
@@ -389,7 +409,7 @@ def _device_entry(device, statistics, details):
         "id": sanitize.clean(identifier),
         "name": sanitize.clean(device.get("name")),
         "model": sanitize.clean(device.get("model")),
-        "state": sanitize.clean(device.get("state")),
+        "state": _state(device.get("state")),
         "class": classify_state(device.get("state")),
         "roles": roles,
         "ipAddress": sanitize.clean(device.get("ipAddress")),
@@ -536,16 +556,36 @@ def _as_bool(value):
     return value if isinstance(value, bool) else None
 
 
+def _state(value):
+    """DATA-B01's required non-empty `state`. See STATE_UNKNOWN."""
+    cleaned = sanitize.clean(value)
+    return cleaned if cleaned else STATE_UNKNOWN
+
+
 def _number(value):
-    """A float or int as-is; anything else null.
+    """A FINITE float or int as-is; anything else null.
 
     Deliberately NOT `_count`: utilisation percentages and radio frequencies are
     fractional, and coercing 4.5 to 4 would be a silent lie about a number the
     panel prints.
+
+    The finiteness check is not theoretical. Python's JSON decoder maps `1e400`
+    to `inf` without complaint, so a controller sending that got a float past an
+    `isinstance` test — and `json.dumps` then emits the bare token `Infinity`,
+    which is valid Python-flavoured JSON and is not JSON. `JSON.parse` on the
+    service side has no such literal, so ONE out-of-range metric on ONE device
+    cost the entire reading, reported as `malformed_response`. `nan` is the same
+    defect wearing a different hat.
+
+    Null, because BIZ-003: a number we cannot represent is a number we do not
+    have, and the panel already knows how to say "unknown".
     """
     if isinstance(value, bool):
         return None
-    return value if isinstance(value, (int, float)) else None
+    if not isinstance(value, (int, float)):
+        return None
+    # bool is excluded above; int is always finite; only float can fail this.
+    return value if math.isfinite(value) else None
 
 
 def _offline_entry(device, klass):
@@ -553,7 +593,7 @@ def _offline_entry(device, klass):
         "id": sanitize.clean(_identifier(device)),
         "name": sanitize.clean(device.get("name")),
         "model": sanitize.clean(device.get("model")),
-        "state": sanitize.clean(device.get("state")),
+        "state": _state(device.get("state")),
         "class": klass,
     }
 
@@ -564,7 +604,7 @@ def _gateway_entry(device, statistics):
         "id": sanitize.clean(_identifier(device)),
         "name": sanitize.clean(device.get("name")),
         "model": sanitize.clean(device.get("model")),
-        "state": sanitize.clean(device.get("state")),
+        "state": _state(device.get("state")),
         "class": classify_state(device.get("state")),
         "uptimeSec": metrics["uptimeSec"],
         "downloadBps": metrics["downloadBps"],

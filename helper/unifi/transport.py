@@ -157,6 +157,18 @@ def _read(response, request, deadline, warnings, max_bytes):
             retry_after_sec=retry_after)
     if status != OK_STATUS:
         _discard(response)
+        # A status outside 100..599 is not an HTTP status, it is a malformed
+        # status line that `http.client` happens to parse — it accepts anything
+        # up to 999. Raising `HttpError` with one was fatal in a way worth
+        # spelling out: `errors.error_object` validates the range and raises
+        # `InconsistentError`, which is a ValueError and NOT a HelperError, and
+        # it did so from INSIDE `unifi_status.run`'s `except errors.HelperError`
+        # handler — where the sibling `except Exception` cannot catch it. The
+        # helper died with a traceback on stderr and NOTHING on stdout, which
+        # are exactly the two outcomes that handler exists to prevent.
+        if not (errors.HTTP_STATUS_MIN <= status <= errors.HTTP_STATUS_MAX):
+            raise errors.MalformedResponseError(
+                "The controller returned a status line that is not HTTP.")
         raise errors.HttpError(
             "The controller returned an unexpected HTTP status.", status)
 

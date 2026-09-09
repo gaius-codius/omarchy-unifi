@@ -813,6 +813,15 @@ class InterpreterFloor(unittest.TestCase):
                    # would also have to hand-roll loopback, link-local, CGNAT
                    # and the IPv6 equivalents.
                    "ipaddress",
+                   # `math.isfinite` rejects the `inf` that Python's JSON
+                   # decoder produces from a literal like `1e400`. Without it a
+                   # non-finite float passed an `isinstance` check and
+                   # `json.dumps` emitted the bare token `Infinity`, which
+                   # `JSON.parse` refuses — one bad metric cost the whole
+                   # envelope. Hand-rolling it means `v != v` for NaN plus two
+                   # infinity comparisons, which is the kind of cleverness this
+                   # allowlist exists to keep out of a numeric guard.
+                   "math",
                    # The helper's own package. `unifi_status.py` is a SCRIPT,
                    # not a module inside the package, so it cannot use a
                    # relative import; the explicit sys.path bootstrap above it
@@ -1556,6 +1565,194 @@ class BrowseRecords(unittest.TestCase):
                 data = self._built([device])
                 klass = data["devices"][0]["class"]
                 self.assertEqual(data["counts"]["byClass"][klass], 1)
+
+
+class HostileControllerValues(unittest.TestCase):
+    """Single fields that used to cost the entire reading.
+
+    Grouped by SHAPE, not by subject. Each of these is one value, from one
+    device or one site, that turned a poll which should have degraded a single
+    row into a poll that produced nothing at all — and in three of the four
+    cases the helper's own comments argued the outcome was unreachable. That
+    argument is what these tests exist to stop being made again.
+
+    All four were found in the pre-publication review and are regressions in the
+    strict sense: each fails against the code as it stood before its fix.
+    """
+
+    def _device(self, **over):
+        device = {"id": normalize_inputs.uid(2), "name": "Sw", "model": "USW",
+                  "features": ["switching"], "state": "ONLINE"}
+        device.update(over)
+        return device
+
+    def _built(self, devices):
+        return normalize.build({"id": normalize_inputs.uid(1), "name": "Home"},
+                               devices, None, {}, "9.1.0", warn.Warnings(),
+                               listed_devices=devices)
+
+    # --- DATA-B01's required `state` ---------------------------------------
+
+    def test_a_device_with_no_usable_state_still_produces_a_valid_record(self):
+        # `state` is the one REQUIRED non-empty string that `sanitize.clean`
+        # can turn into None or "" — the exact two values `Protocol.js`'s
+        # `checkRequiredString` rejects, and it rejects the WHOLE envelope. One
+        # device on one firmware reporting `"state": null` therefore replaced
+        # every reading with a schema violation, on every poll, indefinitely.
+        cases = [("null", {"state": None}), ("whitespace", {"state": "   "}),
+                 ("empty", {"state": ""})]
+        for label, over in cases:
+            with self.subTest(label):
+                entry = self._built([self._device(**over)])["devices"][0]
+                self.assertIsInstance(
+                    entry["state"], str,
+                    "state must be a string; Protocol.js rejects the envelope")
+                self.assertNotEqual(
+                    entry["state"], "",
+                    "state must be NON-EMPTY; '' is rejected like null")
+
+    def test_a_device_with_no_state_is_absent_rather_than_null(self):
+        device = self._device()
+        del device["state"]
+        entry = self._built([device])["devices"][0]
+        self.assertEqual(entry["state"], normalize.STATE_UNKNOWN)
+
+    def test_an_unusable_state_is_still_reported_as_unknown_and_warned(self):
+        # The substitution must not launder the fact away. The device is still
+        # classified `unknown` (never `online`) and the warning still fires.
+        collector = warn.Warnings()
+        normalize.build({"id": normalize_inputs.uid(1), "name": "Home"},
+                        [self._device(state=None)], None, {}, "9.1.0",
+                        collector, listed_devices=[self._device(state=None)])
+        codes = [w["code"] for w in collector.to_list()]
+        self.assertIn("unknown_device_state", codes)
+
+    def test_the_substituted_state_is_not_one_of_the_ten_api_values(self):
+        # If it collided with a real state the panel would report a device as
+        # ONLINE on the strength of the controller having said nothing.
+        self.assertNotIn(normalize.STATE_UNKNOWN, normalize.STATE_CLASS)
+
+    # --- non-finite numbers -------------------------------------------------
+
+    def test_a_non_finite_metric_is_null_and_never_reaches_json(self):
+        # `json.loads("1e400")` is `inf`, which passes `isinstance(v, float)`.
+        # `json.dumps` then writes the bare token `Infinity` — accepted by
+        # Python, refused by `JSON.parse`. One out-of-range number on one
+        # device made the whole envelope unparseable, reported to the user as
+        # `malformed_response`.
+        for text in ("1e400", "-1e400"):
+            with self.subTest(text):
+                self.assertIsNone(normalize._number(json.loads(text)))
+        self.assertIsNone(normalize._number(float("nan")))
+
+    def test_finite_numbers_including_zero_are_untouched(self):
+        # BIZ-003 in the other direction: the guard must not turn a real 0 into
+        # a null, which would be the same lie with the sign flipped.
+        self.assertEqual(normalize._number(0), 0)
+        self.assertEqual(normalize._number(4.5), 4.5)
+        self.assertEqual(normalize._number(-1), -1)
+
+    def test_a_non_finite_metric_leaves_the_envelope_serializable(self):
+        # The end-to-end statement, because the unit test above would still
+        # pass if something downstream reintroduced the value.
+        data = self._built([self._device()])
+        data["devices"][0]["metrics"] = {"cpuUtilizationPct":
+                                         normalize._number(json.loads("1e400"))}
+        text = json.dumps(data, sort_keys=True, separators=(",", ":"))
+        self.assertNotIn("Infinity", text)
+        self.assertNotIn("NaN", text)
+
+    # --- site names in warning details --------------------------------------
+
+    def test_a_site_name_in_a_warning_is_cleaned_and_bounded(self):
+        # UX-006a's site list travels in a warning, and `Protocol.js` walks the
+        # whole envelope — warnings included — rejecting any string past 512
+        # chars. An over-long site name therefore made the envelope invalid,
+        # AND took the site-selection list down with it: the only in-panel way
+        # to fix the problem was carried inside the thing being rejected.
+        pairs = collect._pairs([{"id": normalize_inputs.uid(1),
+                                 "name": "n" * 900}])
+        self.assertLessEqual(len(pairs[0]["name"]), sanitize.STRING_MAX_CHARS)
+
+    def test_a_site_name_cannot_forge_a_line_in_a_warning(self):
+        pairs = collect._pairs([{"id": normalize_inputs.uid(1),
+                                 "name": "real\nforged"}])
+        self.assertNotIn("\n", pairs[0]["name"])
+
+    def test_the_discovered_site_list_is_bounded(self):
+        many = [{"id": normalize_inputs.uid(i), "name": "S%d" % i}
+                for i in range(collect.SITES_LISTED_MAX + 25)]
+        self.assertEqual(len(collect._pairs(many)), collect.SITES_LISTED_MAX)
+
+    # --- status lines that are not HTTP -------------------------------------
+
+    def test_a_status_outside_the_http_range_is_a_helper_error(self):
+        # `http.client` parses any status up to 999. Raising `HttpError` with
+        # one made `errors.error_object` raise `InconsistentError` — a
+        # ValueError, not a HelperError — from INSIDE `run`'s
+        # `except errors.HelperError` handler, where the sibling catch-all
+        # cannot see it. The helper exited with a traceback and an empty
+        # stdout: the two outcomes that handler exists to prevent.
+        class _Response(object):
+            def __init__(self, status):
+                self.status = status
+
+            def read(self, *args):
+                return b""
+
+            def getheader(self, *args):
+                return None
+
+            def close(self):
+                pass
+
+        class _Request(object):
+            route = "info"
+            url = "https://example.invalid/x"
+
+        for status, expected in ((600, errors.MalformedResponseError),
+                                 (999, errors.MalformedResponseError),
+                                 (503, errors.HttpError),
+                                 (404, errors.HttpError)):
+            with self.subTest(status):
+                with self.assertRaises(expected) as caught:
+                    transport._read(_Response(status), _Request(),
+                                    deadline.Deadline(), None, 1000)
+                # Whatever it is, it must be buildable into an error object.
+                # That is the step that used to raise from inside an except.
+                self.assertIn("kind",
+                              errors.to_error_object(caught.exception))
+
+    def test_every_kind_the_transport_can_raise_builds_an_error_object(self):
+        # The general statement, rather than one status at a time: anything
+        # `to_error_object` is handed from a transport failure must produce an
+        # object, because the alternative is an exception inside an exception
+        # handler.
+        for status in (400, 404, 500, 503, 599):
+            with self.subTest(status):
+                obj = errors.to_error_object(errors.HttpError("x", status))
+                self.assertEqual(obj["kind"], "http")
+
+    def test_the_entry_point_emits_an_envelope_even_when_run_explodes(self):
+        # The backstop. `run` builds its failure envelope inside an `except`
+        # handler, so an exception raised THERE escapes the sibling catch-all
+        # entirely. Nothing stood between that and the interpreter.
+        def boom(*args, **kwargs):
+            raise errors.InconsistentError("httpStatus out of range")
+
+        buf = io.StringIO()
+        with _patched(unifi_status, "run", boom):
+            real, sys.stdout = sys.stdout, buf
+            try:
+                status = unifi_status.main(["--nonce", "abcdef0123456789"])
+            finally:
+                sys.stdout = real
+        envelope_out = json.loads(buf.getvalue())
+        self.assertEqual(status, 1)
+        self.assertIs(envelope_out["ok"], False)
+        self.assertEqual(envelope_out["error"]["kind"], "internal")
+        # SEC-010: the exception text must not travel with it.
+        self.assertNotIn("out of range", buf.getvalue())
 
 
 class WarningCodes(unittest.TestCase):

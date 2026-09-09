@@ -31,6 +31,7 @@ from . import errors
 from . import normalize
 from . import pagination
 from . import routes
+from . import sanitize
 from . import transport
 from . import version_gate
 
@@ -371,8 +372,11 @@ def _select_site(committed_site_id, sites, warnings):
 
     if len(known) == 1:
         entry = known[0]
+        # Cleaned for the same reason `_pairs` is: a warning detail is part of
+        # the envelope and is bound-checked with everything else.
         warnings.add("site_auto_selected",
-                     {"id": entry["id"], "name": entry.get("name")})
+                     {"id": sanitize.clean(entry["id"]),
+                      "name": sanitize.clean(entry.get("name"))})
         return {"id": entry["id"], "name": entry.get("name")}
 
     warnings.add("sites_discovered", {"sites": _pairs(known)})
@@ -381,6 +385,24 @@ def _select_site(committed_site_id, sites, warnings):
         "Run scripts/configure --site to choose one.")
 
 
+# UX-006a lists the sites it found so the user can pick one. A controller with
+# an implausible number of them must not push the envelope past its own bound
+# and turn a recoverable "choose a site" into `oversized_response`.
+SITES_LISTED_MAX = 64
+
+
 def _pairs(sites):
-    """The `{id, name}` pairs UX-006a lists. Nothing else from the record."""
-    return [{"id": entry["id"], "name": entry.get("name")} for entry in sites]
+    """The `{id, name}` pairs UX-006a lists. Nothing else from the record.
+
+    `sanitize.clean`, like every other controller-supplied string in the
+    envelope. This was the one that did not, and the consequence was specific
+    and bad: `Protocol.js` walks the WHOLE envelope — warnings included — and
+    rejects any string over 512 characters as `bound_exceeded`. So a site named
+    at length made the reading unparseable, and because the site-selection list
+    is CARRIED IN the rejected warning, the only in-panel route to fixing it
+    disappeared with it. The user got a permanent integrity failure, on backoff,
+    with nothing on screen saying what to do.
+    """
+    return [{"id": sanitize.clean(entry["id"]),
+             "name": sanitize.clean(entry.get("name"))}
+            for entry in sites[:SITES_LISTED_MAX]]

@@ -183,7 +183,26 @@ def main(argv=None):
         sys.stdout.write(text)
         return status
 
-    text, status = envelope.encode(run(nonce, config_dir, attempted_at))
+    # `run` has a catch-all of its own, but it is not the last word: `run`
+    # builds its failure envelope INSIDE an `except errors.HelperError` handler,
+    # and an exception raised there — `errors.InconsistentError` was the live
+    # one — propagates past the sibling `except Exception` entirely. Nothing
+    # then stood between it and the interpreter, so the helper exited with a
+    # traceback and an empty stdout, leaving the service waiting on a stream
+    # that never carried a value.
+    #
+    # This is the backstop that makes "the helper always emits an envelope"
+    # true rather than intended. It stays deliberately tiny: no config, no
+    # meta beyond the default, and the exception object is not formatted into
+    # the message (SEC-010).
+    try:
+        result = run(nonce, config_dir, attempted_at)
+    except Exception:  # noqa: BLE001
+        result = envelope.failure(
+            nonce, attempted_at, envelope.meta(),
+            errors.to_error_object(errors.InternalError(
+                "The helper failed unexpectedly.")), None)
+    text, status = envelope.encode(result)
     sys.stdout.write(text)
     return status
 
