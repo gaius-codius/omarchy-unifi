@@ -11,7 +11,8 @@
 //      HC-7 join, the HC-8 abandonment and the generation-tagged watchdog are
 //      exercised against real signals with real timing.
 //   2. Supplies the injected host surface — a stub `shell` carrying
-//      `shellConfig.bar.layout` and a stub `manifest` carrying `__sourceDir` —
+//      `barConfig.layout` (the 4.0.3 PluginShellApi shape) and a stub
+//      `manifest` carrying `__sourceDir` so the stub helper launches —
 //      ASSIGNED AFTER construction, which is the only way DATA-003's deferred
 //      initialization gets tested at all.
 //   3. Re-runs the protocol corpus through `Protocol.js` under **V4**, against
@@ -175,12 +176,13 @@ ShellRoot {
   QtObject {
     id: stubShell
     function withLayout(layout) {
-      return shellFactory.createObject(harness, { shellConfig: { bar: { layout: layout } } })
+      // 4.0.3 PluginShellApi shape: `barConfig.layout`, no `shellConfig`.
+      return shellFactory.createObject(harness, { barConfig: { layout: layout } })
     }
   }
   Component {
     id: shellFactory
-    QtObject { property var shellConfig: null }
+    QtObject { property var barConfig: null }
   }
 
   // --- the scenario driver --------------------------------------------------
@@ -2776,6 +2778,27 @@ ShellRoot {
         var status = service._status()
         check("polling is not suspended", false, status.pollingSuspended)
         check("the left-most entry wins for the service", 45, status.refreshIntervalSec)
+      }
+    })
+
+    pending.push({
+      name: "DATA-002: 4.0.3 barConfigChanged re-resolves a live layout edit",
+      waitMs: 800,
+      prepare: function () { writeScenario({ mode: "success" }) },
+      setup: function () {
+        // Same shell object, new barConfig. 4.0.3 never replaces `shell`;
+        // syncPluginApis assigns `barConfig`. The service binds that
+        // property (and listens for barConfigChanged); a Connections that
+        // only listed onShellConfigChanged missed this entirely.
+        resetService(30)
+        service.shell.barConfig = { layout: { left: [], center: [],
+          right: [{ id: "gaius-codius.unifi", refreshIntervalSec: 15,
+                    compactMetric: "clients" }] } }
+      },
+      assert: function () {
+        var status = service._status()
+        check("the shorter interval was picked up from barConfig", 15, status.refreshIntervalSec)
+        check("compactMetric came with it", "clients", status.compactMetric)
       }
     })
 

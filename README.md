@@ -80,7 +80,7 @@ answering with a confident "no".
 
 ## Requirements
 
-- Omarchy 4.0.2-1 with Quickshell 0.3.1-1
+- Omarchy 4.0.3-1 with Quickshell 0.3.1-1
 - **Python 3.9 or newer**, standard library only
 
 There are no pip packages and no other runtime dependencies. Omarchy's plugin
@@ -245,7 +245,7 @@ alter what you are looking at.
 
 ## Widget settings
 
-Omarchy 4.0.2 ships no settings-form renderer, so these are set by editing your
+Omarchy 4.0.3 ships no settings-form renderer, so these are set by editing your
 `shell.json` layout entry or with `omarchy bar set`, for example:
 
 ```bash

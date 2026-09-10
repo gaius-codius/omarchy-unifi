@@ -64,9 +64,11 @@ None. The repository contains only the origin design document. There is no
 prior UniFi integration in Omarchy to modify or replace.
 
 ### 5.2 Host platform baseline
-Tested baseline is **Omarchy 4.0.2-1** with **Quickshell 0.3.1**
+Tested baseline is **Omarchy 4.0.3-1** with **Quickshell 0.3.1**
 (`/usr/share/omarchy/version` reports `4.0.0.alpha`; the packaged version is
-authoritative). Compatibility beyond this baseline is not assumed: each
+authoritative). *Amended 2026-09-10 (SPEC-AMD-11): originally 4.0.2-1; 4.0.3
+sandboxes the injected `shell` and `manifest` (HC-22) and is now the supported
+host.* Compatibility beyond this baseline is not assumed: each
 additional Omarchy release must pass the §12 validation and runtime checks
 before it is listed as supported.
 
@@ -571,8 +573,13 @@ controller and transport values, read by the helper only:
 Credential at `~/.config/omarchy-unifi/api-key` — the API key and nothing else.
 
 DATA-002: The singleton service reads settings from the canonical `gaius-codius.unifi`
-entry in its injected `shell.shellConfig` and re-evaluates on
-`shellConfigChanged`. It accepts no configuration pushes from per-monitor
+entry in the injected shell's bar layout and re-evaluates when that layout
+changes. *Amended 2026-09-10 (SPEC-AMD-11):* on Omarchy 4.0.3 the layout is
+`shell.barConfig.layout`. The service declares `property var shell` and binds
+`shell.barConfig` so a `syncPluginApis` copy re-evaluates without replacing
+`shell`; `barConfigChanged` is the matching signal (`PluginShellApi`).
+`shell.shellConfig` / `shellConfigChanged` is the 4.0.2 ShellRoot shape; the
+service accepts either. It accepts no configuration pushes from per-monitor
 widgets. Duplicate layout entries are compared on **service-consumed settings
 only** — currently just `refreshIntervalSec`. Duplicates that differ only in
 presentation settings such as `compactMetric` are accepted, with the left-most
@@ -584,9 +591,10 @@ DATA-002b: `setting(name, fallback)` is a `Ui/BarWidget` / `Ui/Panel` base-class
 helper and is available only to the **widget**, which uses it for presentation
 settings. The **service** is not injected `settings` at all (DATA-003), so it
 resolves `refreshIntervalSec` itself by locating the `gaius-codius.unifi` entry in
-`shell.shellConfig.bar.layout` and applying the same defaulting and validation
-rules. The two paths must produce identical values for any shared key; a test
-asserts this.
+the injected shell's bar layout (`shell.barConfig.layout` on 4.0.3;
+`shell.shellConfig.bar.layout` on 4.0.2) and applying the same defaulting and
+validation rules. The two paths must produce identical values for any shared key;
+a test asserts this.
 
 DATA-002a: Every inline setting is **type-validated**, not merely
 presence-checked, because HC-1 guarantees no upstream validation. A value that
@@ -615,13 +623,15 @@ handler in `Component.onDestruction`, emitting one log line naming each released
 resource so teardown is observable (AC-028).
 
 DATA-003c: The service locates its own installed directory from
-`manifest.__sourceDir`, which the plugin scanner stamps onto every manifest
-(`PluginRegistry.qml:564-565`) and which is injected into services
-(`shell.qml:300-313`). `Qt.resolvedUrl()` on the service's own file is the
-fallback, converted from a `file://` URL with proper percent-decoding so a path
-containing spaces or `%` still resolves. The helper is launched by absolute path
-as an argv vector. If neither mechanism yields a readable helper path, the
-service reports `helper_unavailable`.
+`manifest.__sourceDir` when the injected manifest still carries it, and otherwise
+from `Qt.resolvedUrl()` on the service's own file, converted from a `file://`
+URL with proper percent-decoding so a path containing spaces or `%` still
+resolves. *Amended 2026-09-10 (SPEC-AMD-11):* Omarchy 4.0.3's scanner still
+stamps `__sourceDir` (`PluginRegistry.qml:589`), then `publicPluginManifest`
+deletes it before injection (`shell.qml:320`). The live path is therefore
+`Qt.resolvedUrl`. The helper is launched by absolute path as an argv vector. If
+neither mechanism yields a readable helper path, the service reports
+`helper_unavailable`.
 
 DATA-004: The three configuration files form **one committed set**.
 `commit.json` holds a monotonically increasing `commitGeneration` plus SHA-256
@@ -988,8 +998,9 @@ therefore shipped alongside the plugin; they are inert, and the symlink
 prohibition (HC-1 rules) applies to the whole tree, so the `qmllint` import root
 (HC-12) must live outside the repository.
 
-Supported matrix: Omarchy 4.0.2-1 / Quickshell 0.3.1 only, until a further
-release passes the §12 checks. UniFi Network compatibility is recorded as a
+Supported matrix: Omarchy 4.0.3-1 / Quickshell 0.3.1 only, until a further
+release passes the §12 checks. *Amended 2026-09-10 (SPEC-AMD-11): originally
+4.0.2-1.* UniFi Network compatibility is recorded as a
 tested-version matrix; an unsupported version or a missing required capability
 produces an explicit `unsupported` error rather than being misreported as an
 authentication or connectivity failure.
@@ -1573,6 +1584,7 @@ Must stop and ask (Tier 3):
 | 2026-09-05 | Spec review | Claude | Rollback left the API key on disk with no revocation guidance | SEC-012 and §11 rollback updated |
 | 2026-09-05 | Spec approval | User | R8 colour rendering decision | Theme-native visual levels confirmed; REQ-001a is final; no colour-override setting in v1 |
 | 2026-09-05 | Spec approval | User | Spec approved and frozen as **spec-v1** | §1 State set to Approved; planning begins |
+| 2026-09-10 | Implementation (SPEC-AMD-11) | User | Omarchy 4.0.3 sandboxes the injected `shell` and `manifest`: PluginShellApi has `barConfig` and no `shellConfig`; `publicPluginManifest` deletes `__sourceDir` | DATA-002 / DATA-002b / DATA-003c restated against the 4.0.3 surface; §5.2 and §11 matrix now 4.0.3-1; host-contract HC-22 |
 | 2026-09-05 | Planning (DEV-1) | Architecture review, user-approved | REQ-002 rule 4 asked about unique devices but `counts` could not answer it — role objects double-count and omit featureless devices, `offlineTotal` cannot isolate `unknown` | DATA-006b adds `counts.byClass` as a unique-device partition with two enforced invariants; rule 4 restated against it; AC-044 extended |
 | 2026-09-05 | Planning (DEV-2) | Architecture review, user-approved | `meta` was unsatisfiable on `unconfigured`/`uncommitted` failures, where its source configuration is by definition unreadable | DATA-006a makes every field except `helperVersion` nullable with `meta` always present; AC-052 restated |
 | 2026-09-05 | Planning | Host verification | Earlier HC-13 was **wrong**: one `Bar` `Item` fans out via `Variants`, so `activePopout` is global | REQ-007a is satisfied by `Ui/Panel` + `KeyboardPanel` with no implementation; the service holds no panel state; AC-068 is a confirmation |

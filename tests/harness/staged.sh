@@ -92,7 +92,7 @@ except Exception: print('')
 
 layout_set() { # layout_set <python-expression-file>
   python3 - "$SHELL_JSON" "$1" <<'PY'
-import json, sys
+import json, os, sys
 path, mode = sys.argv[1], sys.argv[2]
 with open(path, encoding="utf-8") as handle:
     config = json.load(handle)
@@ -114,10 +114,20 @@ elif mode == "presentation":
     layout["right"].append({"id": "gaius-codius.unifi", "compactMetric": "none"})
 elif mode != "absent":
     raise SystemExit("unknown layout mode: " + mode)
+# In-place write (truncate + fsync). FileView watches the inode; os.replace
+# leaves that watch on the unlinked file, so later layout_set calls never
+# reach applyShellConfig. persistShellConfig uses FileView.setText, which
+# updates the cache itself — an external editor cannot.
 with open(path, "w", encoding="utf-8") as handle:
     json.dump(config, handle, indent=2)
     handle.write("\n")
+    handle.flush()
+    os.fsync(handle.fileno())
 PY
+  # 4.0.3 FileView may miss an external truncate+write. The host's IPC
+  # reloads the user file and runs applyShellConfig (shell.qml:1607), which
+  # is what pushes a new publicBarConfig into PluginShellApi.
+  omarchy shell shell reloadConfig >/dev/null 2>&1 || true
 }
 
 wait_for() { # wait_for <seconds> <field> <value>
@@ -258,12 +268,18 @@ fi
 # --- AC-032: a bare layout entry takes the manifest defaults -----------------
 section "AC-032 — defaults from a settings-free layout entry"
 layout_set bare
+# Wait on compactMetric, not hasSnapshot: the user's live shell.json may
+# already have a snapshot and a non-default compactMetric, so hasSnapshot
+# would return immediately against the pre-edit reading.
+if ! wait_for 30 compactMetric none; then bad "compactMetric defaults to none"; fi
 if ! wait_for 30 hasSnapshot True; then bad "a first snapshot arrived within 30 s"; fi
 check "refreshIntervalSec defaults to 30" "30" "$(status_field refreshIntervalSec)"
 check "compactMetric defaults to none" "none" "$(status_field compactMetric)"
 check "the service reports a snapshot" "True" "$(status_field hasSnapshot)"
 check "the health level is the fixture's" "green" "$(status_field healthLevel)"
 check "the panel state is ok" "ok" "$(status_field panelState)"
+# 4.0.3 deletes __sourceDir from the public manifest, so this is
+# Qt.resolvedUrl on Service.qml, not manifest.__sourceDir (HC-22).
 check "sourceDir is under \$HOME" "$PLUGIN_DIR" "$(status_field sourceDir)"
 
 # --- AC-003: one service, whatever the monitor count ------------------------

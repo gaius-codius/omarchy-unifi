@@ -3,13 +3,14 @@
 // Dual-use (see the header of Health.js for what that constrains and why).
 //
 // The point of this module is that there is exactly ONE of everything. HC-1
-// means Omarchy 4.0.2 merges no defaults and validates nothing, so every
+// means the host merges no defaults and validates nothing, so every
 // default and every bound is applied here in QML — and DATA-002b says the
 // SERVICE and the WIDGET resolve settings by different routes (the widget
 // through the `setting()` base-class helper, the service by locating its own
-// entry in shell.shellConfig, because a service is not injected `settings` at
-// all). Two routes reading two tables is R1b, and R1b is why AC-032 asserts
-// they are equal. Keeping one table is cheaper than testing that two agree.
+// entry in the injected shell's bar layout, because a service is not injected
+// `settings` at all). Two routes reading two tables is R1b, and R1b is why
+// AC-032 asserts they are equal. Keeping one table is cheaper than testing
+// that two agree.
 
 const DEFAULTS = {
   refreshIntervalSec: 30,

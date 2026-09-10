@@ -37,11 +37,11 @@ Item {
   id: root
 
   // --- injected by the shell after createObject returns (DATA-003) ---------
-  property QtObject shell: null
+  property var shell: null
   property var manifest: null
   property string omarchyPath: ""
-  property QtObject barWidgetRegistry: null
-  property QtObject pluginRegistry: null
+  property var barWidgetRegistry: null
+  property var pluginRegistry: null
 
   readonly property string pluginId: "gaius-codius.unifi"
 
@@ -111,24 +111,66 @@ Item {
   property bool _started: false
 
   onReadyChanged: if (ready && !_started) Qt.callLater(root._start)
-  onShellChanged: root._onConfigurationChanged()
+  onShellChanged: {
+    root._bindShellLayoutSignals()
+    root._onConfigurationChanged()
+  }
   onManifestChanged: root._onConfigurationChanged()
 
+  // 4.0.3 convention (notifications/Service.qml:18, :48): `shell` is `var`,
+  // and `shell.barConfig` is read from a property expression so QML tracks
+  // the notify. A `QtObject`-typed `shell` has no `barConfig` on its declared
+  // type; Connections with `ignoreUnknownSignals` then attaches nothing, which
+  // is why a live-staged run honoured the user's initial `compactMetric` and
+  // never saw a later `shell.json` edit. The fingerprint is a string so a JSON
+  // copy with a new identity but identical nested objects still compares.
+  // qmllint disable missing-property
+  readonly property string barConfigFingerprint: {
+    if (!shell) return ""
+    var cfg = null
+    if (shell.barConfig) cfg = shell.barConfig
+    else if (shell.shellConfig && shell.shellConfig.bar) cfg = shell.shellConfig.bar
+    if (!cfg) return ""
+    try { return JSON.stringify(cfg) } catch (e) { return "" }
+  }
+  // qmllint enable missing-property
+  onBarConfigFingerprintChanged: if (ready) root._onConfigurationChanged()
+
   // DATA-002b again, for the case the two handlers above do not cover: `shell`
-  // is assigned once, but the settings live in `shell.shellConfig.bar.layout`,
-  // which the user edits at any time — `shell.json` is the ONLY settings
-  // surface Omarchy 4.0.2 has (HC-1), so an edit while the service is running
-  // is the normal way to change anything.
+  // is assigned once, but the settings live on the bar layout, which the user
+  // edits at any time — `shell.json` is still the only settings surface (HC-1).
   //
   // Without this the service reads the layout once and never again: AC-019's
   // conflict would be seen only by a service that happened to start after the
   // edit, and a corrected `refreshIntervalSec` would not take effect until the
   // widget was removed and re-added. Found by CP8, which edited `shell.json`
   // under a running service and watched nothing happen.
+  //
+  // Two signals, because 4.0.3 changed the object. 4.0.2 injected ShellRoot,
+  // which emits `shellConfigChanged`. 4.0.3 injects PluginShellApi, which has
+  // no `shellConfig` and emits `barConfigChanged` when syncPluginApis copies
+  // a new publicBarConfig(). `ignoreUnknownSignals` is why the 4.0.2-shaped
+  // Connections silently did nothing on 4.0.3 — the missing signal is not an
+  // error, so the live-staged suite reported defaults forever.
   Connections {
     target: root.shell
     ignoreUnknownSignals: true
+    function onBarConfigChanged() { root._onConfigurationChanged() }
     function onShellConfigChanged() { root._onConfigurationChanged() }
+  }
+
+  // Connections against a `var` shell does not always attach
+  // PluginShellApi's NOTIFY (the declared type has no such signal). Bind
+  // the functions directly once `shell` is the live object.
+  property var _layoutSignalShell: null
+  function _bindShellLayoutSignals() {
+    var s = shell
+    if (!s || s === _layoutSignalShell) return
+    _layoutSignalShell = s
+    if (s.barConfigChanged && typeof s.barConfigChanged.connect === "function")
+      s.barConfigChanged.connect(root._onConfigurationChanged)
+    if (s.shellConfigChanged && typeof s.shellConfigChanged.connect === "function")
+      s.shellConfigChanged.connect(root._onConfigurationChanged)
   }
 
   // --- state ---------------------------------------------------------------
@@ -171,6 +213,10 @@ Item {
   property var _settingsWarnings: []
   property string _helperPath: ""
   property string _helperError: ""
+  // The directory `_resolveHelperPath` actually used. `status.sourceDir` reports
+  // this rather than `manifest.__sourceDir`, because 4.0.3's public manifest
+  // has had that field deleted.
+  property string _pluginDir: ""
 
   // --- clocks --------------------------------------------------------------
   //
@@ -350,16 +396,34 @@ Item {
     _tickNow(true)
   }
 
+  // The bar.layout the service is allowed to see. 4.0.3's PluginShellApi
+  // (shell.qml:pluginShellFor) carries `barConfig` — a JSON copy of
+  // shell.bar, refreshed by syncPluginApis — and no `shellConfig`. Reading
+  // `shell.shellConfig.bar.layout` there is `undefined.bar`, so classifyLayout
+  // sees zero entries and every setting stays at its default. That is the
+  // 4.0.3 live-staged failure: interval 15, a conflict, and compactMetric
+  // "clients" all looked like the defaults.
+  //
+  // `shellConfig` remains the 4.0.2 ShellRoot shape. Prefer barConfig: on a
+  // first-party ShellRoot both exist and agree.
+  function _barLayout() {
+    if (!shell) return null
+    // `shell` is `var` (4.0.3 first-party convention) and the runtime object
+    // is PluginShellApi or ShellRoot; qmllint still cannot see barConfig /
+    // shellConfig on either. The suppression is scoped to these reads rather
+    // than lowering the category.
+    // qmllint disable missing-property
+    if (shell.barConfig && shell.barConfig.layout)
+      return shell.barConfig.layout
+    if (shell.shellConfig && shell.shellConfig.bar)
+      return shell.shellConfig.bar.layout
+    // qmllint enable missing-property
+    return null
+  }
+
   function _onConfigurationChanged() {
     if (!ready) return
-    // `shell` is declared QtObject, so qmllint cannot see that the real shell
-    // root carries `shellConfig` (shell.qml:56). The access is correct at
-    // runtime; the suppression is scoped to this line rather than lowering the
-    // category, which would stop the gate catching genuine typos elsewhere.
-    // qmllint disable missing-property
-    var config = shell ? shell.shellConfig : null
-    // qmllint enable missing-property
-    var layout = config && config.bar ? config.bar.layout : null
+    var layout = _barLayout()
 
     // DATA-002b: the service resolves its own settings by locating the
     // `gaius-codius.unifi` entries in `bar.layout` — it is not injected `settings` at
@@ -394,11 +458,14 @@ Item {
     _recompute()
   }
 
-  // DATA-003c. `manifest.__sourceDir` is stamped by the plugin scanner;
-  // `Qt.resolvedUrl` on this file is the fallback, percent-decoded so a path
-  // containing a space or a `%` still resolves. Neither yielding a path is
-  // `helper_unavailable` — an explicit, actionable state rather than a batch
-  // that fails on every poll with a confusing kind.
+  // DATA-003c. 4.0.2 stamped `manifest.__sourceDir` onto the object it injected.
+  // 4.0.3 still stamps it on the scanner's copy (PluginRegistry.qml:589), then
+  // `publicPluginManifest` deletes it before the plugin sees the manifest
+  // (shell.qml:320) — so the live path is `Qt.resolvedUrl` on this file,
+  // percent-decoded so a path containing a space or a `%` still resolves.
+  // `__sourceDir` is still preferred when present: the harness points it at
+  // the stub helper, and a 4.0.2 host still injects it. Neither yielding a
+  // path is `helper_unavailable`.
   function _resolveHelperPath() {
     var base = ""
     if (manifest && typeof manifest.__sourceDir === "string" && manifest.__sourceDir !== "") {
@@ -407,11 +474,13 @@ Item {
       base = _directoryOfThisFile()
     }
     if (base === "") {
+      _pluginDir = ""
       _helperPath = ""
       _helperError = "helper_unavailable"
       return
     }
-    _helperPath = base.replace(/\/+$/, "") + "/helper/unifi_status.py"
+    _pluginDir = base.replace(/\/+$/, "")
+    _helperPath = _pluginDir + "/helper/unifi_status.py"
     _helperError = ""
   }
 
@@ -839,16 +908,14 @@ Item {
     return {
       pluginId: pluginId,
       instanceId: instanceId,
-      // AC-002's observable. `omarchy plugin list --json` was expected to carry
-      // a `sourceDir`; in 4.0.2-1 it does not (its keys are id, name, kinds,
-      // enabled, active, canDisable, firstParty, clonedFrom). Reporting it from
-      // the RUNNING service is a stronger answer anyway: it is where this
-      // instance was actually loaded from, not where the registry believes the
-      // plugin lives. `PluginRegistry.qml:564` stamps it onto the manifest.
-      //
-      // qmllint disable missing-property
-      sourceDir: manifest && manifest.__sourceDir ? String(manifest.__sourceDir) : null,
-      // qmllint enable missing-property
+      // AC-002's observable. `omarchy plugin list --json` has no `sourceDir`.
+      // Reporting it from the RUNNING service is a stronger answer: it is
+      // where this instance was actually loaded from. That path is
+      // `_pluginDir`, which `_resolveHelperPath` set — on 4.0.3 the public
+      // manifest no longer carries `__sourceDir`, so reading the manifest
+      // here reported `null` while the helper was running from this file's
+      // directory.
+      sourceDir: _pluginDir !== "" ? _pluginDir : null,
       ready: ready,
       refreshIntervalSec: _settings.refreshIntervalSec,
       compactMetric: _settings.compactMetric,

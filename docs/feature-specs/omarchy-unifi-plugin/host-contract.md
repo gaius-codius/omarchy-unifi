@@ -1,6 +1,8 @@
 # Omarchy plugin host contract (verified)
 
-Platform: `omarchy 4.0.2-1`, `quickshell 0.3.1-1` (per `pacman -Q`).
+Platform: `omarchy 4.0.3-1`, `quickshell 0.3.1-1` (per `pacman -Q`).
+Originally verified against `4.0.2-1`; re-verified 2026-09-10 after 4.0.3
+sandboxed the injected `shell` and `manifest` (HC-22).
 `/usr/share/omarchy/version` contains the stale string `4.0.0.alpha`; the
 package version is authoritative.
 
@@ -62,24 +64,49 @@ does not prevent a hand-edited `shell.json` from listing the plugin twice.
 ## 2. Object lifecycle and injection
 
 ### Service instances
-`shell.qml:283-321` `ensureService(pluginId)`. Created with
-`Qt.createComponent(url, Component.PreferSynchronous)`, parented to an invisible
-`Item { id: serviceHost }` (`shell.qml:268-271`). Injected **after**
-`createObject` returns, before publication into `_services` (`shell.qml:300-313`):
+`shell.qml:901-951` `ensureService(pluginId)`. Created with
+`Qt.createComponent(url, Component.PreferSynchronous)`. First-party services
+are parented to an invisible `Item { id: serviceHost }`; third-party and
+authentication services are parented to `null` so object traversal cannot
+walk between the host and credential-bearing QML (`shell.qml:920-923`).
+Injected **after** `createObject` returns (`shell.qml:928-932`):
 
 ```qml
-var inst = comp.createObject(serviceHost)
 if ("omarchyPath" in inst) inst.omarchyPath = shell.omarchyPath
-if ("shell" in inst)       inst.shell = shell
-if ("manifest" in inst)    inst.manifest = manifest
-if ("barWidgetRegistry" in inst) inst.barWidgetRegistry = shell.barWidgetRegistry
-if ("pluginRegistry" in inst)    inst.pluginRegistry = shell.pluginRegistry
+if ("shell" in inst)       inst.shell = shell.pluginShellFor(manifest)
+if ("manifest" in inst)    inst.manifest = shell.publicPluginManifest(manifest)
+if ("barWidgetRegistry" in inst) inst.barWidgetRegistry = shell.pluginBarWidgetRegistryFor(manifest)
+if ("pluginRegistry" in inst)    inst.pluginRegistry = shell.pluginRegistryFor(manifest)
 ```
 
 **A service's `Component.onCompleted` therefore runs with `shell === null`.**
 Initialize from `onShellChanged` / `onManifestChanged`. `settings` is **not**
-injected into a service (`shell.qml:305-309`) — a service has no `shell.json`
-entry of its own.
+injected into a service — a service has no `shell.json` entry of its own.
+
+### HC-22 (blocking constraint, 4.0.3): third-party plugins do not receive ShellRoot
+`pluginShellFor` (`shell.qml:738-743`) returns the real `shell` only for a
+first-party manifest. A third-party plugin gets `createScopedPluginShell` →
+`PluginShellApi` (`services/PluginShellApi.qml`). That object has `barConfig`
+(a JSON copy of `shell.bar`, assigned at construction and refreshed by
+`syncPluginApis` at `shell.qml:875-883`) and **no** `shellConfig`. There is
+no `onShellConfigChanged`. Layout edits arrive as `onBarConfigChanged`.
+
+First-party services declare `property var shell` (not `QtObject`) and bind
+`shell.barConfig` in a property expression (`notifications/Service.qml:18`,
+`:48`). A `QtObject` declaration has no `barConfig` on its type;
+`Connections { ignoreUnknownSignals: true }` then attaches neither
+`barConfigChanged` nor `shellConfigChanged`, so a live `shell.json` edit is
+silent. This plugin follows that `var` + bind convention.
+
+`publicPluginManifest` (`shell.qml:316-324`) JSON-clones the scanner manifest
+and `delete`s `__sourceDir`, `__isFirstParty`, and `__hostCapabilities`. The
+scanner still stamps `__sourceDir` (`PluginRegistry.qml:589`); the plugin
+never sees it. Locate the plugin directory with `Qt.resolvedUrl` on a file
+in the plugin folder.
+
+`bar.shell.serviceFor("gaius-codius.unifi")` still works: `PluginShellApi.serviceFor`
+is closed over the plugin id and `pluginOwnsTarget` allows the own id
+(`shell.qml:385-394`, `:608-610`).
 
 ### HC-3 (blocking constraint): the service's lifetime is tied to the bar entry
 `_syncServices()` (`shell.qml:323-346`) creates a service only when
@@ -134,6 +161,9 @@ Parsed at `shell.qml:72-88`. The user file is accepted whole only if
 `parsed.version === 1`; there is **no deep merge** with defaults. Both the user
 file and the defaults file are `FileView { watchChanges: true }`
 (`shell.qml:117-139`); the user file uses `atomicWrites: true`.
+`omarchy shell shell reloadConfig` (`shell.qml:1607-1609`) calls
+`userConfigFile.reload()` and is the reliable way for an external editor
+to apply a write the watch has not yet seen.
 
 Per-widget settings are stored **inline on the layout entry**, meaning every key
 except `id` (`shell/plugins/bar/BarModel.js:10-18`). The bar binds them at
@@ -151,9 +181,10 @@ Settings-only edits are pushed onto the live item without a rebuild
 (`BarModel.js:76-102`, `Bar.qml:376-388`); structural edits rebuild every widget
 on every monitor (`Bar.qml:366-373`).
 
-Whole config readable from a widget as `bar.shell.shellConfig`
-(`shell.qml:56`) and `bar.shell.barConfig` (`shell.qml:115`). A service reads
-`shell.shellConfig` directly off its injected `shell`.
+Whole config readable from a first-party widget as `bar.shell.shellConfig`
+(`shell.qml:57`) and `bar.shell.barConfig` (`shell.qml:116`). A third-party
+service reads `shell.barConfig.layout` off its injected `PluginShellApi`
+(HC-22). `shell.shellConfig` is not present on that object.
 
 ### HC-4: duplicate entries are possible and every handler treats them differently
 Entries are identified by **plugin id alone** — there is no per-instance id
@@ -754,10 +785,11 @@ matching. This is the channel AC-012b, AC-026 and AC-028 read.
 
 Its keys in 4.0.2-1 are exactly `id`, `name`, `kinds`, `enabled`, `active`,
 `canDisable`, `firstParty`, `clonedFrom`. AC-002 expects a `sourceDir`; there is
-none. `PluginRegistry.qml:564` stamps `manifest.__sourceDir` onto the manifest
-it injects, so the running service can report it — a stronger answer, because it
-is where *this instance* was loaded from rather than where the registry believes
-the plugin lives.
+none. `PluginRegistry.qml:589` stamps `manifest.__sourceDir` onto the scanner's
+copy. 4.0.3 then runs it through `publicPluginManifest` (`shell.qml:316-324`),
+which deletes the field before the plugin sees it. The running service reports
+the directory `Qt.resolvedUrl` on its own file resolved to — a stronger answer
+than the registry anyway, because it is where *this instance* was loaded from.
 
 ### `plugins` in `shell.json` is a list, not a map
 
@@ -1029,3 +1061,4 @@ arise, and no requirement here depends on persistence.
 | HC-15 | `python3 -I` strips the script dir from `sys.path` on 3.11+ but not 3.9 | Launch with `-B -E -s` and bootstrap `sys.path` in the entry point |
 | HC-16 | Dual-use QML/Node `.js` files cannot `.import` each other or hold top-level state | JS modules form an antichain of pure functions; compose in QML |
 | HC-17 | `qs.X` maps to `<root>/X`, so a harness root outside the repo with `Ui`/`Commons` symlinks loads the real UI layer | `Panel.qml` is testable without staging; the `LIVE` tier splits into live-harness and live-staged |
+| HC-22 | 4.0.3 injects `PluginShellApi` + `publicPluginManifest`, not ShellRoot | `property var shell`; bind `barConfig`; `sourceDir` from `Qt.resolvedUrl` |
