@@ -9,10 +9,12 @@
 // adding a twentieth error kind to the spec fails this test until a test for it
 // exists, which is the property AC-072 is asking for.
 //
-// REPORT-ONLY UNTIL CP10. Set SUITE_INTEGRITY_ENFORCE=1 to make gaps fail.
-// AC-072 cannot be satisfied until the last test is written, so an enforcing
-// gate would leave tests/run.sh red at every intermediate checkpoint and
-// destroy the only signal the checkpoints have.
+// Enforcing as of CP10. A spec enumeration without a named test fails this
+// file, which is the property AC-072 is asking for. Report-only was the
+// intermediate state: enforcing earlier would have left the suite red at
+// every checkpoint before the last test existed. That moment has passed.
+// SUITE_INTEGRITY_ENFORCE=0 restores the old report-only scan if a gap needs
+// inspecting without failing the run; it is not the default.
 
 const { test } = require("node:test")
 const assert = require("node:assert")
@@ -22,7 +24,7 @@ const path = require("node:path")
 const REPO = path.resolve(__dirname, "..")
 const SPEC = path.join(REPO, "docs/feature-specs/omarchy-unifi-plugin/SPEC.md")
 const PROTOCOL = path.join(REPO, "docs/protocol-v1.md")
-const ENFORCE = process.env.SUITE_INTEGRITY_ENFORCE === "1"
+const ENFORCE = process.env.SUITE_INTEGRITY_ENFORCE !== "0"
 
 const specText = fs.readFileSync(SPEC, "utf8")
 
@@ -146,7 +148,7 @@ test("spec enumerations parse and are internally consistent", () => {
 
 test("every enumerated case has a named test", () => {
   const { count, text } = suiteText()
-  console.log(`  (report-only until CP10; ${count} test file(s) scanned)`)
+  console.log(`  (${count} test file(s) scanned)`)
 
   const kinds = errorKinds()
   const states = panelStates()

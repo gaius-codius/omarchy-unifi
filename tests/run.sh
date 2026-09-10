@@ -206,6 +206,12 @@ else
   printf '\n=== configure suite: not written yet (Phase 8)\n'
 fi
 
+if [[ -f tests/test_readme.sh ]]; then
+  step "tests/test_readme.sh" bash tests/test_readme.sh
+else
+  printf '\n=== readme suite: not written yet (Phase 13)\n'
+fi
+
 # --- LIVE (harness): needs Wayland, stages nothing -------------------------
 if (( LIVE_HARNESS )); then
   if [[ -z ${WAYLAND_DISPLAY:-} ]]; then
