@@ -40,7 +40,7 @@ trap cleanup EXIT
 # looking up uninstall would read it.
 removal_section() {
   awk '
-    /^## Removing it([[:space:]]|$)/ { p=1; next }
+    /^## (Removing it|Remove)([[:space:]]|$)/ { p=1; next }
     p && /^## / { exit }
     p { print }
   ' "$1"
@@ -97,7 +97,7 @@ if [[ $# -eq 0 ]]; then
   scratch="$(mktemp)"
   TMPFILES+=("$scratch")
   awk '
-    /^## Removing it([[:space:]]|$)/ { p=1; print; next }
+    /^## (Removing it|Remove)([[:space:]]|$)/ { p=1; print; next }
     p && /^## / { p=0 }
     p && /[Rr]evoke/ { next }
     { print }

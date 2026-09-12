@@ -836,6 +836,11 @@ class InterpreterFloor(unittest.TestCase):
                    "socket", "errno", "time", "re", "base64", "urllib", "typing",
                    "collections", "datetime", "unicodedata", "subprocess",
                    "email", "http", "argparse", "fcntl", "tempfile",
+                   # Setup uses hidden terminal input, executable discovery and
+                   # suppression of getpass's unsafe echoed-input fallback.
+                   "getpass", "shutil", "warnings",
+                   # scripts/setup.py reuses the shipped configure transaction.
+                   "configure",
                    # DEV-6: `ipaddress.is_global` decides whether a device is
                    # reporting a WAN address. Hand-rolling the RFC 1918 test
                    # would also have to hand-roll loopback, link-local, CGNAT

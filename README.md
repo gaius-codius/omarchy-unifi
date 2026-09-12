@@ -1,105 +1,33 @@
 # omarchy-unifi
 
-An Omarchy bar plugin that shows UniFi Network site health: a status glyph on
-the bar and a popup panel with WAN state, device counts, and which devices are
-offline. It is **read-only** — it uses six kinds of GET request and never changes
-anything on your controller.
+Check your UniFi network from the Omarchy bar. Open the panel to find offline
+or impaired devices, see connected clients, and browse device details. The
+plugin only reads from your controller; it never changes its configuration.
 
-> **Status: pre-release.** The helper, the service and
-> the panel are written, tested, and have been run installed in a real Omarchy
-> shell against a real UniFi controller (Network 10.6.101) — so the API key
-> header, the route set, the record shapes and the supported-version matrix are
-> confirmed against hardware rather than only against a stub.
->
-> The v1.1 **Devices and Clients** views are built and measured against that
-> controller: a full batch — both lists, plus per-device ports, radios and
-> statistics — completed in **under half a second** against a 25 s budget, with
-> detail fetched for every device. What is left before a tagged release is
-> manual QA across light and dark themes, packaging, and confirming the plugin
-> against UniFi Network versions other than 10.6.
+**Pre-release.** Tested with a UDM Pro running UniFi Network 10.6.101. Manual
+checks across light and dark themes and release packaging are still pending.
 
-## What it shows
+## Before you install
 
-**On the bar:** one glyph, coloured by overall site health using Omarchy theme
-tokens only — there are no hard-coded colours, so it follows your theme,
-including light ones. The theme exposes no green/amber/red, so the four health
-levels are four theme-native *visual* levels rather than four hues: the plain
-foreground when healthy, the foreground plus a small urgent dot when degraded,
-the urgent colour when every gateway is down, and dimmed when the reading is
-unknown or too old to trust. Colour is never the only signal — the tooltip and
-the panel always say the condition in words. Optionally, the connected client
-count sits beside the glyph.
+You'll need:
 
-A small hollow ring in the opposite corner means the *last refresh* failed while
-the reading you are looking at is still current. That is deliberately a
-different shape in a different place from the degraded dot, because "I could not
-reach the controller" and "the controller says something is wrong" are different
-problems.
+- Omarchy **4.0.3-1** with Quickshell **0.3.1-1**.
+- Python **3.9 or newer**. No pip packages are needed.
+- UniFi Network **10.6.x** for hardware-tested support, with the Network
+  Integration API available.
+- An API key from your UniFi console: **Settings → Control Plane → Integrations**
+  (older firmware: **Settings → System → Advanced**). Copy the key when you
+  create it; the console won't show it again.
 
-**In the panel:** the site name and how long ago it last updated; WAN state with
-the gateway's uptime and current throughput; every gateway listed individually;
-the connected client count and the number of adopted devices; per-role counts in
-each of the five device states; the devices that are down or impaired, with an
-honest "and N more" when there are more than fit; and any warnings the last
-fetch raised, each with its code so it is searchable.
+The helper also accepts **9.1.x** for test fixtures, but it has not been validated
+against hardware running that version. Other versions are rejected. If yours is unsupported,
+[open an issue](https://github.com/gaius-codius/omarchy-unifi/issues) with its
+`applicationVersion`.
 
-When something is wrong, the panel says which of twenty-four conditions it is
-and names the single action that fixes it. A metric the controller did not
-report reads "unknown" — never `0`.
-
-**Devices and Clients.** A segmented control at the top switches between
-Overview and two browsable lists: every adopted device, and every connected
-client. Each is searchable — case-insensitive substring, never fuzzy, so you can
-always say why a row matched — and each row expands to a detail block. A device
-shows its firmware and whether an update is waiting, its address, CPU, memory
-and throughput, what it plugs into and what plugs into it, how many clients sit
-behind it, and its port table or its radio bands; a client shows its address,
-MAC, access type and when it connected. Activating a per-role count on Overview
-opens Devices filtered to that role — and each browse page carries its own
-filter: Devices by role, Clients by connection type. A filter stays on until you
-clear it.
-
-The whole panel is keyboard-driven: Tab walks the controls, Left/Right move
-between the three pages, `/` jumps to the search field, `f` cycles the current page's
-filter, Up/Down move the list cursor, Enter expands a row, and Escape clears a
-search before it closes the panel. The panel scrolls to whichever control the
-keyboard is on, and leaving the search field gives the keyboard straight back to
-the panel. A list you have scrolled stays where you left it while the panel
-refreshes itself, and returns to the top when you change the search or the
-filter. Clicking an address, a MAC or the site id copies it. MAC addresses are
-shown only in an expanded row, and — apart from that deliberate copy — appear in
-no log, warning or `status` output.
-
-Counts the panel derives itself say when they are floors. If the client list was
-bounded, an access point reports "14 or more" rather than a confident "14".
-
-A bounded list says so — "showing 200 of 412 devices", counted from a figure the
-helper carries separately and never from the length of the list you are looking
-at. A search that finds nothing on a bounded list says that too, rather than
-answering with a confident "no".
-
-## Requirements
-
-- Omarchy 4.0.3-1 with Quickshell 0.3.1-1
-- **Python 3.9 or newer**, standard library only
-
-There are no pip packages and no other runtime dependencies. Omarchy's plugin
-installer does not install runtime packages, so the interpreter must already be
-present; `scripts/configure` checks for it and reports a clear message rather
-than failing obscurely if it is missing or too old.
-
-A UniFi controller exposing the **Network Integration API**, and an API key for
-it, created in the UniFi console under **Settings → Control Plane → Integrations**
-(older firmware: **Settings → System → Advanced**). Create the key there, copy it
-once — the console will not show it again — and keep it for the configure step
-below.
-
-**Controller version.** The helper accepts UniFi Network **10.6.x** and refuses
-anything else with an `unsupported` panel rather than guessing at an API it has
-not been checked against. Only 10.6 has been exercised against real hardware. If
-your controller is on a different version this plugin will not work for you yet,
-and the panel will say so on the first poll — please open an issue with your
-`applicationVersion` so the list can grow.
+**WAN monitoring has a limitation:** the tested UDM Pro doesn't identify itself
+as a gateway through the API. On that controller, WAN status is unknown, gateway
+uptime and throughput are unavailable, and the bar cannot show “all gateways
+down”. Device and client monitoring still work.
 
 ## Install
 
@@ -108,257 +36,98 @@ omarchy plugin add https://github.com/gaius-codius/omarchy-unifi
 omarchy plugin enable gaius-codius.unifi
 ```
 
-The plugin does nothing until the widget is placed on the bar — that is what
-creates the service. Add it through the Omarchy bar settings, or by adding
-`{"id": "gaius-codius.unifi"}` to a section of `bar.layout` in
-`~/.config/omarchy/shell.json`.
+## Set up your controller
 
-## Configure
-
-Controller details and the credential live outside the plugin folder, in
-`~/.config/omarchy-unifi/` (mode `0700`):
-
-| File | Contents |
-|---|---|
-| `config.json` | `apiRoot`, `siteId`, optionally `customCaPath` and `allowInsecureTls` |
-| `api-key` | the API key and nothing else |
-| `commit.json` | written by `scripts/configure`; do not edit by hand |
-
-Run `scripts/configure` to create them. `omarchy plugin add` installs the plugin
-into `~/.config/omarchy/plugins/gaius-codius.unifi/`, so that is where the script
-lives — it is not on your `PATH`:
-
-Write the key to a file first. `--api-key-file` reads it directly, which keeps
-the credential out of both argv and your shell history:
+Run the wizard from the installed plugin:
 
 ```bash
-cd ~/.config/omarchy/plugins/gaius-codius.unifi
-
-install -m 600 /dev/null /tmp/unifi-key      # created 0600, before anything is in it
-cat > /tmp/unifi-key                          # paste the key, then press Ctrl-D
-
-./scripts/configure --api-root https://unifi.local/proxy/network/integration \
-  --api-key-file /tmp/unifi-key
-
-shred -u /tmp/unifi-key                       # the key now lives in ~/.config/omarchy-unifi/
+~/.config/omarchy/plugins/gaius-codius.unifi/scripts/setup
 ```
 
-`--api-key-stdin` is the alternative and reads standard input to end-of-file, so
-it suits a pipe (`cat key | ./scripts/configure … --api-key-stdin`). Typing into
-it interactively needs Ctrl-D to finish and echoes the key to your scrollback, so
-prefer the file above. Avoid `printf '%s' "$KEY" | …`: assigning the key to a
-shell variable records it in your history file.
+It asks for your controller address (default `unifi.local`) and API key, checks
+the connection, selects a site, saves the configuration and adds the widget to
+the bar. Key input is hidden. With multiple sites, it asks which one to use.
 
-Configuring by **IP address** works, but a UniFi console's certificate is issued
-for its hostname, so an `https://<ip>/…` root cannot be verified and the helper
-fails with a `tls` error. Either use a name the certificate covers, as above, or
-pin the console's own certificate — see *Using a self-signed console
-certificate* below. Do not reach for `--allow-insecure-tls` first; it disables
-verification entirely.
+For a self-signed certificate, the wizard retrieves it for you and displays its
+SHA-256 fingerprint. Compare it through an independent trusted connection to
+your controller, then paste the verified fingerprint to approve it. The wizard
+saves the certificate and keeps TLS verification enabled.
 
-The key is read from standard input or from `--api-key-file`, never from a
-command-line value: argv is world-readable through `/proc`, so an option that
-took the key as a value would publish it to every user on the machine for as
-long as the command ran. It is read by the Python helper directly from
-`api-key` — never placed in `shell.json`, in an environment variable, on a
-command line, or anywhere in this repository.
+Use a hostname that resolves on your machine and matches the certificate.
+The wizard won't change your DNS settings or accept a mismatched or expired
+certificate. See [certificate troubleshooting](docs/controller-setup.md) if it
+cannot verify the connection.
 
-If your controller has more than one site, `configure` cannot tell you which —
-it never contacts the controller. The **panel** does: once the widget is on the
-bar it lists the sites it found, with their UUIDs. Pick one with
-`./scripts/configure --site <uuid>`. A controller with exactly one site is
-selected automatically and needs none of this.
+After setup, open the panel and check the site name and last-update time.
+The wizard verifies API access; the panel confirms that the widget is refreshing.
 
-Other options:
+Using an AI agent? Follow the [agent installation guide](docs/agent-install.md).
+For manual configuration, see the [configuration reference](docs/usage.md#controller-configuration).
 
-| Option | Effect |
-|---|---|
-| `--site <uuid>` | choose which site to display |
-| `--custom-ca <file>` | trust this PEM certificate authority instead of the system store |
-| `--no-custom-ca` | go back to the system trust store |
-| `--allow-insecure-tls` | **disable** TLS verification; the panel then shows a permanent warning |
-| `--verify-tls` | re-enable TLS verification |
-| `--commit` | re-validate the files as they are on disk and write a fresh commit marker, after editing `config.json` by hand |
+## Use the widget
 
-After writing the files, `configure` asks the running shell to reload. It exits
-0 when the change was applied, and also when there is no shell running or the
-widget is not on the bar yet — both mean the configuration is saved and will be
-picked up. It exits non-zero if the shell was reachable but could not accept
-the change, and in that case the previous configuration is left exactly as it
-was, so a failed run never leaves you half-configured.
+The bar icon follows your Omarchy theme. Its tooltip states the network
+condition in words. Open the panel to:
 
-#### Using a self-signed console certificate
+- Check site health, offline devices and available WAN information in **Overview**.
+- Search and filter **Devices**, then expand a row for firmware, resource usage,
+  connections, ports and radios.
+- Browse **Clients** to see addresses, connection types and connection times.
 
-A UniFi console's certificate is self-signed and issued for the name
-**`unifi.local`** — not for its IP address. So configuring it by IP cannot use
-TLS verification, however you pin the certificate: the chain is trusted and the
-hostname check still fails with `IP address mismatch`.
+Click an address, MAC address or site ID to copy it. Missing metrics read
+“unknown”. If a list is incomplete, the panel shows that limit rather than
+presenting a partial count as a total.
 
-Use the name, and pin the certificate:
+See the [usage and settings reference](docs/usage.md) for status indicators,
+keyboard shortcuts and configuration options.
 
-```bash
-# 1. make the name resolve, if it does not already
-echo '192.168.1.1  unifi.local' | sudo tee -a /etc/hosts
-
-# 1b. on Arch, /etc/hosts is NOT consulted for .local names by default:
-#     nss-mdns claims them first and [NOTFOUND=return] ends the search.
-#     Put `files` ahead of it. Check with: getent hosts unifi.local
-sudo cp /etc/nsswitch.conf /etc/nsswitch.conf.bak
-sudo sed -i 's|^hosts:.*|hosts: mymachines files mdns_minimal [NOTFOUND=return] resolve myhostname dns|' \
-  /etc/nsswitch.conf
-
-# 2. save the console's certificate (mkdir first — configure has not run yet,
-#    so ~/.config/omarchy-unifi/ does not exist)
-mkdir -p -m 700 ~/.config/omarchy-unifi
-openssl s_client -connect 192.168.1.1:443 </dev/null 2>/dev/null \
-  | openssl x509 -outform PEM > ~/.config/omarchy-unifi/console.pem
-
-# 2b. CHECK IT IS THE RIGHT CERTIFICATE — see the warning below
-openssl x509 -in ~/.config/omarchy-unifi/console.pem -noout -fingerprint -sha256
-
-# 3. configure
-./scripts/configure \
-  --api-root https://unifi.local/proxy/network/integration \
-  --custom-ca ~/.config/omarchy-unifi/console.pem \
-  --api-key-file /tmp/unifi-key
-```
-
-**Step 2b is not optional.** `openssl s_client` verifies nothing — it saves
-whatever answers on that address at that moment. If someone is between you and
-the console while you run step 2, you will pin *their* certificate, and every
-poll afterwards will complete a perfectly verified handshake to them, carrying
-your API key, with no warning anywhere in the panel. Compare the SHA-256
-fingerprint against the one the console shows in its own UI before you continue.
-Doing this over a network you do not control is exactly when it matters.
-
-Once the right certificate is pinned, TLS is verified against that certificate
-alone — the system trust store is not consulted, so a public CA that mis-issues
-for this name is not trusted either.
-
-Your console may advertise `unifi.local` over mDNS already, in which case steps
-1 and 1b are unnecessary — check with `getent hosts unifi.local` first.
-
-If the name cannot be made to resolve on your network, `--allow-insecure-tls`
-turns verification off. It works, and the panel then shows a permanent warning
-row for the whole session, because anything on the network path can read and
-alter what you are looking at.
-
-## Widget settings
-
-Omarchy 4.0.3 ships no settings-form renderer, so these are set by editing your
-`shell.json` layout entry or with `omarchy bar set`, for example:
+To show the connected client count beside the icon:
 
 ```bash
 omarchy bar set gaius-codius.unifi compactMetric clients
 ```
 
-
-| Key | Default | Range |
-|---|---|---|
-| `refreshIntervalSec` | `30` | 15–3600 |
-| `compactMetric` | `"none"` | `"none"`, `"clients"` |
-| `dashboardUrl` | derived from `apiRoot` | `http` or `https` only |
-
-```json
-{ "id": "gaius-codius.unifi", "refreshIntervalSec": 60, "compactMetric": "clients" }
-```
-
-An out-of-range or wrongly typed value falls back to the default and raises a
-warning in the panel rather than being used.
-
-### What you will and will not see
-
-**Your controller may not report a gateway.** The plugin identifies a gateway by
-the `gateway` entry in a device's `features` array, which is what the UniFi
-Network API documents. On the one real console this has been tested against —
-a UDM Pro on Network 10.6.101 — no device reports it: the console itself comes
-back as `["switching"]`. Where that happens, the WAN section reads "unknown",
-gateway uptime and throughput are blank, and the bar item can never reach the
-"down" level, because that level is defined as *every gateway down* and there
-are no gateways to be down.
-
-Everything else works normally: device counts, per-role counts, the offline
-list, the client count, and the degraded level when something is down or
-impaired. This is a known limitation, and more data from more controllers is
-exactly what it needs.
-
 ## Troubleshooting
 
-**After updating the plugin, restart the shell.**
+| Problem | What to do |
+|---|---|
+| No widget or updates | Add the widget to the bar; enabling the plugin alone doesn't start its service. |
+| Unsupported controller version | Use a supported version; only 10.6.x has been tested on hardware. |
+| TLS error | Check the hostname and certificate using the [setup guide](docs/controller-setup.md). |
+| WAN status is unknown | See the gateway limitation above. |
+| Configuration changed but not committed | Run `~/.config/omarchy/plugins/gaius-codius.unifi/scripts/configure --commit`. |
+| Duplicate widgets disagree | Give them the same `refreshIntervalSec`, or remove the duplicate. |
+
+**After updating the plugin, restart the shell** so it loads the new code:
 
 ```bash
 omarchy restart shell
 ```
 
-Omarchy watches `~/.config/omarchy/plugins/` and reloads a plugin when its files
-change, and the reload genuinely happens — the old service is torn down and a
-new one built. But the new one is built from the *previously compiled* source,
-so a code change does not take effect until the shell restarts. Everything else
-— your configuration, the bar layout, your credential — is picked up live.
+Configuration and bar-layout changes apply live.
 
-**The panel says the configuration has changed but not been committed.** Run
-`~/.config/omarchy/plugins/gaius-codius.unifi/scripts/configure --commit`. That
-happens when `config.json` or `api-key` is edited by hand rather than through
-the script.
-
-**The panel says the controller version is unsupported.** Only UniFi Network
-10.6.x has been verified against hardware, and the helper refuses anything else
-rather than guessing. Please open an issue with the `applicationVersion` your
-console reports so the supported list can grow.
-
-**The panel reports a TLS error.** A UniFi console's certificate is self-signed
-and issued for its hostname, so an `apiRoot` using an IP address can never
-verify. Use the console's name and pin its certificate — see *Using a
-self-signed console certificate* above.
-
-**Two UniFi widgets disagree.** If you have the widget on the bar twice with
-different `refreshIntervalSec` values, polling stops and the panel says so.
-Make them match or remove one, in `~/.config/omarchy/shell.json`.
-
-## Removing it
+## Remove
 
 ```bash
 omarchy plugin disable gaius-codius.unifi
 omarchy plugin remove gaius-codius.unifi
 ```
 
-**This does not remove your credential.** `~/.config/omarchy-unifi/` survives
-the uninstall and still contains the API key, so:
+Your saved configuration and API key remain in `~/.config/omarchy-unifi/`.
+To delete them too:
 
 ```bash
 rm -rf ~/.config/omarchy-unifi
 ```
 
-**Then revoke the API key in the UniFi console.** Deleting the local copy does
-not invalidate the credential — anyone who obtained it before you deleted it can
-still use it.
+Revoke the API key in the UniFi console as well. Deleting the local copy doesn't
+invalidate it.
 
 ## Development
 
-```bash
-mise install          # pins gitleaks, node, and both supported Python versions
-tests/run.sh          # everything that runs without a graphical session
-tests/run.sh --gates  # additionally prove each lint gate fails on a seeded violation
-```
-
-`tests/run.sh --live-harness` adds the Quickshell harness, which needs a live
-Wayland session. `--live-staged` is refused unless explicitly authorised,
-because it installs into `~/.config/omarchy/plugins/`.
-
-CI runs `tests/run.sh --gates` on every push and pull request, on a stock
-Ubuntu runner. Read its result carefully: a runner is not an Omarchy system, so
-`omarchy plugin validate` and the `qmllint` gate cannot run there, and neither
-can the Quickshell harness. Those steps are reported as skipped and the run
-ends in `SUITE PASS (PARTIAL)` rather than `SUITE PASS`. **The QML layer is
-covered only by running the harness on a real machine** — please do that before
-sending a change that touches it.
-
-`docs/feature-specs/omarchy-unifi-plugin/` holds the spec and the verified host
-and API contracts; `docs/protocol-v1.md` holds the envelope contract.
-`docs/glossary.md` resolves the identifiers the code cites — deviations (`DEV-`),
-plan amendments (`AMD-`), phases, checkpoints, gates and risks — for the ones
-whose working documents are not published.
+See [development and testing](docs/development.md) for the test commands,
+local QML checks and project documentation.
 
 ## Licence
 
-MIT. See `LICENSE`.
+MIT. See [LICENSE](LICENSE).

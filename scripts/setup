@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+set -uo pipefail
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if ! command -v python3 >/dev/null 2>&1; then
+  echo 'Install Python 3.9 or newer, then run setup again.' >&2
+  exit 1
+fi
+if ! python3 -B -E -s -c 'import sys; sys.exit(0 if sys.version_info >= (3, 9) else 1)'; then
+  echo 'Setup requires Python 3.9 or newer.' >&2
+  exit 1
+fi
+exec python3 -B -E -s "$HERE/setup.py" "$@"
