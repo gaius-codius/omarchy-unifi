@@ -61,9 +61,11 @@ while IFS= read -r -d '' rel; do
   case "$rel" in
     tests/fixtures/*|tests/lint/secret-patterns.txt) continue ;;
   esac
+# -I skips binary files so a marketplace `preview.png` cannot trip a key
+# regex on compressed bytes. gitleaks above already scans the tree.
   while IFS= read -r hit; do
     gate_violation "$rel:$hit"
-  done < <(grep -nEf "$PATTERNS" "$ROOT/$rel" 2>/dev/null || true)
+  done < <(grep -I -nEf "$PATTERNS" "$ROOT/$rel" 2>/dev/null || true)
 done < <( cd "$ROOT" && find . -name .git -prune -o -type f -print0 )
 
 # --- 3: the positive control ----------------------------------------------

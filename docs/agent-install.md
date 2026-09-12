@@ -17,9 +17,9 @@ Then run the wizard in a terminal the user can interact with:
 ~/.config/omarchy/plugins/gaius-codius.unifi/scripts/setup
 ```
 
-Let the user enter the API key directly at the hidden prompt. Do not ask them to
-paste it into the conversation, put it in a command argument, or export it to
-the environment.
+Let the user enter the API key directly at the hidden prompt. Prefer a dedicated
+key for this plugin. Do not ask them to paste it into the conversation, put it
+in a command argument, or export it to the environment.
 
 ## Non-interactive setup
 

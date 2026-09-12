@@ -22,6 +22,10 @@ full Devices and Clients batch, including per-device details, completed in
 under half a second against a 25-second budget on that controller. This is a
 measurement from that setup, not a performance guarantee.
 
+The helper's version gate also accepts UniFi Network **9.1.x**. That is the
+`applicationVersion` the committed fixture corpus reports; it has not been
+validated against hardware. Other versions are rejected.
+
 ## Project references
 
 - [Feature specifications and verified host/API contracts](feature-specs/omarchy-unifi-plugin/)

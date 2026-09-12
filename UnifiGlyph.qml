@@ -21,12 +21,12 @@ import qs.Commons
 Item {
   id: root
 
-  // nf-md-access_point_network, U+F0003. Written as a surrogate pair rather
-  // than as a literal so this file stays ASCII — a literal PUA codepoint is
-  // invisible in a diff and indistinguishable from a neighbouring one.
+  // nf-md-lan, U+F0317. Written as a surrogate pair rather than as a literal
+  // so this file stays ASCII — a literal PUA codepoint is invisible in a
+  // diff and indistinguishable from a neighbouring one.
   // Verified present in JetBrainsMonoNerdFont-Regular.ttf, the family
   // Style.fontFamily resolves to on this system (Style.qml:269-272).
-  readonly property string glyph: "\udb80\udc03"
+  readonly property string glyph: "\udb80\udf17"
 
   property color glyphColor: Color.foreground
   property color badgeColor: Color.urgent
