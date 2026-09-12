@@ -4,8 +4,8 @@ Check your UniFi network from the Omarchy bar. Click the icon to find offline
 or impaired devices, see connected clients, and browse device details. The
 plugin only reads from your controller; it never changes its configuration.
 
-**Pre-release.** Tested with a UDM Pro running UniFi Network 10.6.101. Manual
-checks across light and dark themes and release packaging are still pending.
+Tested with a UDM Pro running UniFi Network 10.6.101, with manual checks across
+three Omarchy themes including one light theme.
 
 ## Screenshots
 
