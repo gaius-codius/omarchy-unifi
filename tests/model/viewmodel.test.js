@@ -1095,11 +1095,10 @@ test("the Site id row shows the site actually in use, not a null committed one",
   assert.strictEqual(model.metaRows[2].value, "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa")
 })
 
-test("a warning with its own panel row is not repeated in the warning list", () => {
-  // Three codes the panel renders through a dedicated affordance. Leaving them
-  // in the list put the same sentence on screen twice — and made DATA-012's
-  // correct, actionless auto-selection a permanent entry under "Warnings".
-  assert.deepStrictEqual(ViewModel.WARNINGS_WITH_THEIR_OWN_ROW.slice().sort(),
+test("informational and separately rendered warnings are not in the warning list", () => {
+  // A pinned custom CA needs no panel warning. The other two codes have a
+  // dedicated affordance, so listing them would duplicate the same fact.
+  assert.deepStrictEqual(ViewModel.WARNINGS_NOT_LISTED.slice().sort(),
     ["custom_ca_in_use", "insecure_tls", "site_auto_selected"])
   const warnings = [
     { code: "site_auto_selected", message: "chose the only site" },
@@ -1109,7 +1108,7 @@ test("a warning with its own panel row is not repeated in the warning list", () 
   ]
   const rows = ViewModel.warningRows(warnings)
   assert.deepStrictEqual(rows.map((r) => r.code), ["clients_unavailable"])
-  // Dropped from the list, NOT from the model: each still drives its own row.
+  // Dropped from the list, NOT from the model or protocol.
   const model = ViewModel.build({ warnings: warnings,
     meta: { allowInsecureTls: true, customCaInUse: true },
     snapshot: { site: { id: "s", name: "Home" }, counts: { devicesTotal: 1 } },

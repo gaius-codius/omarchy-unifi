@@ -516,10 +516,9 @@ function countRows(counts) {
 // Rendered as "unknown" rather than omitted, so an `unconfigured` failure — the
 // case with the least information and the most need for it — still shows the
 // same four rows in the same places.
-// Codes the panel already renders through a dedicated affordance. Repeating
-// them in the warning list is not extra information, it is the same sentence
-// twice — `insecure_tls` appeared both as UX-009's permanent row and as a
-// warning, and `custom_ca_in_use` both as its own line and as a warning.
+// Codes intentionally omitted from the warning list. `insecure_tls` has a
+// dedicated permanent warning. A pinned custom CA is a secure, expected setup,
+// so `custom_ca_in_use` is retained in the protocol but is not panel content.
 //
 // `site_auto_selected` is here for a different reason. DATA-012 raises it every
 // batch for the ordinary single-site controller, so it was a permanent entry in
@@ -527,7 +526,7 @@ function countRows(counts) {
 // action. It is still disclosed — as part of the Site row below — because the
 // user should know the plugin chose for them; it is just not a warning.
 // Approved by the user 2026-09-06; DATA-012's behaviour is unchanged.
-const WARNINGS_WITH_THEIR_OWN_ROW = [
+const WARNINGS_NOT_LISTED = [
   "site_auto_selected",
   "custom_ca_in_use",
   "insecure_tls"
@@ -627,7 +626,7 @@ function warningRows(warnings) {
   for (let i = 0; i < list.length; i++) {
     const entry = list[i] || {}
     const code = typeof entry.code === "string" ? entry.code : "unknown"
-    if (WARNINGS_WITH_THEIR_OWN_ROW.indexOf(code) !== -1) continue
+    if (WARNINGS_NOT_LISTED.indexOf(code) !== -1) continue
     const message = typeof entry.message === "string" && entry.message !== ""
       ? entry.message : code
     // The code is kept beside the message because a bug report that quotes the
@@ -2392,7 +2391,7 @@ if (typeof module !== "undefined") module.exports = {
   mergeWarnings: mergeWarnings,
   warningRows: warningRows,
   hasWarning: hasWarning,
-  WARNINGS_WITH_THEIR_OWN_ROW: WARNINGS_WITH_THEIR_OWN_ROW,
+  WARNINGS_NOT_LISTED: WARNINGS_NOT_LISTED,
   sitesFromWarnings: sitesFromWarnings,
   CLASS_WORD: CLASS_WORD,
   CLASS_ORDER: CLASS_ORDER,

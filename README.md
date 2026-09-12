@@ -7,6 +7,14 @@ plugin only reads from your controller; it never changes its configuration.
 **Pre-release.** Tested with a UDM Pro running UniFi Network 10.6.101. Manual
 checks across light and dark themes and release packaging are still pending.
 
+## Screenshots
+
+<p align="center">
+  <img src="docs/images/unifi-overview.png" alt="UniFi network overview in the Omarchy bar panel" width="31%">
+  <img src="docs/images/unifi-devices.png" alt="Searchable UniFi devices list in the Omarchy bar panel" width="31%">
+  <img src="docs/images/unifi-clients.png" alt="Searchable UniFi clients list in the Omarchy bar panel" width="31%">
+</p>
+
 ## Before you install
 
 You'll need:

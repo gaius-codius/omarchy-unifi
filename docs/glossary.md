@@ -217,13 +217,12 @@ is a gateway if `features` contains `gateway` **or** it reports an off-LAN
 
 **`SPEC-AMD-2`** — three warning codes (`site_auto_selected`, `custom_ca_in_use`,
 `insecure_tls`) are no longer listed in the panel's warning list. Each is
-rendered by a dedicated element instead: the first inside the Details block's
-Site row, the other two as their own rows. Presentation only — DATA-012, UX-009
-and the helper are unchanged, and every code is still in `envelope.warnings`.
-`insecure_tls` and `custom_ca_in_use` were appearing **twice** on screen, and
-DATA-012's auto-selection sat permanently under a heading reading "Warnings" for
-a decision that was correct and needed no action. Approved 2026-09-06. Cited by
-`tests/harness/runner.qml` against REQ-013a.
+handled according to its meaning: auto-selection appears inside the Details
+block's Site row, insecure TLS has its own persistent warning, and a pinned
+custom CA is not presented because it is a secure, expected setup. Presentation
+only — DATA-012, UX-009 and the helper are unchanged, and every code is still in
+`envelope.warnings`. Approved 2026-09-06; custom-CA presentation amended
+2026-09-12. Cited by `tests/harness/runner.qml` against REQ-013a.
 
 ## The three deviation tiers
 

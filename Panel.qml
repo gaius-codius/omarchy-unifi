@@ -789,17 +789,6 @@ Panel {
             wrapMode: Text.WordWrap
           }
 
-          Text {
-            visible: root.vm.customCaInUse
-            width: parent.width
-            text: "A custom certificate authority is in use for this controller."
-            color: root.dim
-            font.family: root.fontFamily
-            font.pixelSize: Style.font.caption
-            textFormat: Text.PlainText
-            wrapMode: Text.WordWrap
-          }
-
           // REQ-B10 / REQ-B13 / REQ-B16. Two instances rather than one bound to
           // the active list: each owns its own search field, and a field's text
           // is not bound back from the model (see BrowseList) — so one shared
