@@ -874,6 +874,39 @@ test("REQ-009: role rows carry their non-empty classes in a fixed order", () => 
   assert.strictEqual(ViewModel.countRows(null).length, 0)
 })
 
+test("F03: the offline section states the good case and never heads an empty list", () => {
+  // A healthy site says so. The panel used to answer "is anything broken?" by
+  // hiding the section, and a reader cannot tell an absent section from a
+  // rendering fault or a poll that never arrived.
+  const clear = ViewModel.offlineList({ offlineDevices: [], counts: { offlineTotal: 0 } })
+  assert.strictEqual(clear.summaryText, "Nothing offline or impaired")
+  assert.strictEqual(clear.devices.length, 0)
+
+  // A count with no array. This is the state the shipped Overview screenshot
+  // is in, and it used to draw a separator, a heading, and nothing else. The
+  // count is still reported — as a sentence, not as a heading over emptiness.
+  const countOnly = ViewModel.offlineList({ offlineDevices: [], counts: { offlineTotal: 5 } })
+  assert.strictEqual(countOnly.summaryText, "5 devices offline or impaired")
+  assert.strictEqual(countOnly.devices.length, 0)
+  const one = ViewModel.offlineList({ offlineDevices: [], counts: { offlineTotal: 1 } })
+  assert.strictEqual(one.summaryText, "1 device offline or impaired")
+
+  // With rows to show, the list and its "and N more" line speak and the
+  // sentence gets out of the way — the section must not say the same thing
+  // twice in a panel this short of room.
+  const listed = ViewModel.offlineList({
+    offlineDevices: [{ id: "d1", name: "Garage AP", class: "down" }],
+    counts: { offlineTotal: 1 }
+  })
+  assert.strictEqual(listed.summaryText, "")
+  assert.strictEqual(listed.devices.length, 1)
+
+  // No reading at all is not an all-clear: nothing has been checked, so the
+  // section has nothing to say and the panel hides it.
+  assert.strictEqual(ViewModel.EMPTY_MODEL.offline.summaryText, "")
+  assert.strictEqual(ViewModel.forNullService().offline.summaryText, "")
+})
+
 test("F10: a role row carries its cells as one right-hand value", () => {
   // The Overview role rows render label-left / value-right, the same shape as
   // "Connected clients" four rows above them. Joining the cells is a wording

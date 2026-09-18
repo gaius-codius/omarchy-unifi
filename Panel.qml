@@ -878,7 +878,10 @@ Panel {
 
           DeviceList {
             width: parent.width
-            visible: !root.browsing
+            // `active`, not `visible`: a `visible` written here would replace
+            // the component's own guard rather than combine with it, which is
+            // exactly how the empty "Offline and impaired" heading shipped.
+            active: !root.browsing
             vm: root.vm
             foreground: root.foreground
             fontFamily: root.fontFamily

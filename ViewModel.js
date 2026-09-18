@@ -296,7 +296,29 @@ function offlineList(snapshot) {
     devices: listed.map(deviceRow),
     total: total,
     truncated: remainder > 0,
-    moreLabel: remainder > 0 ? "and " + remainder + " more" : ""
+    moreLabel: remainder > 0 ? "and " + remainder + " more" : "",
+    // What this section says when it has no rows to show, and the reason it
+    // says anything at all.
+    //
+    // "Is anything broken?" is the question the widget exists to answer, and it
+    // was answered by the ABSENCE of this section. Absence is a weak signal: it
+    // is also what a rendering fault, a filtered view and a poll that never
+    // arrived all look like. A reader who sees nothing cannot tell "nothing is
+    // wrong" from "nothing was checked".
+    //
+    // The second case is the one the shipped Overview screenshot is in. The
+    // view's guard was `devices.length > 0 || total > 0`, so an envelope
+    // carrying a non-zero count with an empty array drew a separator, a heading
+    // and nothing else — a heading claiming content it did not have. The count
+    // is real and must still be reported; what it must not do is masquerade as
+    // a list. It gets a sentence of its own, and the heading is now the list's
+    // rather than the section's.
+    summaryText: total === 0
+      ? "Nothing offline or impaired"
+      : (listed.length === 0
+        ? (total === 1 ? "1 device offline or impaired"
+          : total + " devices offline or impaired")
+        : "")
   }
 }
 
@@ -2125,7 +2147,12 @@ const EMPTY_MODEL = {
   countRows: [],
   clientsText: "unknown",
   devicesTotalText: "unknown",
-  offline: { devices: [], total: 0, truncated: false, moreLabel: "" },
+  // `summaryText` is "" and not "Nothing offline or impaired": with no
+  // snapshot nothing has been checked, and an all-clear is a claim. The
+  // panel hides the section entirely in this state; the empty string is
+  // what makes that true rather than merely arranged by the view.
+  offline: { devices: [], total: 0, truncated: false, moreLabel: "",
+    summaryText: "" },
   roleCountsAreNotAPartition: false,
   warnings: [],
   warningRows: [],
