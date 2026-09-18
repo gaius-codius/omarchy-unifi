@@ -76,8 +76,8 @@ The panel scrolls to the focused control. Controls that aren't on screen are
 skipped: before the first reading Tab moves between Refresh and Open UniFi
 only, the panel opens on Refresh, and the page and search keys do nothing. On
 Overview, `/` opens Devices with the caret in its search field. Leaving the search field returns
-keyboard navigation to the panel. `f` is printed beside the filter chips it
-operates; the full list above is behind **? keys** at the foot of the panel.
+keyboard navigation to the panel. The full list above is behind **? keys** at
+the foot of the panel.
 
 **Refresh** is the ↻ button beside the timestamp in the panel's header.
 **Open UniFi** is the last thing in the panel, because it is the one action that

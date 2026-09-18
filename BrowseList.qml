@@ -174,7 +174,7 @@ Column {
     // model every five seconds, is while they are still typing.
     onTextChanged: root.searchChanged(text)
 
-    // REQ-B15's `/`, printed on the field it focuses, as `f` is on the chips.
+    // REQ-B15's `/`, printed on the field it focuses.
     // Only while the field is empty and unfocused: once there is a caret the
     // key has done its job, and text would run under it.
     Text {

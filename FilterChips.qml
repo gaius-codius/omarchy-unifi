@@ -44,8 +44,11 @@ Item {
   Row {
     id: chips
     // Left only. A Row sizes itself to its content; anchoring both edges would
-    // fix its width and clip the last chip instead of letting it run to the
-    // hint.
+    // fix its width and clip the last chip.
+    //
+    // No `f` hint at the right edge. It was printed there as the chips'
+    // keyboard key, and alone at the far edge it read as a stray character
+    // rather than as a key. `f` is named in the `? keys` legend.
     anchors.left: parent.left
     // Wide, because nothing else separates the options: no border, no fill.
     // At `md` the words ran together into one phrase — "All Gateways
@@ -105,35 +108,5 @@ Item {
         }
       }
     }
-  }
-
-  // REQ-B15's `f`, printed on the control it operates.
-  //
-  // The chips are deliberately not a Tab stop — one more stop would amend the
-  // focus order — so `f` is the only keyboard route to a control that is
-  // plainly visible and plainly clickable. It was named once, in a legend at
-  // the very bottom of the panel, on the one page where the filter exists and
-  // two screens below it. Nothing about the chips suggested they were
-  // addressable at all.
-  //
-  // One character, at tertiary, on the thing it opens. It costs no row, it does
-  // not touch the focus order, and it is where someone looking at the chips is
-  // already looking.
-  Text {
-    id: keyHint
-    anchors.right: parent.right
-    // Tops, not baselines. The chip labels sit at the top of their own Items,
-    // so this lines up with them, and a top anchor cannot be wrong about a
-    // baseline the Row does not really have.
-    anchors.top: chips.top
-    // Hidden rather than overlapped when the options run the full width,
-    // which a site with many client types can reach at the wider spacing.
-    visible: root.options.length > 0
-      && chips.width + Style.spacing.xl + implicitWidth <= root.width
-    text: "f"
-    color: root._tertiary
-    font.family: root.fontFamily
-    font.pixelSize: Style.font.caption
-    textFormat: Text.PlainText
   }
 }
