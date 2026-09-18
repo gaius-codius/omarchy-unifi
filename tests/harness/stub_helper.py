@@ -56,7 +56,7 @@ def meta():
         "siteId": "00000000-0000-5000-9000-000000000001",
         "allowInsecureTls": False,
         "customCaInUse": False,
-        "helperVersion": "0.1.0",
+        "helperVersion": "0.1.1",
     }
 
 
