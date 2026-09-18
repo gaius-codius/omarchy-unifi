@@ -1,4 +1,6 @@
-# Install with an agent
+# Agent instructions
+
+How an AI agent should install, set up and update this plugin for a user.
 
 Use the setup wizard to handle credentials, certificates and site selection.
 It uses the existing read-only helper and configuration transaction. Do not
@@ -54,7 +56,8 @@ Use `scripts/setup --help` for the full interface.
   does not prove the QML panel rendered correctly.
 
 If the certificate cannot be verified or the hostname doesn't resolve, explain
-the specific blocker and use the [certificate guide](controller-setup.md).
+the specific blocker and use the
+[name resolution and certificate guide](controller-setup.md).
 Do not disable TLS verification, rewrite host resolver settings, or approve
 certificate trust on the user's behalf.
 
@@ -62,3 +65,47 @@ Preserve any pre-existing configuration on failure. If setup saves configuration
 but cannot place the widget, report that partial result rather than repeating
 credential setup. Retain the user's original credential file unless they ask
 you to remove it. Never print it during diagnosis.
+
+## Update the plugin
+
+```bash
+omarchy plugin update gaius-codius.unifi
+```
+
+Run this in a terminal the user can see. It shows the incoming changes and asks
+the user to confirm them. That review is theirs to make: the new code runs in
+their shell with access to their API key. Do not pass `--yes` to skip it unless
+the user asks you to. Without a terminal, the command refuses to continue rather
+than update silently.
+
+When it reports `Updated gaius-codius.unifi.`, tell the user the shell is about
+to restart, then run:
+
+```bash
+omarchy restart shell
+```
+
+New code loads only after the restart. Configuration and bar-layout changes
+apply without one.
+
+An update replaces only the plugin folder. The controller address, API key,
+trusted certificate and site selection live in `~/.config/omarchy-unifi/` and
+carry over, so do not rerun setup afterwards.
+
+If the update doesn't complete:
+
+- **`is up to date`** — there is nothing to install and no restart is needed.
+- **`cannot fast-forward … you have local changes`** — files in the plugin folder
+  were edited. Show the user
+  `git -C ~/.config/omarchy/plugins/gaius-codius.unifi status` and let them
+  decide what to keep. Do not discard their changes with a reset or checkout.
+- **`failed validation; rolled back`** — the previous version is still installed
+  and working. Report the failure. Do not retry with `--yes` or try to bypass
+  validation.
+- **`is not a git checkout`** — the plugin was copied into place rather than
+  added with `omarchy plugin add`, so it can't update itself. With the user's
+  agreement, run `omarchy plugin remove gaius-codius.unifi` and then the two
+  commands under [Install the plugin](#install-the-plugin). Configuration in
+  `~/.config/omarchy-unifi/` is kept, so setup doesn't need to run again. If the
+  widget doesn't reappear in the bar, run
+  `omarchy bar put gaius-codius.unifi --section right`.

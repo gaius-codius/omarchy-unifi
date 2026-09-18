@@ -75,7 +75,7 @@ cannot verify the connection.
 After setup, click the bar icon and check the site name and last-update time.
 The wizard verifies API access; the panel confirms that the widget is refreshing.
 
-Using an AI agent? Follow the [agent installation guide](docs/agent-install.md).
+Using an AI agent? Follow the [agent instructions](docs/agent-instructions.md).
 For manual configuration, see the [configuration reference](docs/usage.md#controller-configuration).
 
 ## Use the widget
