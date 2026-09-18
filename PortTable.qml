@@ -46,6 +46,7 @@ Column {
 
   readonly property color _secondary: emphasis ? emphasis.secondary : foreground
   readonly property color _tertiary: emphasis ? emphasis.tertiary : foreground
+  readonly property color _ground: emphasis ? emphasis.background : Color.background
 
   readonly property var ports: detail && detail.ports ? detail.ports : []
   readonly property string radiosText: detail && detail.radiosText
@@ -95,34 +96,49 @@ Column {
     Repeater {
       model: root.ports
 
-      delegate: Rectangle {
+      delegate: Item {
+        id: mark
         required property var modelData
 
         // Square, and sized from the type rather than in pixels so it keeps
-        // step with the user's font scaling like everything else here.
-        width: Math.round(Style.font.caption * 1.5)
-        height: width
-        radius: Math.max(1, Math.round(width / 6))
+        // step with the user's font scaling like everything else here. The
+        // Item is taller than the square by the PoE rule and its gap, so the
+        // rule sits UNDER the mark rather than across the digits inside it.
+        readonly property int side: Math.round(Style.font.caption * 1.5)
+        readonly property int ruleGap: Math.max(1, Math.round(side / 8))
+        width: side
+        height: side + ruleGap + 1
 
-        // Up is a fill, down is an outline. Both are drawn from the same
-        // foreground token at the emphasis levels the rest of the panel uses,
-        // so nothing here invents a colour (REQ-001a / UX-001) and the grid
-        // re-themes with everything else.
-        color: modelData.isUp
-          ? Style.controlFill(true, false, root.foreground, root.foreground)
-          : "transparent"
-        border.width: modelData.isUp ? 0 : 1
-        border.color: root._tertiary
+        // Up is a solid fill, down is an outline, both from the emphasis
+        // scale, so nothing here invents a colour (REQ-001a / UX-001) and the
+        // grid re-themes with everything else.
+        //
+        // The fill was `Style.controlFill(true, …)`. That is a control's focus
+        // WASH — foreground at 8% alpha — and inside an expanded row, which is
+        // already washed, it all but vanished: on hardware the up ports read
+        // as the faint ones and the down ports, which kept their border, as
+        // the strong ones. The inverse of what the grid says.
+        Rectangle {
+          width: mark.side
+          height: mark.side
+          radius: Math.max(1, Math.round(mark.side / 6))
+          color: mark.modelData.isUp ? root._secondary : "transparent"
+          border.width: mark.modelData.isUp ? 0 : 1
+          border.color: root._tertiary
 
-        Text {
-          anchors.centerIn: parent
-          text: modelData.idxText
-          color: modelData.isUp ? root._secondary : root._tertiary
-          font.family: root.fontFamily
-          // A step below caption: the index identifies the mark, it does not
-          // compete with the row's own text.
-          font.pixelSize: Math.max(8, Math.round(Style.font.caption * 0.8))
-          textFormat: Text.PlainText
+          Text {
+            anchors.centerIn: parent
+            text: mark.modelData.idxText
+            // On the fill, the ground colour: the index is knocked out of the
+            // mark. On an outline, the same tertiary as the border.
+            color: mark.modelData.isUp ? root._ground : root._tertiary
+            font.family: root.fontFamily
+            // A step below caption: the index identifies the mark, it does
+            // not compete with the row's own text.
+            font.pixelSize: Math.max(8, Math.round(Style.font.caption * 0.8))
+            font.bold: mark.modelData.isUp
+            textFormat: Text.PlainText
+          }
         }
 
         // PoE, as a rule under the mark. A third state on the same square
@@ -130,13 +146,12 @@ Column {
         // — a port can be down and still powered — and two overlaid colours
         // cannot say that.
         Rectangle {
-          anchors.left: parent.left
-          anchors.right: parent.right
           anchors.bottom: parent.bottom
-          anchors.margins: Math.max(1, Math.round(parent.width / 6))
+          anchors.horizontalCenter: parent.horizontalCenter
+          width: mark.side - 2 * Math.max(1, Math.round(mark.side / 6))
           height: 1
           color: root._secondary
-          visible: modelData.poeText !== ""
+          visible: mark.modelData.poeText !== ""
         }
       }
     }
