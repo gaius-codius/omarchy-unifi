@@ -46,6 +46,26 @@ Item {
   readonly property color _secondary: emphasis ? emphasis.secondary : foreground
   readonly property color _tertiary: emphasis ? emphasis.tertiary : foreground
 
+  // The name's size, and the reason it is not `Style.font.bodySmall`.
+  //
+  // The row is two lines: a name at `bodySmall` over a meta line at `caption`.
+  // Those two tokens differ by about 1.5 px, which in a monospace face at this
+  // size is not a step the eye reads as a level — so the name, which is the
+  // thing the list is searched by and the thing every row is identified by,
+  // arrived looking like slightly brighter metadata.
+  //
+  // Derived from the token rather than set in pixels so it still scales with
+  // the user's font settings, which is the whole point of `Style.font.*`.
+  // 1.18 puts it ~3.5 px clear of the caption line: a title, at a size that
+  // still costs the row nothing, because the row's height is set by the two
+  // lines together and the meta line did not grow.
+  //
+  // Sentence case, deliberately, and never the tracked-uppercase treatment
+  // `SectionHeader` uses: a device name is a proper noun the user typed into
+  // the search field, and upper-casing it breaks the match between what they
+  // searched for and what they are looking at.
+  readonly property real titleSize: Math.round(Style.font.bodySmall * 1.18)
+
   implicitHeight: layout.implicitHeight
   height: implicitHeight
 
@@ -84,7 +104,7 @@ Item {
         text: root.row ? root.row.nameText : ""
         color: root.foreground
         font.family: root.fontFamily
-        font.pixelSize: Style.font.bodySmall
+        font.pixelSize: root.titleSize
         textFormat: Text.PlainText
         elide: Text.ElideRight
       }

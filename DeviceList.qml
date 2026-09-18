@@ -35,10 +35,11 @@ Column {
 
   PanelSeparator { foreground: root.foreground }
 
-  PanelSectionHeader {
+  SectionHeader {
     text: "Offline and impaired"
     foreground: root.foreground
     fontFamily: root.fontFamily
+    emphasis: root.emphasis
   }
 
   Repeater {

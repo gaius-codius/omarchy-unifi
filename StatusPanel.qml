@@ -35,10 +35,11 @@ Column {
   spacing: Style.spacing.md
 
   // --- REQ-008 / REQ-008a: the uplink -------------------------------------
-  PanelSectionHeader {
+  SectionHeader {
     text: "Uplink"
     foreground: root.foreground
     fontFamily: root.fontFamily
+    emphasis: root.emphasis
   }
 
   Repeater {
@@ -82,11 +83,12 @@ Column {
     foreground: root.foreground
   }
 
-  PanelSectionHeader {
+  SectionHeader {
     visible: gatewayList.visible
     text: "Gateways"
     foreground: root.foreground
     fontFamily: root.fontFamily
+    emphasis: root.emphasis
   }
 
   Column {
@@ -134,10 +136,11 @@ Column {
   // --- REQ-009: clients, devices, and the role rows -------------------------
   PanelSeparator { foreground: root.foreground }
 
-  PanelSectionHeader {
+  SectionHeader {
     text: "Devices"
     foreground: root.foreground
     fontFamily: root.fontFamily
+    emphasis: root.emphasis
   }
 
   Item {

@@ -22,9 +22,19 @@
 // any access point, so the table was a column of bands beside a column of the
 // word "unknown". `radiosText` is one line, and carries the retry figure inline
 // wherever a controller does report it.
+// "Ports" and "Radios" are LABELS here, not sections.
+//
+// They used to be `PanelSectionHeader`, the same type that heads "Uplink" and
+// "Inventory" at panel level — so a label two levels down, inside one expanded
+// row of one list, wore the top level's clothes. Whatever heading treatment
+// the panel adopts, applying it here would say that a device's port table
+// ranks with the site's uplink.
+//
+// Inside a row these belong to the same class as Firmware, CPU and Memory:
+// tertiary, caption, and read when looked at. See `SectionHeader.qml` for the
+// one level the panel does have.
 import QtQuick
 import qs.Commons
-import qs.Ui
 
 Column {
   id: root
@@ -54,12 +64,14 @@ Column {
   visible: ports.length > 0 || radiosText !== ""
     || portsEmpty !== "" || radiosEmpty !== ""
 
-  PanelSectionHeader {
+  Text {
     visible: root.ports.length > 0 || root.portsEmpty !== ""
     height: visible ? implicitHeight : 0
     text: "Ports"
-    foreground: root.foreground
-    fontFamily: root.fontFamily
+    color: root._tertiary
+    font.family: root.fontFamily
+    font.pixelSize: Style.font.caption
+    textFormat: Text.PlainText
   }
 
   Repeater {
@@ -124,12 +136,14 @@ Column {
     textFormat: Text.PlainText
   }
 
-  PanelSectionHeader {
+  Text {
     visible: root.radiosText !== "" || root.radiosEmpty !== ""
     height: visible ? implicitHeight : 0
     text: "Radios"
-    foreground: root.foreground
-    fontFamily: root.fontFamily
+    color: root._tertiary
+    font.family: root.fontFamily
+    font.pixelSize: Style.font.caption
+    textFormat: Text.PlainText
   }
 
   Text {

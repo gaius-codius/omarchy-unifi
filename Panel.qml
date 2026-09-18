@@ -753,10 +753,11 @@ Panel {
             spacing: 0
             visible: root.vm.sites.length > 0
 
-            PanelSectionHeader {
+            SectionHeader {
               text: "Sites on this controller"
               foreground: root.foreground
               fontFamily: root.fontFamily
+              emphasis: root.emphasis
             }
             Repeater {
               model: root.vm.sites
@@ -898,10 +899,11 @@ Panel {
           // places.
           PanelSeparator { foreground: root.foreground }
 
-          PanelSectionHeader {
+          SectionHeader {
             text: "Details"
             foreground: root.foreground
             fontFamily: root.fontFamily
+            emphasis: root.emphasis
           }
 
           // `DetailRows`, not a second hand-rolled label/value Repeater. These
