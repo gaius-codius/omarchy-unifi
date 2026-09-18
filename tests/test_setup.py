@@ -43,6 +43,54 @@ class SetupFlow(unittest.TestCase):
                 self.assertEqual(handle.read(), original)
 
 
+class SetupResolution(unittest.TestCase):
+    """The preflight that names a resolution failure instead of mis-blaming TLS.
+
+    A gaierror is an OSError, so before this existed it fell through to main()'s
+    generic handler and was reported as a connectivity/permissions/certificate
+    problem — sending the reader to audit a certificate that was fine.
+    """
+
+    def test_unresolvable_host_is_refused_by_name(self):
+        with mock.patch.object(setup.socket, "getaddrinfo", side_effect=setup.socket.gaierror):
+            with self.assertRaises(setup.SetupError) as caught:
+                setup.check_resolvable("https://unifi.local/proxy/network/integration")
+        self.assertIn("unifi.local", str(caught.exception))
+
+    def test_the_refusal_names_every_step_of_the_fix(self):
+        message = setup.resolution_help("unifi.local")
+        # Each half is a separate assertion: on an mDNS system the /etc/hosts
+        # entry alone does nothing, so a message that dropped the nsswitch
+        # sentence would send the reader to a fix that cannot work.
+        self.assertIn("getent hosts", message)
+        self.assertIn("/etc/hosts", message)
+        self.assertIn("/etc/nsswitch.conf", message)
+        self.assertIn("[NOTFOUND=return]", message)
+        self.assertIn("docs/controller-setup.md", message)
+
+    def test_a_resolvable_host_is_accepted(self):
+        with mock.patch.object(setup.socket, "getaddrinfo", return_value=[(2, 1, 6, "", ("192.0.2.1", 443))]):
+            setup.check_resolvable("https://unifi.example/proxy/network/integration")
+
+    def test_resolution_is_checked_before_the_key_is_read(self):
+        """SEC-001's ordering, extended: no secret is collected for a doomed run."""
+        with tempfile.TemporaryDirectory() as root:
+            with mock.patch.object(setup.socket, "getaddrinfo", side_effect=setup.socket.gaierror), \
+                    mock.patch.object(setup.shutil, "which", return_value="/mock/omarchy"), \
+                    mock.patch.object(setup, "establish_trust") as trust, \
+                    mock.patch.object(setup, "read_key") as read_key, \
+                    mock.patch.object(setup, "configure_plugin") as configure, \
+                    contextlib.redirect_stderr(io.StringIO()), contextlib.redirect_stdout(io.StringIO()):
+                status = setup.main(["--controller", "unifi.local", "--config-dir", root,
+                                     "--api-key-file", "/does/not/exist",
+                                     "--non-interactive", "--skip-bar"])
+            self.assertNotEqual(status, 0)
+            read_key.assert_not_called()
+            trust.assert_not_called()
+            configure.assert_not_called()
+            self.assertEqual(os.listdir(root), [])
+
+
 class SetupCertificates(unittest.TestCase):
     @classmethod
     def setUpClass(cls):

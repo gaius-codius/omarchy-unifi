@@ -104,6 +104,42 @@ def establish_trust(root, fingerprint, interactive):
     return context, pem
 
 
+def check_resolvable(root):
+    """Fail by name when the controller hostname does not resolve.
+
+    Without this the first symptom is a gaierror raised from the certificate
+    probe, which main() catches as an OSError and reports as "check
+    connectivity, file permissions and the controller certificate" — three
+    things that are all typically fine. The cause is name resolution, and it is
+    worth naming because a `.local` name is the one case where adding an
+    /etc/hosts entry does not fix it: nss-mdns claims the name and a following
+    `[NOTFOUND=return]` ends the search before `files` is ever consulted.
+    UniFi consoles ship a certificate issued for `unifi.local`, so that name is
+    the common case here rather than an exotic one.
+    """
+    host = urlsplit(root).hostname
+    if not host:
+        raise SetupError('Enter a controller hostname or HTTPS URL without spaces.')
+    try:
+        socket.getaddrinfo(host, 443, proto=socket.IPPROTO_TCP)
+    except socket.gaierror:
+        raise SetupError(resolution_help(host))
+
+
+def resolution_help(host):
+    """The one message that explains a name-resolution failure and its fix."""
+    return (
+        'The controller address ' + host + ' does not resolve on this computer.\n'
+        'Setup does not change DNS or /etc/hosts. Check resolution with:\n'
+        '  getent hosts ' + host + '\n'
+        'If that prints nothing, point the name at your console:\n'
+        "  echo '<controller-ip>  " + host + "' | sudo tee -a /etc/hosts\n"
+        'If a .local name still fails after that, an mDNS source followed by\n'
+        '[NOTFOUND=return] ahead of files on the hosts: line of /etc/nsswitch.conf\n'
+        'is stopping the search before /etc/hosts is read; move files ahead of it.\n'
+        'See docs/controller-setup.md step 1.')
+
+
 def read_key(args, interactive):
     if args.api_key_file:
         try:
@@ -238,6 +274,7 @@ def run(argv):
     if shutil.which('omarchy') is None:
         raise SetupError('The omarchy command is required. Run setup on your Omarchy desktop.')
     root = normalize_controller(args.controller or input('Controller address [unifi.local]: ').strip() or 'unifi.local')
+    check_resolvable(root)
     context, pem = establish_trust(root, args.trust_fingerprint, interactive)
     raw = read_key(args, interactive)
     key = credential.parse(raw)
@@ -274,6 +311,12 @@ def main(argv=None):
         print(failure.message, file=sys.stderr)
     except (EOFError, KeyboardInterrupt):
         print('Setup cancelled.', file=sys.stderr)
+    except socket.gaierror:
+        # Resolution can also break after the preflight passed. Reuse the
+        # same guidance rather than the generic message below, which points
+        # at the certificate and would send the reader the wrong way.
+        print('Setup could not finish: the controller address stopped resolving.\n'
+              'See docs/controller-setup.md step 1.', file=sys.stderr)
     except (OSError, ValueError, subprocess.SubprocessError):
         print('Setup could not finish. Check connectivity, file permissions and the controller certificate.', file=sys.stderr)
     return 1

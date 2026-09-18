@@ -119,8 +119,8 @@ const PANEL_SENTENCES = {
     "The controller's certificate could not be verified. Point customCaPath at "
     + "your CA in config.json, or set allowInsecureTls if you accept the risk.",
   network:
-    "The controller could not be reached. Check that it is powered on and that "
-    + "apiRoot points at it.",
+    "The controller could not be reached. Check that it is powered on, that "
+    + "apiRoot points at it, and that its name resolves — getent hosts <name>.",
   timeout:
     "The controller did not answer within the time budget. The next attempt is "
     + "already scheduled; if it keeps happening, check the controller's load or "
