@@ -874,6 +874,32 @@ test("REQ-009: role rows carry their non-empty classes in a fixed order", () => 
   assert.strictEqual(ViewModel.countRows(null).length, 0)
 })
 
+test("F10: a role row carries its cells as one right-hand value", () => {
+  // The Overview role rows render label-left / value-right, the same shape as
+  // "Connected clients" four rows above them. Joining the cells is a wording
+  // decision, so it is made here rather than by a Row of Texts in the delegate
+  // (REQ-014) — and asserting it here is what stops the separator and the
+  // ordering drifting when someone edits the QML.
+  const healthy = ViewModel.countRows(HEALTHY.counts)
+  const aps = healthy.find((r) => r.key === "accessPoints")
+  assert.strictEqual(aps.valueText, "2 online")
+
+  // A mixed role keeps every non-zero class, in CLASS_ORDER, joined rather
+  // than stacked. This is the case the right-hand column exists for.
+  const mixed = ViewModel.countRows({
+    switches: { online: 2, transitional: 0, down: 1, impaired: 0, unknown: 0 }
+  })
+  assert.strictEqual(mixed[0].valueText, "2 online  \u00b7  1 down")
+
+  // `cells` is unchanged by the addition: the tests above read it, and a
+  // future column may want the parts back rather than the sentence.
+  assert.deepStrictEqual(mixed[0].cells.map((c) => c.key), ["online", "down"])
+
+  // Every row has one, so the delegate never binds to undefined.
+  for (const row of healthy) assert.strictEqual(typeof row.valueText, "string")
+  for (const row of healthy) assert.notStrictEqual(row.valueText, "")
+})
+
 test("AC-025: the flag is exposed, and the panel carries the unique total", () => {
   // AC-025 asks for two things: the model exposes `roleCountsAreNotAPartition`,
   // and the panel label carries the unique total. Both still hold — the total is

@@ -506,8 +506,22 @@ function countRows(counts) {
     // REQ-B10a. The row is an entry point: activating it opens Devices filtered
     // to this role, so it carries the role value `devices[].roles` uses rather
     // than leaving the view to translate the counter's plural noun into it.
+    //
+    // `valueText` is the cells as one right-hand value — "3 online", or
+    // "2 online  ·  1 down" when a role is mixed. The view used to build this
+    // by laying the cells out in a Row of its own, which made the role rows the
+    // only rows in the section with no right-hand column: "Connected clients"
+    // put a dim label left and a bright value hard right, and four rows later
+    // "Gateways" put a bright label left and a dim caption underneath. Two
+    // scanning rules, eight rows apart, and only the second kind was clickable.
+    //
+    // Joining them is a decision about wording, so it is made here (REQ-014)
+    // and not in the delegate. `cells` stays exactly as it was: it is what the
+    // tests read, and a future column may want the parts back.
     rows.push({ key: roles[i].key, role: ROLE_FOR_COUNT_KEY[roles[i].key],
-      label: roles[i].label, total: total, cells: cells })
+      label: roles[i].label, total: total, cells: cells,
+      valueText: cells.map(function (c) { return c.value + " " + c.label })
+        .join("  ·  ") })
   }
   return rows
 }
