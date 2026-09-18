@@ -10,18 +10,25 @@
 // The MAC address is not here (REQ-B21 / D3). It appears in `detailRows` and
 // therefore only after a deliberate expansion.
 //
-// The layout is two lines:
+// The layout is two lines and three columns:
 //
-//   name .................................................. Online
-//   UDM Pro  ·  192.168.1.5  ·  up 3d 4h
+//   Switch 1 ................................................ Down
+//   USW-Pro-48-PoE    192.168.1.5  ·  up 3d 4h
+//
+// The second line's first field is a FIXED column, so whatever follows begins
+// on the same left edge on every row and a list of addresses can be read down
+// rather than hunted across. The separator that used to precede it is gone: it
+// was standing in for an alignment that did not exist.
 //
 // The status word sits in a fixed right-hand column rather than at the head of
 // the second line, so the eye can run down one edge and find every broken
-// device. That is what a list ordered by brokenness is for, and while the word
-// was the first of four `·`-joined segments it was just another word in a
-// sentence. It also frees the name: the previous layout put the model on the
-// same line, right-aligned and capped at 40% of the width, which meant a long
-// model name ate the name the user was actually searching for.
+// device — and it is printed only when it is NOT the expected one, so on a
+// healthy list that edge is empty and a broken device is the only thing on it.
+// `vm` decides which states qualify. That is what a list ordered by brokenness
+// is for, and while the word was the first of four `·`-joined segments it was
+// just another word in a sentence. It also frees the name: an earlier layout
+// put the model on the same line, right-aligned and capped at 40% of the
+// width, which meant a long model name ate the name being searched for.
 import QtQuick
 import qs.Commons
 import qs.Ui
@@ -144,10 +151,25 @@ Item {
       Text {
         id: secondary
         anchors.left: parent.left
-        // Capped so a long model name cannot push the context off the row
-        // entirely, but generously — it no longer competes with the name, which
-        // now has the line above to itself.
-        width: Math.min(implicitWidth, Math.round(parent.width * 0.55))
+        // A FIXED column, not a shrink-to-fit one.
+        //
+        // It used to be `Math.min(implicitWidth, 55%)`, so the column was as
+        // wide as whatever happened to be in it and everything after it began
+        // somewhere different on every row: 192.168.10.2 under "UDM-Pro",
+        // 192.168.10.3 under "USW-Pro-48-PoE". PortTable's own comment names
+        // this exact failure — fields joined into a line "read as a sentence
+        // and cannot be scanned" — and the port table was fixed while the row
+        // that leads to it was not.
+        //
+        // The panel is set in a monospace face, where a fixed column costs
+        // nothing and buys a real one: the addresses now start on a shared left
+        // edge down the whole list, which is what makes a list of addresses
+        // scannable rather than merely present.
+        //
+        // 44% rather than the old 55% cap: the column is now always that wide,
+        // so the space it takes is paid on every row instead of only on the
+        // long ones, and the context after it needs room to survive.
+        width: Math.round(parent.width * 0.44)
         text: root.row ? root.row.secondaryText : ""
         color: root._secondary
         font.family: root.fontFamily
@@ -160,11 +182,12 @@ Item {
         id: meta
         anchors.left: secondary.right
         anchors.right: parent.right
-        anchors.leftMargin: secondary.text !== "" && text !== "" ? Style.spacing.xs : 0
-        text: root.row
-          ? ((secondary.text !== "" && root.row.metaText !== "" ? "·  " : "")
-             + root.row.metaText)
-          : ""
+        anchors.leftMargin: Style.spacing.xs
+        // No leading separator any more. The `·` was standing in for an
+        // alignment that did not exist — it told the reader where one field
+        // ended because nothing else did. The fixed column above says it, in
+        // the same place on every row, without spending a character.
+        text: root.row ? root.row.metaText : ""
         color: root._tertiary
         font.family: root.fontFamily
         font.pixelSize: Style.font.caption

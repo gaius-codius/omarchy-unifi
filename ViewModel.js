@@ -906,7 +906,27 @@ function browseDeviceRow(device) {
     // The status word, carried under the SAME name the client row uses for the
     // same job, so the shared row delegate reads one field rather than
     // branching on which list it is drawing.
-    tokenText: wordCase(classWord(entry.class)),
+    //
+    // EMPTY for an online device, which is the whole point of the column. It
+    // exists so the eye can run down one edge and find the broken thing; on a
+    // healthy site it was printing "Online" once per row, in the quietest
+    // colour on screen, five times in a column whose value never varied. A
+    // column that always reads the same is one the eye stops checking, which
+    // loses it on the single day it has something to say.
+    //
+    // Only `online` is dropped, because only `online` is the expected state.
+    // `down`, `impaired`, `updating` and `unknown` keep their word — an
+    // exception is what this column is for. `classText` still carries the word
+    // unconditionally for anything that needs it regardless (the Overview's
+    // offline list does, and so do the tests).
+    //
+    // The client row does NOT do this, though its column is the more repetitive
+    // of the two. There is no expected value to suppress: Wired and Wireless
+    // are equally ordinary, and the filter chips default to All — so dropping
+    // the word would delete the only place a client's connection type appears
+    // rather than merely quieting a redundancy.
+    tokenText: entry.class === "online"
+      ? "" : wordCase(classWord(entry.class)),
     // Whether that token is the reason the row sorts where it does. The
     // delegate colours on this rather than comparing class words itself
     // (REQ-014), and `down` is not the only value that must stand out.

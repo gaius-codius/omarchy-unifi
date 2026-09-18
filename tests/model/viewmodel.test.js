@@ -3016,6 +3016,37 @@ test("REQ-B14: the status word is a field of its own, not the head of the meta l
   assert.ok(clientRow.metaText.indexOf("via sw") !== -1)
 })
 
+test("F07: the status column prints exceptions, not the expected state", () => {
+  // The column exists so the eye can run down one edge and find the broken
+  // thing. On a healthy site it printed "Online" once per row in the quietest
+  // colour on screen — a column whose value never varies is one the eye stops
+  // checking, which loses it on the day it has something to say.
+  const up = ViewModel.browseDeviceRow(
+    device({ id: "1", name: "Attic AP", class: "online", ipAddress: "192.0.2.7" }))
+  assert.strictEqual(up.tokenText, "")
+  // The word itself is not lost — `classText` carries it unconditionally, and
+  // the Overview's offline list reads that one.
+  assert.strictEqual(up.classText, "Online")
+
+  // Only `online` is suppressed, because only `online` is expected. Everything
+  // else is the exception the column is there to show.
+  for (const cls of ["down", "impaired", "transitional", "unknown"]) {
+    const row = ViewModel.browseDeviceRow(device({ id: "2", name: "x", class: cls }))
+    assert.notStrictEqual(row.tokenText, "",
+      cls + " must keep its word: it is not the expected state")
+    assert.strictEqual(row.tokenText, row.classText)
+  }
+
+  // A client keeps its word even though its column is the more repetitive of
+  // the two. There is no expected value to suppress — wired and wireless are
+  // equally ordinary — and the filter chips default to All, so dropping it
+  // would delete the only place the connection type appears rather than
+  // quieting a redundancy.
+  const wired = ViewModel.browseClientRow(
+    client({ id: "3", name: "pi", type: "WIRED" }), "sw", null)
+  assert.strictEqual(wired.tokenText, "Wired")
+})
+
 test("REQ-B14: the delegate is told WHICH states are urgent, and does not decide", () => {
   // `down` is not the only one. The delegate colours on this flag rather than
   // comparing class words itself (REQ-014), which is also what stops the two
