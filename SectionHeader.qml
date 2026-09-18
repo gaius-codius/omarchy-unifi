@@ -54,9 +54,21 @@ PanelSectionHeader {
 
   font.capitalization: Font.AllUppercase
   // Derived from the size rather than set in pixels, so it tracks the user's
-  // font scaling the way `Style.space` does. 0.16em is the low end of what
-  // reads as deliberate; above about 0.22 short words start to come apart.
-  font.letterSpacing: fontSize * 0.16
+  // font scaling the way `Style.space` does.
+  //
+  // 0.26em, and the first attempt at 0.16 was wrong for a reason worth keeping.
+  //
+  // Tracking is a WEAKER signal in a monospace face than in a proportional one.
+  // Mono glyphs already carry generous side bearings — that is what makes a
+  // fixed advance width work for both an `i` and an `m` — so the untracked
+  // baseline already looks airy, and a value that reads as emphatic small caps
+  // in a proportional font is nearly invisible here. 0.16 was chosen by
+  // reasoning about type in general rather than about the face this panel
+  // actually uses, and it did not show.
+  //
+  // Above roughly 0.35 short words start to come apart into separate letters,
+  // so the usable band is narrow. 0.26 sits in it.
+  font.letterSpacing: fontSize * 0.26
 
   // A heading owns the gap BEFORE it, not after. The parent's own spacing
   // supplies the gap above; this closes up the one below so the label sits
