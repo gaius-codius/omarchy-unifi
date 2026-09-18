@@ -72,11 +72,15 @@ you to remove it. Never print it during diagnosis.
 omarchy plugin update gaius-codius.unifi
 ```
 
-Run this in a terminal the user can see. It shows the incoming changes and asks
-the user to confirm them. That review is theirs to make: the new code runs in
-their shell with access to their API key. Do not pass `--yes` to skip it unless
-the user asks you to. Without a terminal, the command refuses to continue rather
-than update silently.
+It shows the incoming changes and asks the user to confirm them. That review is
+theirs to make: the new code runs in their shell with access to their API key.
+Do not pass `--yes` to skip it unless the user asks you to.
+
+An agent's shell usually has no terminal, so the command prints the diff and
+then stops with `refusing to continue without confirmation; pass --yes`. That is
+expected. Do not follow the suggestion. Give the user the command above and ask
+them to run it in their own terminal, where they can review the changes and
+confirm. `omarchy plugin remove` behaves the same way.
 
 When it reports `Updated gaius-codius.unifi.`, tell the user the shell is about
 to restart, then run:
@@ -95,10 +99,17 @@ carry over, so do not rerun setup afterwards.
 If the update doesn't complete:
 
 - **`is up to date`** — there is nothing to install and no restart is needed.
-- **`cannot fast-forward … you have local changes`** — files in the plugin folder
-  were edited. Show the user
-  `git -C ~/.config/omarchy/plugins/gaius-codius.unifi status` and let them
-  decide what to keep. Do not discard their changes with a reset or checkout.
+- **`cannot fast-forward … you have local changes`** — despite the wording, this
+  can have more than one cause. Start with
+  `git -C ~/.config/omarchy/plugins/gaius-codius.unifi status`. If it lists
+  changed files, the plugin folder was edited: show the user
+  and let them decide what to keep, and do not discard their changes with a
+  reset or checkout. If it is clean, either the user committed changes inside
+  the plugin folder or the upstream history was rewritten, and a clean status
+  cannot tell those apart. Ask the user. Only if they have never committed there,
+  reinstall as described for `is not a git checkout` below: reinstalling deletes
+  the folder, including any commits in it. Configuration lives outside the
+  plugin folder and is kept either way.
 - **`failed validation; rolled back`** — the previous version is still installed
   and working. Report the failure. Do not retry with `--yes` or try to bypass
   validation.

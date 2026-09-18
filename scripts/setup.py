@@ -35,6 +35,18 @@ def normalize_controller(value):
     if not parts.path or parts.path == '/':
         value = value.rstrip('/') + '/proxy/network/integration'
     routes.build(value, 'info')
+    # The hostname is echoed back in error messages, and resolution_help
+    # prints it inside commands the reader is told to run, one under sudo.
+    # urlsplit keeps shell metacharacters ($ ( ' ; |) and C1 or bidi control
+    # characters in a hostname, so vet it here, once, before anything can
+    # repeat it. Letters and digits (including non-ASCII ones, for IDN names),
+    # dots, hyphens, underscores and the colons of an IPv6 literal are all a
+    # controller address needs. The refusal deliberately does not quote the
+    # value it refuses.
+    host = routes.parse_api_root(value)[1]
+    if not all(c.isalnum() or c in '.-_:' for c in host):
+        raise SetupError('Enter the controller as a hostname or IP address, using only letters, '
+                         'digits, dots and hyphens.')
     return value.rstrip('/')
 
 
@@ -130,20 +142,27 @@ def check_resolvable(root):
     try:
         socket.getaddrinfo(host, port or 443, proto=socket.IPPROTO_TCP)
     except socket.gaierror as failure:
-        if failure.errno == socket.EAI_AGAIN:
-            raise SetupError(temporary_resolution_help(host))
-        raise SetupError(resolution_help(host))
+        raise SetupError(resolution_failure_message(host, failure))
     except UnicodeError:
         # getaddrinfo IDNA-encodes the name before the lookup and raises
         # UnicodeError — a ValueError, not an OSError — for a label that is
-        # empty or over 63 bytes. Uncaught it would reach main()'s generic
-        # clause and print the certificate advice this preflight exists to
-        # prevent, so it is named here even though it is a typo, not a
-        # resolution failure.
+        # empty, over 63 bytes, or holds a character IDNA rejects. Uncaught it
+        # would reach main()'s generic clause and print the certificate advice
+        # this preflight exists to prevent, so it is named here even though it
+        # is a typo, not a resolution failure. The message lists the possible
+        # causes rather than guessing one. normalize_controller has already
+        # vetted the host's characters, so echoing it here is safe.
         raise SetupError(
-            'The controller address ' + host + ' is not a usable hostname.\n'
-            'One of its dot-separated labels is empty or longer than 63 bytes.\n'
+            'The controller address ' + host + ' is not a valid hostname: a dot-separated\n'
+            'label is empty, longer than 63 bytes, or uses a character DNS names cannot hold.\n'
             'Check the address for a typo; a doubled dot is the usual cause.')
+
+
+def resolution_failure_message(host, failure):
+    """Choose the message for a gaierror: temporary, or a name that is wrong."""
+    if failure.errno == socket.EAI_AGAIN:
+        return temporary_resolution_help(host)
+    return resolution_help(host)
 
 
 def resolution_help(host):
@@ -151,7 +170,10 @@ def resolution_help(host):
 
     Used by the preflight and, through run(), by the narrow case where
     resolution breaks between the preflight and the handshake, so both paths
-    give the reader the same steps.
+    give the reader the same steps. The host is printed inside commands the
+    reader is told to run; it is safe to do so only because
+    normalize_controller has already refused any character outside a
+    hostname's alphabet.
     """
     return (
         'The controller address ' + host + ' does not resolve on this computer.\n'
@@ -177,7 +199,8 @@ def temporary_resolution_help(host):
         'The controller address ' + host + ' could not be resolved right now:\n'
         'the name server did not answer. This is usually temporary, and often\n'
         'means the network is not up yet. Check the connection and run setup again.\n'
-        'If it keeps happening, see docs/controller-setup.md step 1.')
+        "If it keeps failing once the network is up, check that this computer's DNS\n"
+        'server is reachable, for example with: resolvectl status')
 
 
 def read_key(args, interactive):
@@ -317,11 +340,14 @@ def run(argv):
     check_resolvable(root)
     try:
         context, pem = establish_trust(root, args.trust_fingerprint, interactive)
-    except socket.gaierror:
+    except socket.gaierror as failure:
         # Resolution can break between the preflight and the handshake. The
-        # hostname is still in scope here, so the reader gets the same steps
-        # rather than main()'s last-resort message, which cannot name it.
-        raise SetupError(resolution_help(routes.parse_api_root(root)[1]))
+        # hostname is still in scope here, so the reader gets the same message
+        # the preflight would have given rather than main()'s last-resort one,
+        # which cannot name it. That includes telling EAI_AGAIN apart: a name
+        # that resolved a moment ago and now fails is more likely a resolver
+        # blip than a misconfiguration.
+        raise SetupError(resolution_failure_message(routes.parse_api_root(root)[1], failure))
     raw = read_key(args, interactive)
     key = credential.parse(raw)
     sites = discover_sites(root, key, context)

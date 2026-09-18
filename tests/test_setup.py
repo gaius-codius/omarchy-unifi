@@ -98,6 +98,8 @@ class SetupResolution(unittest.TestCase):
         # exists to remove, relocated. Neither persistent edit may be suggested.
         self.assertNotIn("/etc/hosts", message)
         self.assertNotIn("/etc/nsswitch.conf", message)
+        # Nor may it send the reader to the doc section that prescribes them.
+        self.assertNotIn("controller-setup.md", message)
 
     def test_an_unencodable_hostname_is_refused_by_name(self):
         """getaddrinfo raises UnicodeError, a ValueError, for a bad IDNA label.
@@ -106,14 +108,55 @@ class SetupResolution(unittest.TestCase):
         it would otherwise reach main()'s generic clause and print the
         certificate advice this preflight exists to prevent.
         """
+        def offline_getaddrinfo(host, *args, **kwargs):
+            # CPython IDNA-encodes a str host before any lookup, which is
+            # where these names fail. Do the same, then answer NXDOMAIN rather
+            # than asking a real resolver: if the encoding ever stops raising,
+            # this test fails on the wrong message instead of sending mDNS and
+            # DNS queries whose answer depends on the machine running it.
+            host.encode("idna")
+            raise setup.socket.gaierror(setup.socket.EAI_NONAME, "stubbed: tests do not resolve")
         for host in ("a" * 64 + ".local", "unifi..local"):
             with self.subTest(host=host):
-                with self.assertRaises(setup.SetupError) as caught:
+                with mock.patch.object(setup.socket, "getaddrinfo", side_effect=offline_getaddrinfo), \
+                        self.assertRaises(setup.SetupError) as caught:
                     setup.check_resolvable("https://" + host + "/proxy/network/integration")
                 message = str(caught.exception)
                 self.assertIn(host, message)
                 self.assertIn("label", message)
                 self.assertNotIn("certificate", message)
+
+    def test_a_hostname_outside_its_alphabet_is_refused_without_echoing_it(self):
+        """The host is printed inside commands the reader is told to run, one
+        under sudo, so a hostile address must never reach that message."""
+        hostile = (
+            "unifi.local$(id)",          # command substitution in the sudo line
+            "x';id;'.local",             # breaks out of the echo's quotes
+            "uni\x9bfi.local",          # C1 CSI: a terminal control sequence
+            "uni\u202efi.local",        # right-to-left override: spoofs the display
+            "unifi.local\u2028x",       # line separator: forges a new output line
+        )
+        for host in hostile:
+            with self.subTest(host=ascii(host)):
+                with self.assertRaises(setup.SetupError) as caught:
+                    setup.normalize_controller(host)
+                self.assertNotIn(host, str(caught.exception))
+        stderr = io.StringIO()
+        with mock.patch.object(setup.shutil, "which", return_value="/mock/omarchy"), \
+                mock.patch.object(setup, "establish_trust") as trust, \
+                contextlib.redirect_stderr(stderr), contextlib.redirect_stdout(io.StringIO()):
+            status = setup.main(["--controller", "unifi.local$(id)", "--non-interactive",
+                                 "--api-key-file", "/does/not/exist", "--skip-bar"])
+        self.assertEqual(status, 1)
+        trust.assert_not_called()
+        self.assertNotIn("$(id)", stderr.getvalue())
+        self.assertNotIn("sudo", stderr.getvalue())
+
+    def test_ordinary_controller_addresses_are_still_accepted(self):
+        for value in ("unifi.local", "192.168.1.1", "https://unifi.local:8443",
+                      "my_unifi.local", "ünifi.local"):
+            with self.subTest(value=value):
+                setup.normalize_controller(value)
 
     def test_resolution_is_checked_before_the_key_is_read(self):
         """No secret is collected, and nothing is written, for a doomed run."""
@@ -160,6 +203,25 @@ class SetupResolution(unittest.TestCase):
         read_key.assert_not_called()
         self.assertIn("unifi.local", stderr.getvalue())
         self.assertIn("getent hosts", stderr.getvalue())
+
+    def test_a_temporary_failure_after_the_preflight_is_not_called_a_misconfiguration(self):
+        """A name that resolved a moment ago and now fails with EAI_AGAIN is a
+        resolver blip; it must get the same message the preflight would give."""
+        stderr = io.StringIO()
+        blip = setup.socket.gaierror(setup.socket.EAI_AGAIN, "Temporary failure in name resolution")
+        with tempfile.TemporaryDirectory() as root:
+            with mock.patch.object(setup.socket, "getaddrinfo",
+                                   return_value=[(2, 1, 6, "", ("192.0.2.1", 443))]), \
+                    mock.patch.object(setup.shutil, "which", return_value="/mock/omarchy"), \
+                    mock.patch.object(setup, "establish_trust", side_effect=blip), \
+                    contextlib.redirect_stderr(stderr), contextlib.redirect_stdout(io.StringIO()):
+                status = setup.main(["--controller", "unifi.local", "--config-dir", root,
+                                     "--api-key-file", "/does/not/exist",
+                                     "--non-interactive", "--skip-bar"])
+        self.assertEqual(status, 1)
+        self.assertIn("temporary", stderr.getvalue().lower())
+        self.assertNotIn("/etc/hosts", stderr.getvalue())
+        self.assertNotIn("/etc/nsswitch.conf", stderr.getvalue())
 
     def test_main_names_a_late_resolution_failure(self):
         """main()'s backstop must stay above its `except (OSError, ...)` clause.
@@ -360,11 +422,12 @@ class SetupAcceptance(SetupCertificates):
             with setup.socket.create_connection(('127.0.0.1', server.port), timeout=5) as sock:
                 with context.wrap_socket(sock, server_hostname='wrong.invalid') as secure:
                     return secure.getpeercert(binary_form=True)
+        stderr = io.StringIO()
         with tls_stub.TlsStub(self.cert, self.key) as server, \
                 mock.patch.object(setup.shutil, 'which', return_value='/mock/omarchy'), \
                 mock.patch.object(setup, 'probe_certificate', side_effect=wrong_host) as probe, \
                 mock.patch.object(setup, 'read_key') as key, \
-                contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+                contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(stderr):
             result = setup.main(['--controller', 'https://127.0.0.1:%d' % server.port,
                                  '--api-key-file', '/not/read',
                                  '--trust-fingerprint', self.fingerprint, '--non-interactive', '--skip-bar'])
@@ -378,6 +441,11 @@ class SetupAcceptance(SetupCertificates):
             # SSLCertVerificationError, the insecure capture of the leaf, and
             # the verifying re-probe that raises it again and refuses.
             self.assertEqual(probe.call_count, 3)
+            # Exit 1 alone is not enough: ssl.SSLCertVerificationError is an
+            # OSError, so if establish_trust stopped handling the mismatch it
+            # would escape to main()'s generic clause and still return 1 after
+            # three probes. Only the message proves the mismatch was handled.
+            self.assertIn("still fails verification", stderr.getvalue())
             key.assert_not_called()
             self.assertFalse(any(r.get("method") or r.get("headers") for r in server.received()))
 
