@@ -1203,7 +1203,11 @@ function deviceDetail(device, context) {
     updateAvailable: entry.firmwareUpdatable === true,
     updateText: entry.firmwareUpdatable === true ? "update available" : "",
     rows: withCopy([
-      { key: "firmware", label: "Firmware", value: formatOptional(entry.firmwareVersion) },
+      // REQ-B14's "update available" mark rides on the firmware row, which is
+      // what it is about. `updateText` alone was built, tested and never
+      // bound, so the expanded detail never said it.
+      { key: "firmware", label: "Firmware", value: formatOptional(entry.firmwareVersion)
+        + (entry.firmwareUpdatable === true ? "  \u00b7  update available" : "") },
       // The device's own address. It is on the collapsed row inside the
       // `·`-joined context line, which is fine to glance at and useless to
       // copy from — the same gap the client rows had.
@@ -1323,7 +1327,7 @@ function portsSummaryText(ports) {
   for (let i = 0; i < list.length; i++) {
     const port = list[i] || {}
     if (port.state === "UP") up += 1
-    if (poeText(port.poe) !== "") poe += 1
+    if (poeLive(port.poe)) poe += 1
   }
   const parts = []
   if (up > 0) parts.push(up + " up")
@@ -1340,6 +1344,10 @@ function portRow(port) {
     connectorText: formatOptional(entry.connector),
     stateText: portStateWord(entry.state),
     poeText: poeText(entry.poe),
+    // The mark the port grid draws. Not `poeText !== ""`: that is also
+    // "PoE off", and a switch with PoE disabled everywhere would draw an
+    // accent bar under every port.
+    poeLive: poeLive(entry.poe),
     isUp: entry.state === "UP"
   }
 }
@@ -1349,6 +1357,10 @@ function portRow(port) {
 // setting respectively, and someone working out why a camera has no power needs
 // to be able to tell them apart — so the first renders nothing and the second
 // says so.
+function poeLive(poe) {
+  return poe !== null && typeof poe === "object" && poe.enabled === true
+}
+
 function poeText(poe) {
   if (poe === null || poe === undefined) return ""
   if (poe.enabled !== true) return "PoE off"
@@ -1926,32 +1938,48 @@ function textOf(value) {
 // `Ui/TextField` does with a keystroke. What is decided here is the order and
 // the arithmetic.
 
-// REQ-B15's order, verbatim (SPEC-AMD-12): Refresh, segmented control, search,
-// list, Open UniFi, wrapping — top of the panel to the bottom. Overview has no
-// search field and no list, so it has three stops rather than five.
+// REQ-B15's order, verbatim (SPEC-AMD-12, SPEC-AMD-13): Refresh, segmented
+// control, search, list, Open UniFi, wrapping — top of the panel to the
+// bottom. Overview has no search field, and its "list" is the Inventory rows.
+//
+// `state` says what is on screen, because a stop the panel is not drawing is a
+// stop Tab lands on with no ring and Enter does nothing on:
+//   hasSnapshot: false — nothing has been read, so there are no pages and no
+//                        rows; Refresh and Open UniFi are all there is.
+//   hasList: false     — the page's list is empty (a search with no matches),
+//                        so it is skipped rather than walked onto.
+// Omitted, both are true.
 const FOCUS_SEGMENTS = "segments"
 const FOCUS_SEARCH = "search"
 const FOCUS_LIST = "list"
 const FOCUS_REFRESH = "refresh"
 const FOCUS_DASHBOARD = "dashboard"
 
-function focusStops(view) {
-  if (browseView(view) === "overview") {
-    return [FOCUS_REFRESH, FOCUS_SEGMENTS, FOCUS_DASHBOARD]
-  }
-  return [FOCUS_REFRESH, FOCUS_SEGMENTS, FOCUS_SEARCH, FOCUS_LIST, FOCUS_DASHBOARD]
+function focusStops(view, state) {
+  const s = state || {}
+  if (s.hasSnapshot === false) return [FOCUS_REFRESH, FOCUS_DASHBOARD]
+  const list = s.hasList === false ? [] : [FOCUS_LIST]
+  const search = browseView(view) === "overview" ? [] : [FOCUS_SEARCH]
+  return [FOCUS_REFRESH, FOCUS_SEGMENTS].concat(search, list, [FOCUS_DASHBOARD])
+}
+
+// Where the panel opens, and where a cursor that has lost its place lands: the
+// segmented control, unless there is nothing to browse — then Refresh, the one
+// action that can change that.
+function homeFocus(state) {
+  return state && state.hasSnapshot === false ? FOCUS_REFRESH : FOCUS_SEGMENTS
 }
 
 // The stop `direction` places along, wrapping. Takes and returns a NAME rather
 // than an index: an index only means anything against one view's stop list, and
 // the thing this has to get right is surviving a view change that shortens the
 // list under the cursor.
-function nextFocus(view, stop, direction) {
-  const stops = focusStops(view)
+function nextFocus(view, stop, direction, state) {
+  const stops = focusStops(view, state)
   const at = stops.indexOf(stop)
   // Home, not `stops[0]`: since SPEC-AMD-12 the first stop is Refresh, and a
   // cursor that has lost its place should land where the panel opens it.
-  if (at === -1) return FOCUS_SEGMENTS
+  if (at === -1) return homeFocus(state)
   if (direction === 0) return stop
   const step = direction > 0 ? 1 : -1
   return stops[(at + step + stops.length) % stops.length]
@@ -1960,10 +1988,21 @@ function nextFocus(view, stop, direction) {
 // Where the cursor lands when the view changes. Keeping the same stop is right
 // when it still exists — switching Devices to Clients should not move focus out
 // of the list — and impossible when it does not, so Overview takes anything
-// that was on the search field or the list back to the segmented control, which
-// is the control that got the user here.
-function focusAfterViewChange(view, stop) {
-  return focusStops(view).indexOf(stop) === -1 ? FOCUS_SEGMENTS : stop
+// that was on the search field back to the segmented control, which is the
+// control that got the user here.
+function focusAfterViewChange(view, stop, state) {
+  return focusStops(view, state).indexOf(stop) === -1 ? homeFocus(state) : stop
+}
+
+// Where the cursor goes when the screen changes under it without a page
+// change: the list emptied by a poll, or the snapshot lost. A list that
+// empties hands the cursor to the search field above it, which is what the
+// user is most likely to change next; anything else goes home.
+function settleFocus(view, stop, state) {
+  const stops = focusStops(view, state)
+  if (stops.indexOf(stop) !== -1) return stop
+  if (stop === FOCUS_LIST && stops.indexOf(FOCUS_SEARCH) !== -1) return FOCUS_SEARCH
+  return homeFocus(state)
 }
 
 // REQ-B15. Where the focus stop goes when the pointer lands on a list row.
@@ -2393,7 +2432,10 @@ function build(input) {
     countRows: countRows(counts),
     clientsText: formatOptional(counts ? counts.clients : null),
     devicesTotalText: formatOptional(counts ? counts.devicesTotal : null),
-    offline: offlineList(snapshot),
+    // Only from a snapshot. `offlineList(null)` reads a total of zero, and
+    // zero renders "Nothing offline or impaired" — an all-clear drawn under
+    // the error sentence of a site that has never been read.
+    offline: snapshot ? offlineList(snapshot) : EMPTY_MODEL.offline,
     // AC-025 requires the model to EXPOSE this, and it does. Nothing binds to
     // it: the panel used to carry a sentence explaining that the role rows
     // deliberately out-total the unique count, and the sentence was removed as
@@ -2624,5 +2666,7 @@ if (typeof module !== "undefined") module.exports = {
   focusStops: focusStops,
   nextFocus: nextFocus,
   focusAfterViewChange: focusAfterViewChange,
+  homeFocus: homeFocus,
+  settleFocus: settleFocus,
   focusAfterHover: focusAfterHover
 }

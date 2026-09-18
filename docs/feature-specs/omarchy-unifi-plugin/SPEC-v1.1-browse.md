@@ -355,7 +355,14 @@ and not something a reader can act on.
 originally segmented control → search → list → Refresh → Open UniFi, which was
 the order the controls were drawn in until Refresh moved into the header and
 Open UniFi to the foot; the order now follows the screen, top to bottom. The
-panel still opens with the segmented control focused. *Amended by SPEC-AMD-5, 2026-09-08:*
+panel still opens with the segmented control focused. *Amended by SPEC-AMD-13,
+2026-09-18:* a stop the panel is not drawing is not a stop. With no snapshot
+the segmented control and the lists are hidden, so Tab cycles Refresh → Open
+UniFi and the panel opens on Refresh; a list with no rows (a search with no
+matches) is skipped, and a cursor on a stop that disappears moves to the search
+field above an emptied list, or else to where the panel opens. Overview's list
+is its Inventory rows — Refresh → segmented control → list → Open UniFi — which
+Up/Down walk and Enter opens, as on a browse page. *Amended by SPEC-AMD-5, 2026-09-08:*
 Tab is the only key that moves focus; **Left/Right — and `h`/`l` — move between
 pages from any focus stop, clamped at both ends rather than wrapping**; Up/Down
 move the list cursor while the list holds focus, and walk the focus stops where

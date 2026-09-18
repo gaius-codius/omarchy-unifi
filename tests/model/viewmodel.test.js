@@ -933,6 +933,16 @@ test("F03: the offline section states the good case and never heads an empty lis
   // section has nothing to say and the panel hides it.
   assert.strictEqual(ViewModel.EMPTY_MODEL.offline.summaryText, "")
   assert.strictEqual(ViewModel.forNullService().offline.summaryText, "")
+  // And not from `build` either. The two constants above are what the panel
+  // shows before the service exists; `build` is what it shows for every
+  // failure after that, and it used to read a null snapshot's total as zero
+  // and draw the all-clear under the error sentence.
+  for (const kind of ["network", "tls", "auth"]) {
+    const failed = ViewModel.build({ error: { kind: kind } })
+    assert.strictEqual(failed.hasSnapshot, false, kind)
+    assert.strictEqual(failed.offline.summaryText, "", kind)
+    assert.strictEqual(failed.offline.devices.length, 0, kind)
+  }
 })
 
 test("F10: a role row carries its cells as one right-hand value", () => {
@@ -2082,6 +2092,17 @@ test("REQ-B14: the detail is built for the expanded row and for no other", () =>
   assert.strictEqual(firmware.value, "9.2.0")
 })
 
+test("REQ-B14: the expanded detail carries the update-available mark", () => {
+  const snapshot = snapshotWith([
+    device({ id: "1", name: "one", firmwareVersion: "9.1.0", firmwareUpdatable: true }),
+    device({ id: "2", name: "two", firmwareVersion: "9.2.0", firmwareUpdatable: false })
+  ], [])
+  const firmwareOf = (id) => ViewModel.deviceListModel(snapshot, { expandedId: id })
+    .expandedDetail.rows.filter((r) => r.key === "firmware")[0].value
+  assert.strictEqual(firmwareOf("1"), "9.1.0  \u00b7  update available")
+  assert.strictEqual(firmwareOf("2"), "9.2.0")
+})
+
 test("REQ-B14: a row filtered out by a search takes its detail with it", () => {
   // Otherwise the panel shows a detail block for a row the user cannot see —
   // and the block carries the MAC address REQ-B21 keeps hidden until a
@@ -2839,15 +2860,55 @@ test("REQ-B15: Tab cycles the five stops in the order the spec states", () => {
     ViewModel.focusStops("devices"))
 })
 
-test("REQ-B15: Overview has three stops, because it has no search and no list", () => {
+test("REQ-B15: Overview has four stops — no search, and the Inventory rows as its list", () => {
+  // SPEC-AMD-13. The Inventory rows are the only navigation on Overview
+  // besides the page chips, and they were reachable only by pointer.
   assert.deepStrictEqual(ViewModel.focusStops("overview"),
-    ["refresh", "segments", "dashboard"])
+    ["refresh", "segments", "list", "dashboard"])
   // The default, and anything unrecognised, is Overview — so a junk view value
   // cannot produce a stop list with a search field the panel is not drawing.
   for (const junk of [null, undefined, "", "Devices", 7]) {
     assert.deepStrictEqual(ViewModel.focusStops(junk),
-      ["refresh", "segments", "dashboard"], JSON.stringify(junk))
+      ["refresh", "segments", "list", "dashboard"], JSON.stringify(junk))
   }
+})
+
+test("REQ-B15: a stop the panel is not drawing is not a stop", () => {
+  // SPEC-AMD-13. With no snapshot the segmented control and every list are
+  // hidden, and Refresh is the one action that can change that — so it is
+  // where the panel opens, and Tab goes between it and Open UniFi.
+  const cold = { hasSnapshot: false, hasList: false }
+  for (const view of ["overview", "devices", "clients"]) {
+    assert.deepStrictEqual(ViewModel.focusStops(view, cold), ["refresh", "dashboard"], view)
+    assert.strictEqual(ViewModel.nextFocus(view, "refresh", 1, cold), "dashboard", view)
+    assert.strictEqual(ViewModel.nextFocus(view, "segments", 1, cold), "refresh", view)
+  }
+  assert.strictEqual(ViewModel.homeFocus(cold), "refresh")
+  assert.strictEqual(ViewModel.homeFocus({ hasSnapshot: true }), "segments")
+  assert.strictEqual(ViewModel.homeFocus(undefined), "segments")
+
+  // A list emptied by a search is skipped rather than walked onto, where Tab
+  // would put the cursor on a hidden ListView with no ring.
+  const empty = { hasSnapshot: true, hasList: false }
+  assert.deepStrictEqual(ViewModel.focusStops("devices", empty),
+    ["refresh", "segments", "search", "dashboard"])
+  assert.strictEqual(ViewModel.nextFocus("devices", "search", 1, empty), "dashboard")
+})
+
+test("REQ-B15: a stop that goes away under the cursor settles somewhere drawn", () => {
+  const empty = { hasSnapshot: true, hasList: false }
+  // The list emptied while the cursor was on it: the search field above is
+  // what the user is most likely to change next.
+  assert.strictEqual(ViewModel.settleFocus("devices", "list", empty), "search")
+  // Overview has no search field, so its emptied list goes home.
+  assert.strictEqual(ViewModel.settleFocus("overview", "list", empty), "segments")
+  // The snapshot lost: everything but Refresh and Open UniFi goes to Refresh.
+  const cold = { hasSnapshot: false, hasList: false }
+  assert.strictEqual(ViewModel.settleFocus("devices", "search", cold), "refresh")
+  assert.strictEqual(ViewModel.settleFocus("overview", "segments", cold), "refresh")
+  assert.strictEqual(ViewModel.settleFocus("overview", "dashboard", cold), "dashboard")
+  // A stop still drawn is left alone.
+  assert.strictEqual(ViewModel.settleFocus("devices", "list", { hasSnapshot: true, hasList: true }), "list")
 })
 
 test("REQ-B15: Tab wraps in both directions", () => {
@@ -2889,9 +2950,12 @@ test("REQ-B15: a view change keeps the stop when it survives and resets when it 
   // switched pages to look at the same thing in a different list.
   assert.strictEqual(ViewModel.focusAfterViewChange("clients", "list"), "list")
   assert.strictEqual(ViewModel.focusAfterViewChange("devices", "search"), "search")
-  // Overview has neither, so both go back to the control that got them here.
-  assert.strictEqual(ViewModel.focusAfterViewChange("overview", "list"), "segments")
+  // Overview has no search field, so the cursor goes back to the control that
+  // got it here; the list stop survives, as the Inventory rows (SPEC-AMD-13).
   assert.strictEqual(ViewModel.focusAfterViewChange("overview", "search"), "segments")
+  assert.strictEqual(ViewModel.focusAfterViewChange("overview", "list"), "list")
+  assert.strictEqual(ViewModel.focusAfterViewChange("overview", "list",
+    { hasSnapshot: true, hasList: false }), "segments")
   // And the stops Overview does have are left alone.
   assert.strictEqual(ViewModel.focusAfterViewChange("overview", "refresh"), "refresh")
   assert.strictEqual(ViewModel.focusAfterViewChange("overview", "dashboard"), "dashboard")
@@ -3055,6 +3119,17 @@ test("F14: the port grid carries its counts in words", () => {
     { state: "DOWN", poe: null }
   ])
   assert.strictEqual(summary, "2 up  \u00b7  1 down  \u00b7  1 PoE")
+
+  // PoE switched off is not PoE. `poeText` says "PoE off" for it, which is
+  // non-empty, and a count built on that drew a switch with PoE disabled on
+  // every port as a PoE switch.
+  assert.strictEqual(ViewModel.portsSummaryText([
+    { state: "UP", poe: { enabled: false, standard: "802.3at" } },
+    { state: "DOWN", poe: { enabled: false } }
+  ]), "1 up  \u00b7  1 down")
+  assert.strictEqual(ViewModel.portRow({ idx: 1, poe: { enabled: false } }).poeLive, false)
+  assert.strictEqual(ViewModel.portRow({ idx: 1, poe: { enabled: true } }).poeLive, true)
+  assert.strictEqual(ViewModel.portRow({ idx: 1, poe: null }).poeLive, false)
 
   // A class with nothing in it is dropped rather than printed as a zero — the
   // same rule countRows applies to the Overview, for the same reason.

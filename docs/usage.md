@@ -28,8 +28,9 @@ opens Devices filtered to that role. These rows carry a `›` and highlight
 under the pointer.
 
 The Gateways section appears only on sites with more than one gateway. With a
-single gateway its figures are the same ones Uplink already shows, so only the
-model name is kept, beside the Uplink heading.
+single gateway its figures are the same ones Uplink already shows, so only its
+name is kept, beside the Uplink heading — with the model after it when the name
+doesn't already say it.
 
 Device rows expand to show firmware and update availability, addresses, CPU,
 memory, throughput, upstream and downstream connections, client counts, and
@@ -64,11 +65,16 @@ in expanded rows, not in logs, warnings or `status` output.
 | Left / Right | Switch pages |
 | `/` | Focus search |
 | `f` | Cycle the current page's filter |
-| Up / Down | Move through the list |
-| Enter | Expand a row |
+| Up / Down | Move through the list; elsewhere, move between controls |
+| Enter | Expand a row, or open an Inventory row on Overview |
+| `r` | Refresh |
+| `d` | Show or hide Details |
+| `?` | Show or hide the key legend |
 | Escape | Clear a search before closing the panel |
 
-The panel scrolls to the focused control. Leaving the search field returns
+The panel scrolls to the focused control. Controls that aren't on screen are
+skipped: before the first reading Tab moves between Refresh and Open UniFi
+only, and the panel opens on Refresh. Leaving the search field returns
 keyboard navigation to the panel. `f` is printed beside the filter chips it
 operates; the full list above is behind **? keys** at the foot of the panel.
 
@@ -76,7 +82,7 @@ operates; the full list above is behind **? keys** at the foot of the panel.
 **Open UniFi** is the last thing in the panel, because it is the one action that
 leaves it. **Details** — site, controller, site id, helper version and
 configuration generation — is collapsed by default and opens itself whenever
-the panel is reporting a problem.
+the panel is reporting a problem; you can still close it.
 
 ## Widget settings
 

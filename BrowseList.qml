@@ -33,6 +33,9 @@ Column {
   property bool searchFocused: false
   property bool listFocused: false
   property int cursorIndex: 0
+  // The panel's own scroller, which a wheel over this list hands the rest of
+  // its travel to once the list is at the end it is scrolling towards.
+  property Flickable scrollParent: null
 
   signal searchChanged(string text)
   // REQ-B15. Tab must keep cycling the panel's stops while the search field has
@@ -273,10 +276,12 @@ Column {
     // Quickshell to check it against. Guessing at it blind is how you trade a
     // wheel annoyance for a scroll position that silently resets on every poll.
     //
-    // What the wheel trap COST has been removed in the meantime: Refresh,
-    // Open UniFi and their disabled-reason lines now sit above the list rather
-    // than below it, and Details is collapsed. Nothing a user needs is behind
-    // the trap any more. The mechanics still want a look on a real host.
+    // FIXED by chaining rather than by dropping the cap: the `WheelHandler`
+    // below scrolls the list while it has travel left in the wheel's
+    // direction and gives the remainder to `scrollParent`, so the panel keeps
+    // scrolling past the end of the list. That matters because Open UniFi, its
+    // disabled reason and the plain-HTTP warning sit BELOW the list, at the
+    // foot of the panel.
     height: Math.min(contentHeight, Style.space(320))
     spacing: Style.spacing.sm
     clip: true
@@ -288,6 +293,32 @@ Column {
     interactive: contentHeight > height
 
     ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
+
+    // The wheel, chained to the panel. A pointer handler sees the event before
+    // the Flickable does, and accepting it here keeps the list's own wheel
+    // handling out of it, so both scrollers move by the same arithmetic.
+    WheelHandler {
+      target: null
+      enabled: view.interactive && root.scrollParent !== null
+      onWheel: function (event) { view.chainWheel(event) }
+    }
+
+    // A notch is 120 units of `angleDelta`; a touchpad reports pixels.
+    function chainWheel(event) {
+      var dy = event.pixelDelta.y !== 0 ? event.pixelDelta.y
+        : event.angleDelta.y / 120 * Style.space(48)
+      if (dy === 0) return
+      var wanted = contentY - dy
+      var top = originY
+      var bottom = originY + Math.max(0, contentHeight - height)
+      var inside = Math.min(bottom, Math.max(top, wanted))
+      contentY = inside
+      var rest = wanted - inside
+      if (rest === 0) return
+      var outer = root.scrollParent
+      var outerBottom = outer.originY + Math.max(0, outer.contentHeight - outer.height)
+      outer.contentY = Math.min(outerBottom, Math.max(outer.originY, outer.contentY + rest))
+    }
 
     // NOT `root.rows` — see `adoptRows`. Only that function writes this, so the
     // one thing that can swap the model is the one thing that remembers where

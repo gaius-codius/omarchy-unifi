@@ -197,8 +197,11 @@ Item {
     }
 
     Text {
+      id: updateLine
       width: parent.width
-      visible: root.row ? root.row.updateAvailable === true : false
+      // On the collapsed row only: expanded, the Firmware row in the detail
+      // says it beside the version it is about.
+      visible: root.row ? root.row.updateAvailable === true && !root.expanded : false
       text: "Firmware update available"
       color: root.urgent
       font.family: root.fontFamily
@@ -266,14 +269,16 @@ Item {
   // transparent one with no text is INVISIBLE — and an invisible item takes no
   // mouse events at all. The row would simply not have been clickable.
   //
-  // It covers the two identity lines only. A target over the expanded detail
-  // would collapse the row when the user clicked in the port table they had
-  // just opened to read.
+  // It covers the collapsed row — the identity lines and the update notice
+  // under them — and stops there. A target over the expanded detail would
+  // collapse the row when the user clicked in the port table they had just
+  // opened to read.
   MouseArea {
     anchors.left: layout.left
     anchors.right: layout.right
     anchors.top: layout.top
     height: header.height + (metaLine.visible ? metaLine.height + layout.spacing : 0)
+      + (updateLine.visible ? updateLine.height + layout.spacing : 0)
     hoverEnabled: true
     acceptedButtons: Qt.LeftButton
     cursorShape: Qt.PointingHandCursor
@@ -284,6 +289,14 @@ Item {
     // moved, and the position is the only thing in the event that differs.
     onContainsMouseChanged: if (containsMouse) {
       root.hoverRequested(mapToItem(null, mouseX, mouseY))
+    }
+    // And on every movement inside the row, so the position the panel holds is
+    // where the pointer IS rather than where it came in. Entry alone left a
+    // hand that had moved a few pixels within the row reading as "moved" when
+    // the next tick rebuilt the delegate under it — and the list took the
+    // ring back from whatever the keyboard had moved to.
+    onPositionChanged: function (mouse) {
+      root.hoverRequested(mapToItem(null, mouse.x, mouse.y))
     }
     onClicked: root.toggleRequested()
   }

@@ -35,6 +35,20 @@ Column {
 
   readonly property var model: vm ? vm : null
 
+  // SPEC-AMD-13. Overview's list stop is the Inventory rows. The panel owns
+  // the cursor, as it owns the browse pages' cursors; this file draws it and
+  // knows what each row does. -1 is "the list stop does not have focus".
+  property int cursorIndex: -1
+  readonly property Item inventoryItem: inventory
+
+  // Row `index` in drawing order: the two totals, then the role rows.
+  function activateRow(index) {
+    if (index === 0) { pageActivated("clients"); return }
+    if (index === 1) { pageActivated("devices"); return }
+    var rows = vm ? vm.countRows : []
+    if (index - 2 >= 0 && index - 2 < rows.length) roleActivated(rows[index - 2].role)
+  }
+
   // The section rhythm, and why there are no rules between these blocks.
   //
   // Every section used to arrive with its own `PanelSeparator`, spaced by the
@@ -191,6 +205,7 @@ Column {
 
   // --- REQ-009: clients, devices, and the role rows -------------------------
   Column {
+    id: inventory
     width: root.width
     spacing: Style.spacing.xs
 
@@ -209,6 +224,7 @@ Column {
       dim: root.dim
       fontFamily: root.fontFamily
       label: "Connected clients"
+      hasCursor: root.cursorIndex === 0
       valueText: root.vm ? root.vm.clientsText : "unknown"
       onActivated: root.pageActivated("clients")
     }
@@ -218,6 +234,7 @@ Column {
       dim: root.dim
       fontFamily: root.fontFamily
       label: "Adopted devices"
+      hasCursor: root.cursorIndex === 1
       valueText: root.vm ? root.vm.devicesTotalText : "unknown"
       onActivated: root.pageActivated("devices")
     }
@@ -231,6 +248,8 @@ Column {
       model: root.vm ? root.vm.countRows : []
       delegate: NavRow {
         required property var modelData
+        required property int index
+        hasCursor: root.cursorIndex === index + 2
         foreground: root.foreground
         dim: root.dim
         fontFamily: root.fontFamily
@@ -252,6 +271,9 @@ Column {
     property string fontFamily: Style.font.family
     property string label: ""
     property string valueText: ""
+    // The keyboard's cursor, drawn as the pointer's hover is: this is the row
+    // Enter opens.
+    property bool hasCursor: false
     signal activated()
     width: parent ? parent.width : 0
     // Padded, so the hover rectangle has room around the text instead of
@@ -273,7 +295,7 @@ Column {
       anchors.rightMargin: -Style.spacing.xs
       radius: Style.cornerRadius
       color: Style.controlFill(false, true, roleRow.foreground, roleRow.foreground)
-      visible: roleArea.containsMouse
+      visible: roleArea.containsMouse || roleRow.hasCursor
     }
 
     Text {

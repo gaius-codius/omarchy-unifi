@@ -66,7 +66,28 @@ Panel {
   // `ViewModel.js` as pure functions — a state machine reachable only through a
   // five-minute live harness is one that gets tested once. What is here is the
   // current stop and what each stop does when activated.
-  property string focusStop: ViewModel.FOCUS_SEGMENTS
+  property string focusStop: ViewModel.homeFocus(focusState)
+
+  // What is on screen, as far as the stop list cares (SPEC-AMD-13). A stop
+  // that is not drawn is one Tab lands on with no ring and Enter does nothing
+  // on — the segmented control before the first snapshot, a list a search has
+  // emptied — so the stop list is built from this rather than from the page
+  // alone, and a change here moves a cursor that was on a stop that went away.
+  readonly property var focusState: ({
+    hasSnapshot: vm.hasSnapshot,
+    hasList: view === "overview" ? inventoryCount > 0
+      : (activeList ? activeList.rows.length > 0 : false)
+  })
+  onFocusStateChanged: {
+    var settled = ViewModel.settleFocus(view, focusStop, focusState)
+    if (settled !== focusStop) focusStop = settled
+  }
+
+  // The Inventory rows are Overview's list: two totals, then a row per role.
+  // Walked with Up/Down while the list stop has focus, opened with Enter,
+  // exactly as a browse page's rows are.
+  readonly property int inventoryCount: vm.hasSnapshot ? 2 + vm.countRows.length : 0
+  property int inventoryCursor: 0
 
   // REQ-B10's view state, passed into `build` rather than held by it. The panel
   // owns it because it is the panel's: which page is showing, what is typed in
@@ -114,9 +135,21 @@ Panel {
   //
   // Reset with the rest of the browse state when the panel closes, because
   // reopening should answer the health question rather than resume a rummage.
-  property bool detailsOpen: false
+  //
+  // Details has a default and a choice. The default is open in any state that
+  // is not `ok` — `sentence` is non-empty in exactly those — and closed
+  // otherwise; `detailsChoice` is the user's click or `d`, null until they
+  // make one. A plain `detailsOpen || sentence !== ""` could not be closed
+  // during an error, and the click it swallowed resurfaced as Details open
+  // once the error cleared. The choice is dropped when the sentence changes,
+  // so a new error still opens it.
+  property var detailsChoice: null
   property bool keysOpen: false
-  readonly property bool detailsExpanded: detailsOpen || vm.sentence !== ""
+  readonly property bool detailsExpanded: detailsChoice !== null
+    ? detailsChoice : vm.sentence !== ""
+  readonly property string currentSentence: vm.sentence
+  onCurrentSentenceChanged: detailsChoice = null
+  function toggleDetails() { detailsChoice = !detailsExpanded }
 
   // REQ-B24 (SPEC-AMD-6). The key of the value most recently copied, so the row
   // that was clicked can confirm it. Cleared by everything the user might do
@@ -298,7 +331,7 @@ Panel {
 
   function moveFocus(direction) {
     if (direction === 0) return
-    focusStop = ViewModel.nextFocus(view, focusStop, direction)
+    focusStop = ViewModel.nextFocus(view, focusStop, direction, focusState)
   }
 
   function moveCursor(dx, dy) {
@@ -350,6 +383,11 @@ Panel {
   }
 
   function moveListCursor(delta) {
+    if (view === "overview") {
+      if (inventoryCount === 0) return
+      inventoryCursor = Math.min(inventoryCount - 1, Math.max(0, inventoryCursor + delta))
+      return
+    }
     if (!activeList) return
     var count = activeList.rows.length
     if (count === 0) return
@@ -375,7 +413,7 @@ Panel {
     var wanted = ViewModel.browseView(next)
     view = wanted
     if (role !== undefined) roleFilter = role
-    focusStop = ViewModel.focusAfterViewChange(wanted, focusStop)
+    focusStop = ViewModel.focusAfterViewChange(wanted, focusStop, focusState)
   }
 
   // Which axis the page on screen filters on. Overview has none.
@@ -411,6 +449,8 @@ Panel {
     if (focusStop === ViewModel.FOCUS_SEGMENTS) return segmentsFrame
     if (focusStop === ViewModel.FOCUS_REFRESH) return refreshButton
     if (focusStop === ViewModel.FOCUS_DASHBOARD) return dashboardButton
+    if (view === "overview" && focusStop === ViewModel.FOCUS_LIST)
+      return statusPanel.inventoryItem
     var browse = activeBrowse()
     if (browse === null) return null
     if (focusStop === ViewModel.FOCUS_SEARCH) return browse.searchItem
@@ -453,6 +493,11 @@ Panel {
       var field = activeBrowse()
       if (field) field.focusSearch()
       return "searching"
+    }
+    if (focusStop === ViewModel.FOCUS_LIST && view === "overview") {
+      if (inventoryCursor >= inventoryCount) return "empty"
+      statusPanel.activateRow(inventoryCursor)
+      return "navigated"
     }
     if (focusStop === ViewModel.FOCUS_LIST) {
       if (!activeList || activeCursor >= activeList.rows.length) return "empty"
@@ -517,7 +562,7 @@ Panel {
 
   function resetBrowse() {
     copiedKey = ""
-    detailsOpen = false
+    detailsChoice = null
     keysOpen = false
     clearSearch()
     view = "overview"
@@ -527,7 +572,8 @@ Panel {
     expandedClientId = ""
     deviceCursor = 0
     clientCursor = 0
-    focusStop = ViewModel.FOCUS_SEGMENTS
+    inventoryCursor = 0
+    focusStop = ViewModel.homeFocus(focusState)
     // Forgotten with the rest of the browse state. A position held across a
     // close would be compared against the pointer's position in a session that
     // has nothing to do with it — and if the panel reopened under a motionless
@@ -623,11 +669,18 @@ Panel {
         // labelled "?  keys", which reads as an instruction to press `?` — and
         // it only answered a click, so the one key the panel names on screen
         // did nothing.
-        if (t === "?") root.keysOpen = !root.keysOpen
+        if (t === "?") { root.keysOpen = !root.keysOpen; return }
+        // Details' key, for the reason `?` has one: it is a disclosure that
+        // holds something worth copying (the site id, REQ-B24), and a control
+        // only a pointer can open is one a keyboard user cannot reach.
+        if (t === "d" || t === "D") root.toggleDetails()
       }
 
       Flickable {
         id: panelFlick
+        // AC-B17 measures the viewport by name: "the focused control is on
+        // screen" is a claim about this Flickable, not about `visible`.
+        objectName: "unifi-panel-flick"
         anchors.fill: parent
         contentWidth: width
         contentHeight: column.implicitHeight
@@ -937,6 +990,7 @@ Panel {
             // `.pragma library`, HC-16, so a third importer would evaluate
             // ViewModel.js again inside every panel, twice, per monitor).
             scrollAfterRowsChange: ViewModel.scrollAfterRowsChange
+            scrollParent: panelFlick
             searchFocused: root.focusStop === ViewModel.FOCUS_SEARCH
             listFocused: root.focusStop === ViewModel.FOCUS_LIST
             cursorIndex: root.deviceCursor
@@ -968,6 +1022,7 @@ Panel {
             // a property set on one of two deliberately parallel blocks is the
             // asymmetry nobody notices until the other page misbehaves.
             scrollAfterRowsChange: ViewModel.scrollAfterRowsChange
+            scrollParent: panelFlick
             searchFocused: root.focusStop === ViewModel.FOCUS_SEARCH
             listFocused: root.focusStop === ViewModel.FOCUS_LIST
             cursorIndex: root.clientCursor
@@ -990,6 +1045,7 @@ Panel {
           }
 
           StatusPanel {
+            id: statusPanel
             objectName: "unifi-status-panel"
             width: parent.width
             visible: root.vm.hasSnapshot && !root.browsing
@@ -998,6 +1054,8 @@ Panel {
             urgent: root.urgent
             fontFamily: root.fontFamily
             emphasis: root.emphasis
+            cursorIndex: root.focusStop === ViewModel.FOCUS_LIST && !root.browsing
+              ? root.inventoryCursor : -1
             // REQ-B10a / AC-B19. The Overview count row is an entry point into
             // a filtered Devices page. The role value travels with the row from
             // `ViewModel.countRows`, so nothing between here and there
@@ -1089,7 +1147,7 @@ Panel {
                 hoverEnabled: true
                 acceptedButtons: Qt.LeftButton
                 cursorShape: Qt.PointingHandCursor
-                onClicked: root.detailsOpen = !root.detailsOpen
+                onClicked: root.toggleDetails()
               }
             }
 
@@ -1153,10 +1211,11 @@ Panel {
             visible: root.keysOpen && root.vm.hasSnapshot
             // `f` is named on both browse pages and on neither Overview,
             // which has nothing to filter — a key named where it does nothing
-            // is worse than one that is not named.
+            // is worse than one that is not named. `/` stays on Overview: it
+            // opens Devices with the caret in its search field.
             text: root.browsing
-              ? "←→ pages  ·  ↑↓ select  ·  ⏎ open  ·  f filter  ·  / search  ·  Esc close"
-              : "←→ pages  ·  Tab move  ·  ⏎ activate  ·  / search  ·  Esc close"
+              ? "←→ pages  ·  Tab move  ·  ↑↓ select  ·  ⏎ open  ·  f filter  ·  / search  ·  r refresh  ·  d details  ·  ? keys  ·  Esc close"
+              : "←→ pages  ·  Tab move  ·  ↑↓ select  ·  ⏎ open  ·  / search  ·  r refresh  ·  d details  ·  ? keys  ·  Esc close"
             color: root.dim
             font.family: root.fontFamily
             font.pixelSize: Style.font.caption

@@ -79,6 +79,10 @@ PanelSectionHeader {
   // A heading owns the gap BEFORE it, not after. The parent's own spacing
   // supplies the gap above; this closes up the one below so the label sits
   // with the rows it belongs to instead of floating between two sections.
+  //
+  // `topPadding` is left at the host's `ceil(fontSize * 0.15)`. It is not
+  // spacing: it reserves the part of a capital that paints above the box Text
+  // reports, and a heading scrolled against the panel's clipping edge — or
+  // drawn in a font that overshoots further — loses that sliver without it.
   bottomPadding: 0
-  topPadding: 0
 }

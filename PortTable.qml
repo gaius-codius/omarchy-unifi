@@ -170,7 +170,7 @@ Column {
               anchors.bottom: parent.bottom
               height: 2
               color: Color.accent
-              visible: mark.modelData.poeText !== ""
+              visible: mark.modelData.poeLive === true
             }
           }
         }
