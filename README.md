@@ -118,7 +118,7 @@ changes apply live without a restart.
 | No widget or updates | Add the widget to the bar; enabling the plugin alone doesn't start its service. |
 | Unsupported controller version | Use a supported version; only 10.6.x has been tested on hardware. |
 | TLS error | Check the hostname and certificate using the [setup guide](docs/controller-setup.md). |
-| Controller can't be reached, or its name won't resolve | Check `getent hosts <name>`. If it prints nothing, see [name resolution](docs/controller-setup.md). A `.local` name also needs `files` ahead of the mDNS entry on the `hosts:` line of `/etc/nsswitch.conf`, which is the Omarchy default order. |
+| Controller can't be reached, or its name won't resolve | Check `getent hosts <name>`. If it prints nothing, see [name resolution](docs/controller-setup.md). Omarchy ships the mDNS entry *ahead of* `files` on the `hosts:` line of `/etc/nsswitch.conf`, which stops `/etc/hosts` from being read for a `.local` name; move `files` ahead of it. |
 | WAN status is unknown | See the gateway limitation above. |
 | Edited config files by hand | Run `~/.config/omarchy/plugins/gaius-codius.unifi/scripts/configure --commit`. |
 | Duplicate widgets disagree | If the widget was added twice in `shell.json`, give both entries the same `refreshIntervalSec`, or remove the extra copy. |

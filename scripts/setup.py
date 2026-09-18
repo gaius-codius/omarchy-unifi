@@ -116,18 +116,43 @@ def check_resolvable(root):
     `[NOTFOUND=return]` ends the search before `files` is ever consulted.
     UniFi consoles ship a certificate issued for `unifi.local`, so that name is
     the common case here rather than an exotic one.
+
+    This resolves the name that establish_trust is about to resolve again a
+    moment later. The duplicate lookup is deliberate: reporting the failure
+    from inside the TLS probe would put the explanation where it has to
+    compete with certificate advice, which is the confusion being fixed.
     """
-    host = urlsplit(root).hostname
-    if not host:
-        raise SetupError('Enter a controller hostname or HTTPS URL without spaces.')
+    # routes.parse_api_root is the one place that takes an apiRoot apart, and
+    # it has already rejected a host-less address by the time run() gets here.
+    # Taking host AND port from it keeps this lookup asking the same question
+    # the handshake will ask, instead of a second, subtly different one.
+    _, host, port, _ = routes.parse_api_root(root)
     try:
-        socket.getaddrinfo(host, 443, proto=socket.IPPROTO_TCP)
-    except socket.gaierror:
+        socket.getaddrinfo(host, port or 443, proto=socket.IPPROTO_TCP)
+    except socket.gaierror as failure:
+        if failure.errno == socket.EAI_AGAIN:
+            raise SetupError(temporary_resolution_help(host))
         raise SetupError(resolution_help(host))
+    except UnicodeError:
+        # getaddrinfo IDNA-encodes the name before the lookup and raises
+        # UnicodeError — a ValueError, not an OSError — for a label that is
+        # empty or over 63 bytes. Uncaught it would reach main()'s generic
+        # clause and print the certificate advice this preflight exists to
+        # prevent, so it is named here even though it is a typo, not a
+        # resolution failure.
+        raise SetupError(
+            'The controller address ' + host + ' is not a usable hostname.\n'
+            'One of its dot-separated labels is empty or longer than 63 bytes.\n'
+            'Check the address for a typo; a doubled dot is the usual cause.')
 
 
 def resolution_help(host):
-    """The one message that explains a name-resolution failure and its fix."""
+    """The message for a name that does not resolve, and the fix for it.
+
+    Used by the preflight and, through run(), by the narrow case where
+    resolution breaks between the preflight and the handshake, so both paths
+    give the reader the same steps.
+    """
     return (
         'The controller address ' + host + ' does not resolve on this computer.\n'
         'Setup does not change DNS or /etc/hosts. Check resolution with:\n'
@@ -138,6 +163,21 @@ def resolution_help(host):
         '[NOTFOUND=return] ahead of files on the hosts: line of /etc/nsswitch.conf\n'
         'is stopping the search before /etc/hosts is read; move files ahead of it.\n'
         'See docs/controller-setup.md step 1.')
+
+
+def temporary_resolution_help(host):
+    """The message for EAI_AGAIN, which is not a misconfiguration.
+
+    resolution_help would send this reader to make two persistent edits — an
+    /etc/hosts entry and an /etc/nsswitch.conf reorder — for a condition that
+    clears on its own. That is the same mis-blame this preflight exists to
+    remove, so the two cases are told apart by errno rather than merged.
+    """
+    return (
+        'The controller address ' + host + ' could not be resolved right now:\n'
+        'the name server did not answer. This is usually temporary, and often\n'
+        'means the network is not up yet. Check the connection and run setup again.\n'
+        'If it keeps happening, see docs/controller-setup.md step 1.')
 
 
 def read_key(args, interactive):
@@ -275,7 +315,13 @@ def run(argv):
         raise SetupError('The omarchy command is required. Run setup on your Omarchy desktop.')
     root = normalize_controller(args.controller or input('Controller address [unifi.local]: ').strip() or 'unifi.local')
     check_resolvable(root)
-    context, pem = establish_trust(root, args.trust_fingerprint, interactive)
+    try:
+        context, pem = establish_trust(root, args.trust_fingerprint, interactive)
+    except socket.gaierror:
+        # Resolution can break between the preflight and the handshake. The
+        # hostname is still in scope here, so the reader gets the same steps
+        # rather than main()'s last-resort message, which cannot name it.
+        raise SetupError(resolution_help(routes.parse_api_root(root)[1]))
     raw = read_key(args, interactive)
     key = credential.parse(raw)
     sites = discover_sites(root, key, context)
@@ -312,9 +358,12 @@ def main(argv=None):
     except (EOFError, KeyboardInterrupt):
         print('Setup cancelled.', file=sys.stderr)
     except socket.gaierror:
-        # Resolution can also break after the preflight passed. Reuse the
-        # same guidance rather than the generic message below, which points
-        # at the certificate and would send the reader the wrong way.
+        # Last resort: a gaierror from somewhere that does not know the
+        # hostname, so it cannot print resolution_help's steps. It must stay
+        # ABOVE the OSError clause below - gaierror subclasses OSError, and
+        # below it this would be shadowed and the reader sent to the
+        # certificate. SetupResolution.test_main_names_a_late_resolution_failure
+        # fails if the two are ever swapped.
         print('Setup could not finish: the controller address stopped resolving.\n'
               'See docs/controller-setup.md step 1.', file=sys.stderr)
     except (OSError, ValueError, subprocess.SubprocessError):
