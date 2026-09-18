@@ -3044,6 +3044,31 @@ test("REQ-B14: the status word is a field of its own, not the head of the meta l
   assert.ok(clientRow.metaText.indexOf("via sw") !== -1)
 })
 
+test("F14: the port grid carries its counts in words", () => {
+  // The ports render as a mark each rather than a row each — 48 rows inside a
+  // 560 px popup is a detail that cannot be opened. A mark is not a word, so
+  // this sentence is what keeps the shape from being the only signal (UX-002)
+  // and what a bug report can quote.
+  const summary = ViewModel.portsSummaryText([
+    { state: "UP", poe: { enabled: true, standard: "802.3at" } },
+    { state: "UP", poe: null },
+    { state: "DOWN", poe: null }
+  ])
+  assert.strictEqual(summary, "2 up  \u00b7  1 down  \u00b7  1 PoE")
+
+  // A class with nothing in it is dropped rather than printed as a zero — the
+  // same rule countRows applies to the Overview, for the same reason.
+  assert.strictEqual(
+    ViewModel.portsSummaryText([{ state: "UP", poe: null }]), "1 up")
+  assert.strictEqual(
+    ViewModel.portsSummaryText([{ state: "DOWN", poe: null }]), "1 down")
+
+  // Nothing for an empty array. `portsEmptyText` already says that, and says
+  // it only in the case where it is true — the detail was actually fetched.
+  assert.strictEqual(ViewModel.portsSummaryText([]), "")
+  assert.strictEqual(ViewModel.portsSummaryText(null), "")
+})
+
 test("F07: the status column prints exceptions, not the expected state", () => {
   // The column exists so the eye can run down one edge and find the broken
   // thing. On a healthy site it printed "Online" once per row in the quietest

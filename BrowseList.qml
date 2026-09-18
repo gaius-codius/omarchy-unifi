@@ -121,12 +121,13 @@ Column {
   // This file does not know which: the model hands it options and a selected
   // value, and the panel decides what a change means (REQ-014).
   //
-  // The SAME control the pages use one row above — `Ui/ButtonGroup`, driven by
-  // `cursorIndex: -1` and `focusable: false`, which is the path the host's own
-  // bar panels take (host-contract §7). Two chip rows in a column is the risk
-  // this accepts: they are told apart by the caption-size font, which makes
-  // this row read as subordinate to the pages above it, and by the fact that
-  // one says page names and the other role names.
+  // NOT the control the pages use one row above. It was — the same
+  // `Ui/ButtonGroup`, distinguished only by a caption-size font — and the risk
+  // that file accepted did not pay off: two levels of the hierarchy in
+  // identical chrome, directly stacked, read as one control with seven options.
+  // `FilterChips` keeps the kit's tokens and drops its chrome, so the selected
+  // option is marked with a rule instead of a fill and the row reads as a
+  // condition on the page rather than as a peer of it.
   //
   // It REPLACED a chip reading "Access points only ✕" (SPEC-AMD-8). A chooser
   // showing the current state and every other one available says strictly more
@@ -138,17 +139,16 @@ Column {
   // clearing the search does not clear it.
   //
   // NOT a Tab stop, deliberately — one more stop would amend REQ-B15's focus
-  // order. The keyboard route is `f`, which cycles this list and is announced
-  // in the panel's hint line, the same way `/` and `r` are.
-  ButtonGroup {
-    visible: root.filterChips.length > 0
+  // order. The keyboard route is `f`, which cycles this list; `FilterChips`
+  // prints that key on the row itself, because naming it only in a legend at
+  // the foot of the panel put it two screens below the control it operates.
+  FilterChips {
+    width: parent.width
     options: root.filterChips
     value: root.filterValue
-    cursorIndex: -1
-    focusable: false
     foreground: root.foreground
     fontFamily: root.fontFamily
-    fontSize: Style.font.caption
+    emphasis: root.emphasis
     onChanged: function (value) { root.filterChanged(value) }
   }
 
@@ -237,6 +237,28 @@ Column {
     // zero-height one, so an empty list would leave a gap under the sentence
     // explaining why it is empty.
     visible: root.rows.length > 0
+    // This cap is also what makes the list a second scroller, and that has a
+    // consequence worth recording here rather than rediscovering:
+    //
+    // `interactive` below turns true at exactly the point the content exceeds
+    // this height, and Qt Quick does not chain a wheel event past an
+    // interactive flickable. So from that point a wheel over the list never
+    // reaches the panel underneath it, and the pointer has to leave the list
+    // for the panel to scroll at all. Five devices is under the cap; nine
+    // clients is not, which is the state the shipped Clients screenshot is in.
+    //
+    // NOT changed here. The obvious fix — drop the cap, let the panel's own
+    // Flickable own the scrolling — also retires this view's scroll position
+    // entirely, and with it AC-B18's "a refresh preserves where you were" and
+    // the `scrollAfterRowsChange` rule it is built on. That is a behavioural
+    // change with live-harness coverage, and this tree has neither qmllint nor
+    // Quickshell to check it against. Guessing at it blind is how you trade a
+    // wheel annoyance for a scroll position that silently resets on every poll.
+    //
+    // What the wheel trap COST has been removed in the meantime: Refresh,
+    // Open UniFi and their disabled-reason lines now sit above the list rather
+    // than below it, and Details is collapsed. Nothing a user needs is behind
+    // the trap any more. The mechanics still want a look on a real host.
     height: Math.min(contentHeight, Style.space(320))
     spacing: Style.spacing.sm
     clip: true

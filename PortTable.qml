@@ -52,13 +52,10 @@ Column {
     ? detail.radiosText : ""
   readonly property string portsEmpty: detail && detail.portsEmptyText
     ? detail.portsEmptyText : ""
+  readonly property string portsSummary: detail && detail.portsSummaryText
+    ? detail.portsSummaryText : ""
   readonly property string radiosEmpty: detail && detail.radiosEmptyText
     ? detail.radiosEmptyText : ""
-
-  // One place, so a column cannot drift between rows. The state column widened
-  // when the speed column went: "no link" is two words where "DOWN" was one.
-  readonly property int idxWidth: Style.space(30)
-  readonly property real stateShare: 0.34
 
   spacing: Style.spacing.xs
   visible: ports.length > 0 || radiosText !== ""
@@ -74,54 +71,88 @@ Column {
     textFormat: Text.PlainText
   }
 
-  Repeater {
-    model: root.ports
-    delegate: Item {
-      required property var modelData
-      width: root.width
-      implicitHeight: portIndex.implicitHeight
+  // The ports, as a grid of marks.
+  //
+  // They were one row per port. On the USW-Pro-48-PoE this plugin is tested
+  // against that is 48 rows inside a popup capped at 560 px — a detail that
+  // cannot be opened rather than one that is merely long. And the thing a
+  // reader wants from a port table at a glance is not any single port, it is
+  // the SHAPE: how many are up, where the gaps are, which carry power.
+  //
+  // A mark per port answers that in three lines. Filled when the link is up,
+  // outlined when it is not, underscored when the port carries PoE — and the
+  // index is printed inside every mark, so an individual port is still
+  // identifiable rather than merely counted.
+  //
+  // The shape is never the only signal (UX-002): `portsSummaryText` states the
+  // same counts in words beside the grid, and that sentence is what a bug
+  // report can quote.
+  Flow {
+    width: root.width
+    visible: root.ports.length > 0
+    spacing: Style.spacing.xs
 
-      readonly property int _body: width - root.idxWidth
+    Repeater {
+      model: root.ports
 
-      Text {
-        id: portIndex
-        anchors.left: parent.left
-        width: root.idxWidth
-        text: modelData.idxText
-        // A port that is up reads at full strength and one that is down does
-        // not, which is the same weighting the offline list uses. UX-002:
-        // never the only signal — `stateText` says the word beside it.
-        color: modelData.isUp ? root._secondary : root._tertiary
-        font.family: root.fontFamily
-        font.pixelSize: Style.font.caption
-        textFormat: Text.PlainText
-      }
-      Text {
-        id: portState
-        anchors.left: portIndex.right
-        width: Math.round(parent._body * root.stateShare)
-        text: modelData.stateText
-        color: modelData.isUp ? root._secondary : root._tertiary
-        font.family: root.fontFamily
-        font.pixelSize: Style.font.caption
-        textFormat: Text.PlainText
-        elide: Text.ElideRight
-      }
-      Text {
-        anchors.left: portState.right
-        anchors.right: parent.right
-        // Connector and PoE share the last column: both are occasional detail,
-        // and giving each a column of its own would leave a mostly-empty one
-        // down the middle of the table.
-        text: modelData.connectorText
-          + (modelData.poeText === "" ? "" : "  ·  " + modelData.poeText)
-        color: root._tertiary
-        font.family: root.fontFamily
-        font.pixelSize: Style.font.caption
-        textFormat: Text.PlainText
-        elide: Text.ElideRight
+      delegate: Rectangle {
+        required property var modelData
+
+        // Square, and sized from the type rather than in pixels so it keeps
+        // step with the user's font scaling like everything else here.
+        width: Math.round(Style.font.caption * 1.5)
+        height: width
+        radius: Math.max(1, Math.round(width / 6))
+
+        // Up is a fill, down is an outline. Both are drawn from the same
+        // foreground token at the emphasis levels the rest of the panel uses,
+        // so nothing here invents a colour (REQ-001a / UX-001) and the grid
+        // re-themes with everything else.
+        color: modelData.isUp
+          ? Style.controlFill(true, false, root.foreground, root.foreground)
+          : "transparent"
+        border.width: modelData.isUp ? 0 : 1
+        border.color: root._tertiary
+
+        Text {
+          anchors.centerIn: parent
+          text: modelData.idxText
+          color: modelData.isUp ? root._secondary : root._tertiary
+          font.family: root.fontFamily
+          // A step below caption: the index identifies the mark, it does not
+          // compete with the row's own text.
+          font.pixelSize: Math.max(8, Math.round(Style.font.caption * 0.8))
+          textFormat: Text.PlainText
+        }
+
+        // PoE, as a rule under the mark. A third state on the same square
+        // rather than a fourth colour, because PoE is orthogonal to link state
+        // — a port can be down and still powered — and two overlaid colours
+        // cannot say that.
+        Rectangle {
+          anchors.left: parent.left
+          anchors.right: parent.right
+          anchors.bottom: parent.bottom
+          anchors.margins: Math.max(1, Math.round(parent.width / 6))
+          height: 1
+          color: root._secondary
+          visible: modelData.poeText !== ""
+        }
       }
     }
+  }
+
+  // The counts, in words. See the grid above: this is what keeps the marks from
+  // being the only statement of the same fact.
+  Text {
+    visible: text !== ""
+    width: root.width
+    text: root.portsSummary
+    color: root._tertiary
+    font.family: root.fontFamily
+    font.pixelSize: Style.font.caption
+    textFormat: Text.PlainText
+    wrapMode: Text.WordWrap
   }
 
   // "The controller answered and there are none" — never shown for a device

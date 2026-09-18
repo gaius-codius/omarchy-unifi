@@ -1205,6 +1205,14 @@ function deviceDetail(device, context) {
       { key: "upload", label: "Upload", value: formatBps(metrics ? metrics.uploadBps : null) }
     ]),
     ports: mapRows(ports, portRow),
+    // The counts the port grid is read WITH.
+    //
+    // The ports used to be one line each, which on a 48-port switch is 48 lines
+    // inside a popup capped at 560 px — a detail nobody can open. As a grid of
+    // marks they are three lines, and a mark is not a word: this sentence is
+    // what keeps the shape from being the only signal (UX-002), and it is the
+    // part a screen reader and a bug report can both quote.
+    portsSummaryText: portsSummaryText(ports),
     radiosText: radioSummaryText(radios),
     // "The controller answered and there are none" — only ever said when the
     // detail was actually fetched.
@@ -1272,6 +1280,31 @@ function portStateWord(state) {
 // them told the reader the hardware's capability while looking like traffic.
 // The field is still carried by the envelope (the protocol table is frozen);
 // what is removed is the column.
+// "6 up  ·  6 down  ·  3 PoE", and nothing for an empty array — `portsEmptyText`
+// already says that, and says it in the one case where it is true (the detail
+// was fetched) rather than whenever the array happens to be empty.
+//
+// A class with no ports in it is dropped rather than printed as a zero, which
+// is the rule `countRows` applies to the Overview for the same reason: on a
+// healthy switch two thirds of these would read zero, and zeroes are what the
+// eye has to filter out before it can read the numbers that matter.
+function portsSummaryText(ports) {
+  const list = ports || []
+  if (list.length === 0) return ""
+  let up = 0
+  let poe = 0
+  for (let i = 0; i < list.length; i++) {
+    const port = list[i] || {}
+    if (port.state === "UP") up += 1
+    if (poeText(port.poe) !== "") poe += 1
+  }
+  const parts = []
+  if (up > 0) parts.push(up + " up")
+  if (list.length - up > 0) parts.push((list.length - up) + " down")
+  if (poe > 0) parts.push(poe + " PoE")
+  return parts.join("  \u00b7  ")
+}
+
 function portRow(port) {
   const entry = port || {}
   return {
@@ -2524,6 +2557,7 @@ if (typeof module !== "undefined") module.exports = {
   clientDetail: clientDetail,
   portRow: portRow,
   poeText: poeText,
+  portsSummaryText: portsSummaryText,
   radioSummaryText: radioSummaryText,
   radioText: radioText,
   portStateWord: portStateWord,
