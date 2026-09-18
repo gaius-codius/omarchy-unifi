@@ -94,7 +94,7 @@
       "apiRootHost": "192.168.1.1",
       "commitGeneration": 7,
       "customCaInUse": false,
-      "helperVersion": "0.1.1",
+      "helperVersion": "0.2.0",
       "siteId": "00000000-0000-5000-9000-000000000001"
     },
     "nonce": "b7c1d4e9f2a68035",
