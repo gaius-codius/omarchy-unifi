@@ -2831,30 +2831,30 @@ test("REQ-B15: Tab cycles the five stops in the order the spec states", () => {
   assert.ok(rule, "SPEC-v1.1-browse.md: could not locate REQ-B15's Tab order")
   const named = rule[1].replace(/\s+and wraps$/, "").split("→").map((s) => s.trim())
   assert.deepStrictEqual(named,
-    ["segmented control", "search", "list", "Refresh", "Open UniFi"])
+    ["Refresh", "segmented control", "search", "list", "Open UniFi"])
   assert.strictEqual(ViewModel.focusStops("devices").length, named.length)
   assert.deepStrictEqual(ViewModel.focusStops("devices"),
-    ["segments", "search", "list", "refresh", "dashboard"])
+    ["refresh", "segments", "search", "list", "dashboard"])
   assert.deepStrictEqual(ViewModel.focusStops("clients"),
     ViewModel.focusStops("devices"))
 })
 
 test("REQ-B15: Overview has three stops, because it has no search and no list", () => {
   assert.deepStrictEqual(ViewModel.focusStops("overview"),
-    ["segments", "refresh", "dashboard"])
+    ["refresh", "segments", "dashboard"])
   // The default, and anything unrecognised, is Overview — so a junk view value
   // cannot produce a stop list with a search field the panel is not drawing.
   for (const junk of [null, undefined, "", "Devices", 7]) {
     assert.deepStrictEqual(ViewModel.focusStops(junk),
-      ["segments", "refresh", "dashboard"], JSON.stringify(junk))
+      ["refresh", "segments", "dashboard"], JSON.stringify(junk))
   }
 })
 
 test("REQ-B15: Tab wraps in both directions", () => {
-  assert.strictEqual(ViewModel.nextFocus("devices", "dashboard", 1), "segments")
-  assert.strictEqual(ViewModel.nextFocus("devices", "segments", -1), "dashboard")
-  assert.strictEqual(ViewModel.nextFocus("overview", "dashboard", 1), "segments")
-  assert.strictEqual(ViewModel.nextFocus("overview", "segments", -1), "dashboard")
+  assert.strictEqual(ViewModel.nextFocus("devices", "dashboard", 1), "refresh")
+  assert.strictEqual(ViewModel.nextFocus("devices", "refresh", -1), "dashboard")
+  assert.strictEqual(ViewModel.nextFocus("overview", "dashboard", 1), "refresh")
+  assert.strictEqual(ViewModel.nextFocus("overview", "refresh", -1), "dashboard")
   // A full cycle returns to where it started, in both directions, on both stop
   // lists — which is what "wraps" means and what an off-by-one in the modulo
   // would break without changing any single step.
@@ -2987,8 +2987,8 @@ test("REQ-B15: every stop name is a constant, so no caller spells one", () => {
   // The names are compared with `===` in QML and a misspelling there is a stop
   // that silently never matches — Tab would appear to skip it. Exported so
   // `Panel.qml` binds to the constant rather than to a string literal.
-  const constants = [ViewModel.FOCUS_SEGMENTS, ViewModel.FOCUS_SEARCH,
-    ViewModel.FOCUS_LIST, ViewModel.FOCUS_REFRESH, ViewModel.FOCUS_DASHBOARD]
+  const constants = [ViewModel.FOCUS_REFRESH, ViewModel.FOCUS_SEGMENTS,
+    ViewModel.FOCUS_SEARCH, ViewModel.FOCUS_LIST, ViewModel.FOCUS_DASHBOARD]
   assert.deepStrictEqual(ViewModel.focusStops("devices"), constants)
   assert.strictEqual(new Set(constants).size, constants.length)
 })
@@ -3386,4 +3386,55 @@ test("REQ-B24: what is copied is the raw value, not the rendered one", () => {
   assert.strictEqual(byKey.site.copy, "")
   assert.notStrictEqual(byKey.siteId.copy, "")
   assert.strictEqual(byKey.siteId.copy, byKey.siteId.value)
+})
+
+// --- the row's columns and the detail's bars (design review, 2026-09-18) ---
+
+test("REQ-B14: the device row's context arrives as fixed slots, empty when unknown", () => {
+  // The row is drawn as columns, so a missing uptime must leave its slot empty
+  // rather than shift nothing into place — an absent slot is a misaligned row.
+  const bare = ViewModel.browseDeviceRow(device({ id: "1", name: "n", metrics: null }))
+  assert.deepStrictEqual(bare.metaColumns, ["IP unknown", ""])
+  const up = ViewModel.browseDeviceRow(device({
+    id: "1", name: "n", ipAddress: "10.0.0.2", metrics: { uptimeSec: 864000 } }))
+  assert.deepStrictEqual(up.metaColumns, ["10.0.0.2", "up 10d 0h"])
+})
+
+test("REQ-B14: a client with no uplink keeps an empty first slot", () => {
+  const row = ViewModel.browseClientRow(
+    client({ id: "1", name: "pi", type: "WIRED", uplinkDeviceId: null }), "", null)
+  assert.strictEqual(row.metaColumns.length, 2)
+  assert.strictEqual(row.metaColumns[0], "")
+})
+
+test("BIZ-003: a bar is drawn only for a figure that exists, and never past full", () => {
+  assert.strictEqual(ViewModel.pctFraction(null), null)
+  assert.strictEqual(ViewModel.pctFraction(undefined), null)
+  assert.strictEqual(ViewModel.pctFraction(NaN), null)
+  assert.strictEqual(ViewModel.pctFraction("48"), null)
+  assert.strictEqual(ViewModel.pctFraction(48), 0.48)
+  assert.strictEqual(ViewModel.pctFraction(0), 0)
+  assert.strictEqual(ViewModel.pctFraction(104), 1)
+  assert.strictEqual(ViewModel.pctFraction(-3), 0)
+})
+
+test("BIZ-003: only CPU and memory carry a bar, and an unknown one carries none", () => {
+  const known = ViewModel.deviceDetail(device({ id: "1", detail: {},
+    metrics: { cpuUtilizationPct: 12, memoryUtilizationPct: 48 } }), {})
+  const byKey = {}
+  for (const row of known.rows) byKey[row.key] = row
+  assert.strictEqual(byKey.cpu.fraction, 0.12)
+  assert.strictEqual(byKey.memory.fraction, 0.48)
+  for (const row of known.rows) {
+    if (row.key !== "cpu" && row.key !== "memory") {
+      assert.strictEqual(row.fraction, undefined, row.key)
+    }
+  }
+  const unknown = ViewModel.deviceDetail(device({ id: "1", detail: {}, metrics: null }), {})
+  for (const row of unknown.rows) {
+    if (row.key === "cpu" || row.key === "memory") {
+      assert.strictEqual(row.value, "unknown")
+      assert.strictEqual(row.fraction, null)
+    }
+  }
 })

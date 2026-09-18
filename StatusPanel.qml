@@ -43,17 +43,17 @@ Column {
   // horizontal rules in a 560 px popup spent a divider that is only strong
   // while it is rare.
   //
-  // Now: `md` between sections, `xs` within them, and no rules at all here. The
+  // Now: `xxl` between sections, a small step within them, and no rules at all here. The
   // grouping is done by the space and by the heading treatment
   // (`SectionHeader.qml`). The rules that survive in this panel are the two
   // where the KIND of content changes — Warnings, and Details — and they mean
   // something again.
-  spacing: Style.spacing.md
+  spacing: Style.spacing.xxl
 
   // --- REQ-008 / REQ-008a: the uplink -------------------------------------
   Column {
     width: root.width
-    spacing: Style.spacing.xs
+    spacing: Style.spacing.md
 
     // The heading, and on a single-gateway site the gateway's model beside it.
     //
@@ -74,12 +74,22 @@ Column {
         fontFamily: root.fontFamily
         emphasis: root.emphasis
       }
+      // Read as part of the heading — "UPLINK · Gateway · UDM-Pro" — so it
+      // sits beside it rather than out at the far edge, where it read as a
+      // value in a label/value row. The NAME stays, because REQ-008a lists
+      // every gateway individually and on a one-gateway site this is that
+      // listing; the model follows it when it says something the name does
+      // not, which is what the design wanted the heading to carry.
       Text {
+        anchors.left: uplinkHeading.right
         anchors.right: parent.right
         anchors.baseline: uplinkHeading.baseline
         visible: text !== ""
         text: (root.vm && root.vm.gatewayRows.length === 1)
-          ? root.vm.gatewayRows[0].nameText : ""
+          ? "  \u00b7  " + root.vm.gatewayRows[0].nameText
+            + (root.vm.gatewayRows[0].modelText !== root.vm.gatewayRows[0].nameText
+               ? "  \u00b7  " + root.vm.gatewayRows[0].modelText : "")
+          : ""
         color: root.dim
         font.family: root.fontFamily
         font.pixelSize: Style.font.caption
@@ -102,7 +112,7 @@ Column {
           text: modelData.label
           color: root.dim
           font.family: root.fontFamily
-          font.pixelSize: Style.font.bodySmall
+          font.pixelSize: Style.font.body
           textFormat: Text.PlainText
         }
         Text {
@@ -112,7 +122,7 @@ Column {
           text: modelData.value
           color: root.foreground
           font.family: root.fontFamily
-          font.pixelSize: Style.font.bodySmall
+          font.pixelSize: Style.font.body
           textFormat: Text.PlainText
         }
       }
@@ -246,7 +256,11 @@ Column {
     property string valueText: ""
     signal activated()
     width: parent ? parent.width : 0
+    // Padded, so the hover rectangle has room around the text instead of
+    // sitting on its ascenders, and the rows get the same air the Uplink rows
+    // take from their column's spacing.
     implicitHeight: Math.max(roleLabel.implicitHeight, roleValue.implicitHeight)
+      + 2 * Style.spacing.xs
     height: implicitHeight
 
     // The resting and hover affordances this row never had. It is the only
@@ -269,10 +283,11 @@ Column {
       anchors.left: parent.left
       anchors.right: roleValue.left
       anchors.rightMargin: Style.spacing.md
+      anchors.verticalCenter: parent.verticalCenter
       text: roleRow.label
       color: roleRow.dim
       font.family: roleRow.fontFamily
-      font.pixelSize: Style.font.bodySmall
+      font.pixelSize: Style.font.body
       textFormat: Text.PlainText
       elide: Text.ElideRight
     }
@@ -280,7 +295,8 @@ Column {
     Text {
       id: roleValue
       anchors.right: chevron.left
-      anchors.rightMargin: Style.spacing.xs
+      anchors.rightMargin: Style.spacing.md
+      anchors.verticalCenter: parent.verticalCenter
       // SPEC-AMD-3: every cell behind this string is non-zero, because
       // `countRows` drops the empty classes. The colour is unconditional for
       // that reason and not because the distinction stopped mattering — a
@@ -289,7 +305,7 @@ Column {
       text: roleRow.valueText
       color: roleRow.foreground
       font.family: roleRow.fontFamily
-      font.pixelSize: Style.font.bodySmall
+      font.pixelSize: Style.font.body
       textFormat: Text.PlainText
     }
 
@@ -304,7 +320,7 @@ Column {
       text: "\u203a"
       color: roleRow.dim
       font.family: roleRow.fontFamily
-      font.pixelSize: Style.font.bodySmall
+      font.pixelSize: Style.font.body
       textFormat: Text.PlainText
     }
 

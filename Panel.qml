@@ -640,7 +640,12 @@ Panel {
         Column {
           id: column
           width: panelFlick.width
-          spacing: Style.spacing.md
+          // The gap between blocks — hero, pages, content, foot. It was `md`,
+          // the same 6 px that separates rows INSIDE a block, so nothing on
+          // screen said where one thing ended and the next began and the
+          // whole panel read as one run of lines. Rows keep the small step;
+          // blocks take the large one.
+          spacing: Style.spacing.xxl
 
           // The hero, drawn here rather than by `Ui/PanelHero`, because the
           // host's hero cannot draw the design this panel asked for. It renders
@@ -690,8 +695,13 @@ Panel {
                 text: root.vm.siteName === "" ? "UniFi" : root.vm.siteName
                 color: root.foreground
                 font.family: root.fontFamily
-                font.pixelSize: Style.font.title
-                font.bold: true
+                // The largest type in the panel, at regular weight: size alone
+                // makes it the title, and a bold 14 px beside a 24 px glyph
+                // read as a label that had lost its title. 1.75 × body is the
+                // design's 21 px at the default 12, and scales with the user's
+                // font size as the tokens do; no token sits between `heading`
+                // (16) and `display` (24).
+                font.pixelSize: Math.round(Style.font.body * 1.75)
                 textFormat: Text.PlainText
                 elide: Text.ElideRight
               }
@@ -800,6 +810,10 @@ Panel {
                 // it says where the keyboard is without touching what is selected.
                 cursorIndex: -1
                 focusable: false
+                // The kit's gap between buttons, not ButtonGroup's `md`: the
+                // group is built for a dense row of options in a form, and at
+                // 6 px three page tabs read as one control split in three.
+                spacing: Style.spacing.controlGap
                 foreground: root.foreground
                 fontFamily: root.fontFamily
                 onChanged: function (next) {

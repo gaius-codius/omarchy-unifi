@@ -1558,19 +1558,19 @@ ShellRoot {
       assert: function () {
         if (panelWidget === null) return
         // REQ-B15 replaced the two-stop `focusIndex` with a named stop list
-        // that depends on the page. On Overview it is three long, and the two
-        // actions keep the last two places — which is what UX-008 asserted and
-        // still asserts.
+        // that depends on the page. On Overview it is three long, and since
+        // SPEC-AMD-12 it follows the screen: Refresh in the header, the pages,
+        // Open UniFi at the foot.
         panelWidget.view = "overview"
         panelWidget.focusStop = "refresh"
         panelWidget.moveFocus(1)
+        check("Tab moves to the segmented control", "segments", panelWidget.focusStop)
+        panelWidget.moveFocus(1)
         check("Tab moves to Open UniFi", "dashboard", panelWidget.focusStop)
         panelWidget.moveFocus(1)
-        check("Tab wraps to the segmented control", "segments", panelWidget.focusStop)
-        panelWidget.moveFocus(1)
-        check("Tab reaches Refresh", "refresh", panelWidget.focusStop)
+        check("Tab wraps to Refresh", "refresh", panelWidget.focusStop)
         panelWidget.moveFocus(-1)
-        check("Backtab wraps the other way", "segments", panelWidget.focusStop)
+        check("Backtab wraps the other way", "dashboard", panelWidget.focusStop)
         openedUrls = []
         panelWidget.focusStop = "dashboard"
         check("Enter on Open UniFi tries the dashboard", "rejected",
@@ -1732,15 +1732,15 @@ ShellRoot {
         ensurePanelOpen()
         panelWidget.resetBrowse()
         panelWidget.setView("devices")
-        var order = ["segments", "search", "list", "refresh", "dashboard"]
+        var order = ["refresh", "segments", "search", "list", "dashboard"]
         var walked = []
-        panelWidget.focusStop = "segments"
+        panelWidget.focusStop = "refresh"
         for (var i = 0; i < order.length; i++) {
           walked.push(panelWidget.focusStop)
           panelWidget.moveFocus(1)
         }
         check("Tab walks REQ-B15's five stops", order.join(","), walked.join(","))
-        check("and wraps to the first", "segments", panelWidget.focusStop)
+        check("and wraps to the first", "refresh", panelWidget.focusStop)
 
         // REQ-B15 / UX-008: every stop names an item the panel can scroll to.
         //
@@ -1854,7 +1854,7 @@ ShellRoot {
         // Vertical keys are now the only thing that walks the stops, and only
         // where there is no list cursor to claim them.
         panelWidget.moveCursor(0, 1)
-        check("Down walks the stops on Overview", ViewModel.FOCUS_REFRESH,
+        check("Down walks the stops on Overview", ViewModel.FOCUS_DASHBOARD,
               panelWidget.focusStop)
       }
     })

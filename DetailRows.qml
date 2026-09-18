@@ -29,6 +29,9 @@ Column {
 
   readonly property color _secondary: emphasis ? emphasis.secondary : foreground
   readonly property color _tertiary: emphasis ? emphasis.tertiary : foreground
+  // The label column. `PortTable` aligns its "Ports" and "Radios" labels to the
+  // same edge, so the whole expanded row reads as one two-column table.
+  readonly property real labelWidth: Math.round(width * 0.22)
 
   signal copyRequested(string key, string text)
 
@@ -60,7 +63,7 @@ Column {
       Text {
         id: detailLabel
         anchors.left: parent.left
-        width: Math.round(parent.width * 0.28)
+        width: root.labelWidth
         text: modelData.label
         color: root._tertiary
         font.family: root.fontFamily
@@ -68,10 +71,15 @@ Column {
         textFormat: Text.PlainText
         elide: Text.ElideRight
       }
+      readonly property bool hasBar: typeof modelData.fraction === "number"
+
       Text {
         id: detailValue
         anchors.left: detailLabel.right
-        anchors.right: copiedMark.left
+        // A barred row gives the figure a fixed slot ("100%" at most) so the
+        // bars all start at one x; every other row lets the value run.
+        anchors.right: detailRow.hasBar ? undefined : copiedMark.left
+        width: detailRow.hasBar ? barSlot.width : undefined
         anchors.rightMargin: copiedMark.visible ? Style.spacing.xs : 0
         text: modelData.value
         color: root._secondary
@@ -79,6 +87,35 @@ Column {
         font.pixelSize: Style.font.caption
         textFormat: Text.PlainText
         elide: Text.ElideRight
+      }
+
+      // Sizes the figure's slot in the font itself, so it scales with it.
+      TextMetrics {
+        id: barSlot
+        font.family: root.fontFamily
+        font.pixelSize: Style.font.caption
+        text: "100.0%"
+      }
+
+      // The bar: a 2 px track at the ground's wash with the fraction drawn in
+      // tertiary over it. Quiet on purpose — the digits are the reading, and
+      // the bar is the glance.
+      Rectangle {
+        visible: detailRow.hasBar
+        anchors.left: detailValue.right
+        anchors.leftMargin: Style.spacing.lg
+        anchors.right: parent.right
+        anchors.verticalCenter: detailValue.verticalCenter
+        height: 2
+        color: Qt.rgba(root.foreground.r, root.foreground.g, root.foreground.b, 0.1)
+
+        Rectangle {
+          anchors.left: parent.left
+          anchors.top: parent.top
+          anchors.bottom: parent.bottom
+          width: detailRow.hasBar ? Math.round(parent.width * modelData.fraction) : 0
+          color: root._tertiary
+        }
       }
 
       // The confirmation. Copying is otherwise completely silent — the value

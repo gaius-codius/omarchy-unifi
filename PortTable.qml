@@ -61,156 +61,190 @@ Column {
   visible: ports.length > 0 || radiosText !== ""
     || portsEmpty !== "" || radiosEmpty !== ""
 
-  Text {
-    visible: root.ports.length > 0 || root.portsEmpty !== ""
-    height: visible ? implicitHeight : 0
-    text: "Ports"
-    color: root._tertiary
-    font.family: root.fontFamily
-    font.pixelSize: Style.font.caption
-    textFormat: Text.PlainText
-  }
+  // "Ports" and "Radios" sit in the same label column as Firmware and CPU
+  // above them (`DetailRows.labelWidth`, the same 22%), with their content
+  // beside rather than under them. Under them, the grid and its counts ran
+  // the full width of the row and "Ports" read as a small heading again.
+  readonly property real labelWidth: Math.round(width * 0.22)
 
-  // The ports, as a grid of marks.
-  //
-  // They were one row per port. On the USW-Pro-48-PoE this plugin is tested
-  // against that is 48 rows inside a popup capped at 560 px — a detail that
-  // cannot be opened rather than one that is merely long. And the thing a
-  // reader wants from a port table at a glance is not any single port, it is
-  // the SHAPE: how many are up, where the gaps are, which carry power.
-  //
-  // A mark per port answers that in three lines. Filled when the link is up,
-  // outlined when it is not, underscored when the port carries PoE — and the
-  // index is printed inside every mark, so an individual port is still
-  // identifiable rather than merely counted.
-  //
-  // The shape is never the only signal (UX-002): `portsSummaryText` states the
-  // same counts in words beside the grid, and that sentence is what a bug
-  // report can quote.
-  Flow {
+  Item {
     width: root.width
-    visible: root.ports.length > 0
-    spacing: Style.spacing.xs
+    visible: root.ports.length > 0 || root.portsEmpty !== ""
+    implicitHeight: visible ? Math.max(portsLabel.implicitHeight, portsBody.implicitHeight) : 0
+    height: implicitHeight
 
-    Repeater {
-      model: root.ports
+    Text {
+      id: portsLabel
+      width: root.labelWidth
+      text: "Ports"
+      color: root._tertiary
+      font.family: root.fontFamily
+      font.pixelSize: Style.font.caption
+      textFormat: Text.PlainText
+    }
 
-      delegate: Rectangle {
-        id: mark
-        required property var modelData
+    Column {
+      id: portsBody
+      x: root.labelWidth
+      width: parent.width - root.labelWidth
+      spacing: Style.spacing.xs
 
-        // Square, and sized from the type rather than in pixels so it keeps
-        // step with the user's font scaling like everything else here.
-        readonly property int side: Math.round(Style.font.caption * 1.5)
-        width: side
-        height: side
-        radius: Math.max(1, Math.round(side / 7))
-        clip: true
+      // The ports, as a grid of marks.
+      //
+      // They were one row per port. On the USW-Pro-48-PoE this plugin is tested
+      // against that is 48 rows inside a popup capped at 560 px — a detail that
+      // cannot be opened rather than one that is merely long. And the thing a
+      // reader wants from a port table at a glance is not any single port, it is
+      // the SHAPE: how many are up, where the gaps are, which carry power.
+      //
+      // A mark per port answers that in three lines. Filled when the link is up,
+      // outlined when it is not, underscored when the port carries PoE — and the
+      // index is printed inside every mark, so an individual port is still
+      // identifiable rather than merely counted.
+      //
+      // The shape is never the only signal (UX-002): `portsSummaryText` states the
+      // same counts in words beside the grid, and that sentence is what a bug
+      // report can quote.
+      Flow {
+        width: parent.width
+        visible: root.ports.length > 0
+        spacing: Style.spacing.xs
 
-        // Up is the foreground at 30%, down is an outline at tertiary, so
-        // nothing here invents a colour (REQ-001a / UX-001) and the grid
-        // re-themes with everything else.
-        //
-        // Two fills have been wrong here, in opposite directions. The first was
-        // `Style.controlFill(true, …)`, a control's focus WASH at 8% alpha:
-        // inside an expanded row, which is already washed, it vanished, and the
-        // up ports read as the faint ones. The second was a solid secondary
-        // fill with the index knocked out in the ground colour: legible, but
-        // the loudest mark in the panel, turning a glance at link state into a
-        // row of lit keys. 30% is enough to beat the row's wash and still sit
-        // under the text around it.
-        color: modelData.isUp
-          ? Qt.rgba(root.foreground.r, root.foreground.g, root.foreground.b, 0.3)
-          : "transparent"
-        border.width: modelData.isUp ? 0 : 1
-        border.color: root._tertiary
+        Repeater {
+          model: root.ports
 
-        Text {
-          anchors.centerIn: parent
-          text: mark.modelData.idxText
-          // Full strength on a fill, tertiary on an outline, so the index
-          // follows the mark's own weight rather than fighting it.
-          color: mark.modelData.isUp ? root.foreground : root._tertiary
-          font.family: root.fontFamily
-          // A step below caption: the index identifies the mark, it does
-          // not compete with the row's own text.
-          font.pixelSize: Math.max(8, Math.round(Style.font.caption * 0.85))
-          textFormat: Text.PlainText
+          delegate: Rectangle {
+            id: mark
+            required property var modelData
+
+            // Square, and sized from the type rather than in pixels so it keeps
+            // step with the user's font scaling like everything else here.
+            readonly property int side: Math.round(Style.font.caption * 1.5)
+            width: side
+            height: side
+            radius: Math.max(1, Math.round(side / 7))
+            clip: true
+
+            // Up is the foreground at 30%, down is an outline at tertiary, so
+            // nothing here invents a colour (REQ-001a / UX-001) and the grid
+            // re-themes with everything else.
+            //
+            // Two fills have been wrong here, in opposite directions. The first was
+            // `Style.controlFill(true, …)`, a control's focus WASH at 8% alpha:
+            // inside an expanded row, which is already washed, it vanished, and the
+            // up ports read as the faint ones. The second was a solid secondary
+            // fill with the index knocked out in the ground colour: legible, but
+            // the loudest mark in the panel, turning a glance at link state into a
+            // row of lit keys. 30% is enough to beat the row's wash and still sit
+            // under the text around it.
+            color: modelData.isUp
+              ? Qt.rgba(root.foreground.r, root.foreground.g, root.foreground.b, 0.3)
+              : "transparent"
+            border.width: modelData.isUp ? 0 : 1
+            border.color: root._tertiary
+
+            Text {
+              anchors.centerIn: parent
+              text: mark.modelData.idxText
+              // Full strength on a fill, tertiary on an outline, so the index
+              // follows the mark's own weight rather than fighting it.
+              color: mark.modelData.isUp ? root.foreground : root._tertiary
+              font.family: root.fontFamily
+              // A step below caption: the index identifies the mark, it does
+              // not compete with the row's own text.
+              font.pixelSize: Math.max(8, Math.round(Style.font.caption * 0.85))
+              textFormat: Text.PlainText
+            }
+
+            // PoE, as a 2 px bar along the inside bottom edge in the theme's
+            // accent. A third state on the same square rather than a fill, because
+            // PoE is orthogonal to link state — a port can be down and still
+            // powered — and it has to read on both a filled and an outlined mark.
+            // The accent is the one colour in the panel that is not on the
+            // emphasis scale, which is what keeps it from being mistaken for a
+            // stronger "up". The index sits in the middle of the square, clear of
+            // it.
+            Rectangle {
+              anchors.left: parent.left
+              anchors.right: parent.right
+              anchors.bottom: parent.bottom
+              height: 2
+              color: Color.accent
+              visible: mark.modelData.poeText !== ""
+            }
+          }
         }
+      }
 
-        // PoE, as a 2 px bar along the inside bottom edge in the theme's
-        // accent. A third state on the same square rather than a fill, because
-        // PoE is orthogonal to link state — a port can be down and still
-        // powered — and it has to read on both a filled and an outlined mark.
-        // The accent is the one colour in the panel that is not on the
-        // emphasis scale, which is what keeps it from being mistaken for a
-        // stronger "up". The index sits in the middle of the square, clear of
-        // it.
-        Rectangle {
-          anchors.left: parent.left
-          anchors.right: parent.right
-          anchors.bottom: parent.bottom
-          height: 2
-          color: Color.accent
-          visible: mark.modelData.poeText !== ""
-        }
+      // The counts, in words. See the grid above: this is what keeps the marks from
+      // being the only statement of the same fact.
+      Text {
+        visible: text !== ""
+        width: parent.width
+        text: root.portsSummary
+        color: root._tertiary
+        font.family: root.fontFamily
+        font.pixelSize: Style.font.caption
+        textFormat: Text.PlainText
+        wrapMode: Text.WordWrap
+      }
+
+      // "The controller answered and there are none" — never shown for a device
+      // whose detail was not fetched, which is AC-B09's whole point.
+      Text {
+        visible: text !== ""
+        width: parent.width
+        text: root.portsEmpty
+        color: root._tertiary
+        font.family: root.fontFamily
+        font.pixelSize: Style.font.caption
+        textFormat: Text.PlainText
       }
     }
   }
 
-  // The counts, in words. See the grid above: this is what keeps the marks from
-  // being the only statement of the same fact.
-  Text {
-    visible: text !== ""
+  Item {
     width: root.width
-    text: root.portsSummary
-    color: root._tertiary
-    font.family: root.fontFamily
-    font.pixelSize: Style.font.caption
-    textFormat: Text.PlainText
-    wrapMode: Text.WordWrap
-  }
-
-  // "The controller answered and there are none" — never shown for a device
-  // whose detail was not fetched, which is AC-B09's whole point.
-  Text {
-    visible: text !== ""
-    width: root.width
-    text: root.portsEmpty
-    color: root._tertiary
-    font.family: root.fontFamily
-    font.pixelSize: Style.font.caption
-    textFormat: Text.PlainText
-  }
-
-  Text {
     visible: root.radiosText !== "" || root.radiosEmpty !== ""
-    height: visible ? implicitHeight : 0
-    text: "Radios"
-    color: root._tertiary
-    font.family: root.fontFamily
-    font.pixelSize: Style.font.caption
-    textFormat: Text.PlainText
-  }
+    implicitHeight: visible ? Math.max(radiosLabel.implicitHeight, radiosBody.implicitHeight) : 0
+    height: implicitHeight
 
-  Text {
-    visible: root.radiosText !== ""
-    width: root.width
-    text: root.radiosText
-    color: root._secondary
-    font.family: root.fontFamily
-    font.pixelSize: Style.font.caption
-    textFormat: Text.PlainText
-    wrapMode: Text.WordWrap
-  }
+    Text {
+      id: radiosLabel
+      width: root.labelWidth
+      text: "Radios"
+      color: root._tertiary
+      font.family: root.fontFamily
+      font.pixelSize: Style.font.caption
+      textFormat: Text.PlainText
+    }
 
-  Text {
-    visible: text !== ""
-    width: root.width
-    text: root.radiosEmpty
-    color: root._tertiary
-    font.family: root.fontFamily
-    font.pixelSize: Style.font.caption
-    textFormat: Text.PlainText
+    Column {
+      id: radiosBody
+      x: root.labelWidth
+      width: parent.width - root.labelWidth
+      spacing: Style.spacing.xs
+
+      Text {
+        visible: root.radiosText !== ""
+        width: parent.width
+        text: root.radiosText
+        color: root._secondary
+        font.family: root.fontFamily
+        font.pixelSize: Style.font.caption
+        textFormat: Text.PlainText
+        wrapMode: Text.WordWrap
+      }
+
+      Text {
+        visible: text !== ""
+        width: parent.width
+        text: root.radiosEmpty
+        color: root._tertiary
+        font.family: root.fontFamily
+        font.pixelSize: Style.font.caption
+        textFormat: Text.PlainText
+      }
+    }
   }
 }

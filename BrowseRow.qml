@@ -61,19 +61,18 @@ Item {
   // thing the list is searched by and the thing every row is identified by,
   // arrived looking like slightly brighter metadata.
   //
-  // `subtitle` — the token between `body` and `title` (13 at the default
-  // base, against caption's 10) — rather than a multiple of another token, so
-  // it tracks the user's font settings and any per-token theme override the
-  // way `Style.font.*` exists to. It puts the name ~3 px clear of the caption
-  // line: a title, at a size that still costs the row nothing, because the
-  // row's height is set by the two lines together and the meta line did not
-  // grow.
+  // `title` — body + 2, 14 at the default base against caption's 10 — rather
+  // than a multiple of another token, so it tracks the user's font settings
+  // and any per-token theme override the way `Style.font.*` exists to. The
+  // design's step is 3.5-4 px between the name and the line under it; at
+  // `subtitle` (13) the name was a slightly brighter line rather than the
+  // thing the row is about.
   //
   // Sentence case, deliberately, and never the tracked-uppercase treatment
   // `SectionHeader` uses: a device name is a proper noun the user typed into
   // the search field, and upper-casing it breaks the match between what they
   // searched for and what they are looking at.
-  readonly property real titleSize: Style.font.subtitle
+  readonly property real titleSize: Style.font.title
 
   implicitHeight: layout.implicitHeight
   height: implicitHeight
@@ -134,7 +133,7 @@ Item {
         text: root.row ? root.row.tokenText : ""
         color: (root.row && root.row.tokenUrgent) ? root.urgent : root._tertiary
         font.family: root.fontFamily
-        font.pixelSize: Style.font.caption
+        font.pixelSize: Style.font.bodySmall
         textFormat: Text.PlainText
       }
     }
@@ -144,52 +143,51 @@ Item {
     // which is the whole reason this row was hard to read. The separator is
     // punctuation and carries no meaning, so composing it here is not a
     // decision (REQ-014); every word around it came from `vm`.
+    // Three fixed columns rather than a `·`-joined sentence: identity
+    // (model, or a client's address), then the two context slots. In a face
+    // where every glyph is one cell, a fixed x per column makes the addresses
+    // — and the uplinks on the client page — a column the eye can run down,
+    // where the joined line started each one somewhere different. The
+    // separators go with the alignment; they only ever stood in for it.
+    //
+    // All tertiary. The line is context for the name above it, and at
+    // secondary its first column competed with the name for the same glance.
     Item {
       id: metaLine
       width: parent.width
-      visible: secondary.text !== "" || meta.text !== ""
-      implicitHeight: visible ? Math.max(secondary.implicitHeight, meta.implicitHeight) : 0
+      readonly property var slots: root.row && root.row.metaColumns
+        ? root.row.metaColumns : ["", ""]
+      readonly property real columnWidth: Math.round(width * 0.3)
+      visible: secondary.text !== "" || slotA.text !== "" || slotB.text !== ""
+      implicitHeight: visible ? secondary.implicitHeight : 0
 
       Text {
         id: secondary
         anchors.left: parent.left
-        // A FIXED column, not a shrink-to-fit one.
-        //
-        // It used to be `Math.min(implicitWidth, 55%)`, so the column was as
-        // wide as whatever happened to be in it and everything after it began
-        // somewhere different on every row: 192.168.10.2 under "UDM-Pro",
-        // 192.168.10.3 under "USW-Pro-48-PoE". PortTable's own comment names
-        // this exact failure — fields joined into a line "read as a sentence
-        // and cannot be scanned" — and the port table was fixed while the row
-        // that leads to it was not.
-        //
-        // The panel is set in a monospace face, where a fixed column costs
-        // nothing and buys a real one: the addresses now start on a shared left
-        // edge down the whole list, which is what makes a list of addresses
-        // scannable rather than merely present.
-        //
-        // 44% rather than the old 55% cap: the column is now always that wide,
-        // so the space it takes is paid on every row instead of only on the
-        // long ones, and the context after it needs room to survive.
-        width: Math.round(parent.width * 0.44)
+        width: metaLine.columnWidth - Style.spacing.md
         text: root.row ? root.row.secondaryText : ""
-        color: root._secondary
+        color: root._tertiary
         font.family: root.fontFamily
         font.pixelSize: Style.font.caption
         textFormat: Text.PlainText
         elide: Text.ElideRight
       }
-
       Text {
-        id: meta
-        anchors.left: secondary.right
-        anchors.right: parent.right
-        anchors.leftMargin: Style.spacing.xs
-        // No leading separator any more. The `·` was standing in for an
-        // alignment that did not exist — it told the reader where one field
-        // ended because nothing else did. The fixed column above says it, in
-        // the same place on every row, without spending a character.
-        text: root.row ? root.row.metaText : ""
+        id: slotA
+        x: metaLine.columnWidth
+        width: metaLine.columnWidth - Style.spacing.md
+        text: metaLine.slots[0] || ""
+        color: root._tertiary
+        font.family: root.fontFamily
+        font.pixelSize: Style.font.caption
+        textFormat: Text.PlainText
+        elide: Text.ElideRight
+      }
+      Text {
+        id: slotB
+        x: 2 * metaLine.columnWidth
+        width: metaLine.width - x
+        text: metaLine.slots[1] || ""
         color: root._tertiary
         font.family: root.fontFamily
         font.pixelSize: Style.font.caption
@@ -198,9 +196,6 @@ Item {
       }
     }
 
-    // REQ-B14's "update available" mark. `vm` decided whether to show it —
-    // `firmwareUpdatable === true` and not truthiness, because `null` means the
-    // controller did not say and a mark on that basis invents the fact.
     Text {
       width: parent.width
       visible: root.row ? root.row.updateAvailable === true : false

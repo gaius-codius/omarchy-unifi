@@ -934,6 +934,12 @@ function browseDeviceRow(device) {
     ipText: formatOptional(ip === "" ? null : ip),
     uptimeText: formatUptime(uptime),
     metaText: segments.join("  ·  "),
+    // The same two facts as fixed SLOTS, for a row drawn as columns: the
+    // address, then the uptime or "". A slot is empty rather than absent, so
+    // an unknown uptime leaves a gap instead of pulling nothing into place —
+    // which is what keeps the columns columns.
+    metaColumns: [ip !== "" ? ip : "IP unknown",
+      uptimeKnown ? "up " + formatUptime(uptime) : ""],
     // REQ-B21: the MAC is not on the row, only in the detail. It is in the
     // search haystack, which renders nothing.
     searchText: haystackOf([nameText, entry.model, entry.ipAddress,
@@ -997,6 +1003,9 @@ function browseClientRow(client, uplinkName, nowWall) {
     uplinkText: uplinkName,
     connectedText: connected,
     metaText: segments.join("  ·  "),
+    // Fixed slots, as on the device row: the uplink, then connected-since.
+    metaColumns: [uplinkName !== "" ? "via " + uplinkName : "",
+      connected !== "" ? "connected " + connected : ""],
     searchText: haystackOf([nameText, entry.ipAddress, entry.macAddress,
       entry.type, uplinkName])
   }
@@ -1199,8 +1208,14 @@ function deviceDetail(device, context) {
       // one client each".
       { key: "clients", label: "Clients",
         value: clientCountText(clientCounts, entry.id, ctx.clientsTruncated === true) },
-      { key: "cpu", label: "CPU", value: formatPct(metrics ? metrics.cpuUtilizationPct : null) },
-      { key: "memory", label: "Memory", value: formatPct(metrics ? metrics.memoryUtilizationPct : null) },
+      // `fraction` draws a bar behind the figure. Percentages are the one
+      // kind of number here with a known ceiling, so they are the only rows
+      // that get one; `null` whenever the figure is unknown, so a missing
+      // reading draws no bar rather than an empty one that reads as 0%.
+      { key: "cpu", label: "CPU", value: formatPct(metrics ? metrics.cpuUtilizationPct : null),
+        fraction: pctFraction(metrics ? metrics.cpuUtilizationPct : null) },
+      { key: "memory", label: "Memory", value: formatPct(metrics ? metrics.memoryUtilizationPct : null),
+        fraction: pctFraction(metrics ? metrics.memoryUtilizationPct : null) },
       { key: "download", label: "Download", value: formatBps(metrics ? metrics.downloadBps : null) },
       { key: "upload", label: "Upload", value: formatBps(metrics ? metrics.uploadBps : null) }
     ]),
@@ -1367,6 +1382,14 @@ function radioText(radio) {
 // `formatBps` apply, extended to the two utilisation percentages, which are the
 // fields most likely to be absent because `statistics/latest` is the collection
 // DATA-B04's budget drops first.
+// A percentage as a bar length in [0, 1], or null when there is no figure. A
+// controller reporting 104% memory is clamped rather than refused: the digits
+// beside the bar still say 104.
+function pctFraction(value) {
+  if (typeof value !== "number" || !isFinite(value)) return null
+  return Math.max(0, Math.min(1, value / 100))
+}
+
 function formatPct(value) {
   if (value === null || value === undefined) return "unknown"
   if (typeof value !== "number" || !isFinite(value)) return "unknown"
@@ -1891,9 +1914,9 @@ function textOf(value) {
 // `Ui/TextField` does with a keystroke. What is decided here is the order and
 // the arithmetic.
 
-// REQ-B15's order, verbatim: segmented control, search, list, Refresh, Open
-// UniFi, wrapping. Overview has no search field and no list, so it has three
-// stops rather than five.
+// REQ-B15's order, verbatim (SPEC-AMD-12): Refresh, segmented control, search,
+// list, Open UniFi, wrapping — top of the panel to the bottom. Overview has no
+// search field and no list, so it has three stops rather than five.
 const FOCUS_SEGMENTS = "segments"
 const FOCUS_SEARCH = "search"
 const FOCUS_LIST = "list"
@@ -1902,9 +1925,9 @@ const FOCUS_DASHBOARD = "dashboard"
 
 function focusStops(view) {
   if (browseView(view) === "overview") {
-    return [FOCUS_SEGMENTS, FOCUS_REFRESH, FOCUS_DASHBOARD]
+    return [FOCUS_REFRESH, FOCUS_SEGMENTS, FOCUS_DASHBOARD]
   }
-  return [FOCUS_SEGMENTS, FOCUS_SEARCH, FOCUS_LIST, FOCUS_REFRESH, FOCUS_DASHBOARD]
+  return [FOCUS_REFRESH, FOCUS_SEGMENTS, FOCUS_SEARCH, FOCUS_LIST, FOCUS_DASHBOARD]
 }
 
 // The stop `direction` places along, wrapping. Takes and returns a NAME rather
@@ -1914,7 +1937,9 @@ function focusStops(view) {
 function nextFocus(view, stop, direction) {
   const stops = focusStops(view)
   const at = stops.indexOf(stop)
-  if (at === -1) return stops[0]
+  // Home, not `stops[0]`: since SPEC-AMD-12 the first stop is Refresh, and a
+  // cursor that has lost its place should land where the panel opens it.
+  if (at === -1) return FOCUS_SEGMENTS
   if (direction === 0) return stop
   const step = direction > 0 ? 1 : -1
   return stops[(at + step + stops.length) % stops.length]
@@ -2564,6 +2589,7 @@ if (typeof module !== "undefined") module.exports = {
   clientCountsByUplink: clientCountsByUplink,
   clientCountText: clientCountText,
   formatPct: formatPct,
+  pctFraction: pctFraction,
   parseRfc3339: parseRfc3339,
   formatInstant: formatInstant,
   connectedText: connectedText,

@@ -47,7 +47,11 @@ Item {
     // fix its width and clip the last chip instead of letting it run to the
     // hint.
     anchors.left: parent.left
-    spacing: Style.spacing.md
+    // Wide, because nothing else separates the options: no border, no fill.
+    // At `md` the words ran together into one phrase — "All Gateways
+    // Switches Access points" — which is the opposite of a choice. 16 px at
+    // the default font size, from `Style.space` so it scales with it.
+    spacing: Style.space(16)
 
     Repeater {
       model: root.options
@@ -71,7 +75,9 @@ Item {
           // never carried by one signal alone (UX-002).
           color: chip.selected ? root.foreground : root._tertiary
           font.family: root.fontFamily
-          font.pixelSize: Style.font.caption
+          // One step under the page tabs (`body`), not two. At caption the
+          // row was the smallest text in the panel beside the largest gaps.
+          font.pixelSize: Style.font.bodySmall
           textFormat: Text.PlainText
         }
 
@@ -82,7 +88,7 @@ Item {
           anchors.left: chipLabel.left
           anchors.right: chipLabel.right
           anchors.top: chipLabel.bottom
-          anchors.topMargin: Math.max(1, Math.round(Style.spacing.xs / 2))
+          anchors.topMargin: Math.max(2, Math.round(Style.spacing.xs * 0.75))
           height: 1
           color: root.foreground
           visible: chip.selected
@@ -120,7 +126,10 @@ Item {
     // so this lines up with them, and a top anchor cannot be wrong about a
     // baseline the Row does not really have.
     anchors.top: chips.top
+    // Hidden rather than overlapped when the options run the full width,
+    // which a site with many client types can reach at the wider spacing.
     visible: root.options.length > 0
+      && chips.width + Style.spacing.xl + implicitWidth <= root.width
     text: "f"
     color: root._tertiary
     font.family: root.fontFamily

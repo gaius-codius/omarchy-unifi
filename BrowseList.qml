@@ -114,7 +114,10 @@ Column {
   function setSearchText(next) { searchField.text = next }
   readonly property string searchText: searchField.text
 
-  spacing: Style.spacing.sm
+  // The filter row, the field and the list are three different things and
+  // need air between them; at `sm` the underline of the chosen filter sat on
+  // the field's border.
+  spacing: Style.spacing.xl
 
   // REQ-B10a's filter, offered here rather than only from Overview — a device
   // role on one page, a client's connection type on the other (SPEC-AMD-10).
@@ -167,6 +170,21 @@ Column {
     // caret every time the model rebuilt — which, since `nowWall` moves the
     // model every five seconds, is while they are still typing.
     onTextChanged: root.searchChanged(text)
+
+    // REQ-B15's `/`, printed on the field it focuses, as `f` is on the chips.
+    // Only while the field is empty and unfocused: once there is a caret the
+    // key has done its job, and text would run under it.
+    Text {
+      anchors.right: parent.right
+      anchors.rightMargin: Style.spacing.lg
+      anchors.verticalCenter: parent.verticalCenter
+      visible: !searchField.activeFocus && searchField.text === ""
+      text: "/"
+      color: root._tertiary
+      font.family: root.fontFamily
+      font.pixelSize: Style.font.caption
+      textFormat: Text.PlainText
+    }
 
     Keys.onTabPressed: function (event) {
       root.releaseSearch()
