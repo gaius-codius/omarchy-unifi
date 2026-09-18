@@ -61,7 +61,6 @@ Column {
   // reported as a sentence, below, instead of as a heading over emptiness.
   SectionHeader {
     visible: root.listed > 0
-    height: visible ? implicitHeight : 0
     text: "Offline and impaired"
     foreground: root.foreground
     fontFamily: root.fontFamily

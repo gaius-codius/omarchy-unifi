@@ -1056,9 +1056,19 @@ ShellRoot {
         for (var m = 0; m < model.metaRows.length; m++) {
           if (model.metaRows[m].key === "helperVersion") helperRow = model.metaRows[m]
         }
+        // Details is a disclosure, collapsed in the healthy state and opened
+        // by the panel itself in any state that carries a sentence. So the row
+        // is asserted twice: absent while collapsed, which proves the
+        // disclosure is real, and present once opened, which proves it renders.
         if (helperRow === null) bad("the meta rows carry the helper version")
-        else check("the helper version row is on screen", true,
-                   panelTextContains(helperRow.value))
+        else {
+          check("the helper version row is hidden while Details is collapsed", false,
+                panelTextContains(helperRow.value))
+          panelWidget.detailsOpen = true
+          check("the helper version row is on screen once Details opens", true,
+                panelTextContains(helperRow.value))
+          panelWidget.detailsOpen = false
+        }
       }
     })
 
@@ -1102,12 +1112,12 @@ ShellRoot {
         // The panel, not just the model. A binding that dropped the headline
         // would leave every assertion above green.
         //
-        // Upper-cased because `PanelHero` is Omarchy's, and it upcases its
-        // `meta` line — the model's "just now" reaches the screen as
-        // "JUST NOW". Matched on the host's rendering rather than worked
-        // around, because the string the user reads is the subject here.
+        // The timestamp rides in `PanelHero`'s `detail`, which is drawn as
+        // given — only its `meta` line is upper-cased, and that now carries the
+        // verdict alone (Panel.qml's hero). Matched on the host's rendering,
+        // because the string the user reads is the subject here.
         checkPanelText("the panel shows the update time",
-                       vm.lastUpdateText.toUpperCase())
+                       vm.lastUpdateText)
       }
     })
 
@@ -1498,8 +1508,7 @@ ShellRoot {
         // driver's own scheduling on top of the nominal window.
         between("the relative time aged by roughly the elapsed time",
                 10, 30, parseInt(after.replace(/[^0-9]/g, ""), 10))
-        checkPanelText("the new relative time reached the panel",
-                       after.toUpperCase())
+        checkPanelText("the new relative time reached the panel", after)
         // The panel holds no timer of its own: one clock, in the object that
         // owns it, so every monitor's widget updates from the same instant
         // (REQ-014 / UX-011).
