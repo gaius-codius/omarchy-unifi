@@ -1,4 +1,4 @@
-# Controller certificates
+# Controller name resolution and certificates
 
 Start with `scripts/setup` in the installed plugin directory. It retrieves
 self-signed certificates, asks you to verify the fingerprint and saves approved
@@ -27,9 +27,17 @@ echo '192.168.1.1  unifi.local' | sudo tee -a /etc/hosts
 
 Check again with `getent hosts unifi.local`. If `.local` lookups still fail,
 inspect the `hosts:` line in `/etc/nsswitch.conf`. An mDNS entry followed by
-`[NOTFOUND=return]` before `files` can prevent `/etc/hosts` from being consulted.
-Back up the file, then move `files` ahead of that entry while preserving the
-other lookup sources. Check resolution again before continuing.
+`[NOTFOUND=return]` before `files` prevents `/etc/hosts` from being consulted at
+all, so the entry you just added cannot take effect. Back up the file, then move
+`files` ahead of that entry while preserving the other lookup sources. Check
+resolution again before continuing.
+
+Expect this on Omarchy: it ships `mdns_minimal [NOTFOUND=return]` ahead of
+`files`, and UniFi consoles present a certificate issued for `unifi.local`, so a
+`.local` name is the one you are most likely to need and the one `/etc/hosts`
+alone cannot fix. Note that `resolvectl query` reads `/etc/hosts` directly and
+will report the name as resolving even while `getent hosts` — the path the
+plugin actually uses — fails. Trust `getent`.
 
 ## 2. Save and verify the certificate
 

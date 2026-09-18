@@ -35,6 +35,18 @@ def normalize_controller(value):
     if not parts.path or parts.path == '/':
         value = value.rstrip('/') + '/proxy/network/integration'
     routes.build(value, 'info')
+    # The hostname is echoed back in error messages, and resolution_help
+    # prints it inside commands the reader is told to run, one under sudo.
+    # urlsplit keeps shell metacharacters ($ ( ' ; |) and C1 or bidi control
+    # characters in a hostname, so vet it here, once, before anything can
+    # repeat it. Letters and digits (including non-ASCII ones, for IDN names),
+    # dots, hyphens, underscores and the colons of an IPv6 literal are all a
+    # controller address needs. The refusal deliberately does not quote the
+    # value it refuses.
+    host = routes.parse_api_root(value)[1]
+    if not all(c.isalnum() or c in '.-_:' for c in host):
+        raise SetupError('Enter the controller as a hostname or IP address, using only letters, '
+                         'digits, dots and hyphens.')
     return value.rstrip('/')
 
 
@@ -102,6 +114,93 @@ def establish_trust(root, fingerprint, interactive):
                          'Rerun with --controller using that hostname; setup does not change DNS or /etc/hosts. '
                          'For a private CA, follow docs/controller-setup.md and scripts/configure --custom-ca.')
     return context, pem
+
+
+def check_resolvable(root):
+    """Fail by name when the controller hostname does not resolve.
+
+    Without this the first symptom is a gaierror raised from the certificate
+    probe, which main() catches as an OSError and reports as "check
+    connectivity, file permissions and the controller certificate" — three
+    things that are all typically fine. The cause is name resolution, and it is
+    worth naming because a `.local` name is the one case where adding an
+    /etc/hosts entry does not fix it: nss-mdns claims the name and a following
+    `[NOTFOUND=return]` ends the search before `files` is ever consulted.
+    UniFi consoles ship a certificate issued for `unifi.local`, so that name is
+    the common case here rather than an exotic one.
+
+    This resolves the name that establish_trust is about to resolve again a
+    moment later. The duplicate lookup is deliberate: reporting the failure
+    from inside the TLS probe would put the explanation where it has to
+    compete with certificate advice, which is the confusion being fixed.
+    """
+    # routes.parse_api_root is the one place that takes an apiRoot apart, and
+    # it has already rejected a host-less address by the time run() gets here.
+    # Taking host AND port from it keeps this lookup asking the same question
+    # the handshake will ask, instead of a second, subtly different one.
+    _, host, port, _ = routes.parse_api_root(root)
+    try:
+        socket.getaddrinfo(host, port or 443, proto=socket.IPPROTO_TCP)
+    except socket.gaierror as failure:
+        raise SetupError(resolution_failure_message(host, failure))
+    except UnicodeError:
+        # getaddrinfo IDNA-encodes the name before the lookup and raises
+        # UnicodeError — a ValueError, not an OSError — for a label that is
+        # empty, over 63 bytes, or holds a character IDNA rejects. Uncaught it
+        # would reach main()'s generic clause and print the certificate advice
+        # this preflight exists to prevent, so it is named here even though it
+        # is a typo, not a resolution failure. The message lists the possible
+        # causes rather than guessing one. normalize_controller has already
+        # vetted the host's characters, so echoing it here is safe.
+        raise SetupError(
+            'The controller address ' + host + ' is not a valid hostname: a dot-separated\n'
+            'label is empty, longer than 63 bytes, or uses a character DNS names cannot hold.\n'
+            'Check the address for a typo; a doubled dot is the usual cause.')
+
+
+def resolution_failure_message(host, failure):
+    """Choose the message for a gaierror: temporary, or a name that is wrong."""
+    if failure.errno == socket.EAI_AGAIN:
+        return temporary_resolution_help(host)
+    return resolution_help(host)
+
+
+def resolution_help(host):
+    """The message for a name that does not resolve, and the fix for it.
+
+    Used by the preflight and, through run(), by the narrow case where
+    resolution breaks between the preflight and the handshake, so both paths
+    give the reader the same steps. The host is printed inside commands the
+    reader is told to run; it is safe to do so only because
+    normalize_controller has already refused any character outside a
+    hostname's alphabet.
+    """
+    return (
+        'The controller address ' + host + ' does not resolve on this computer.\n'
+        'Setup does not change DNS or /etc/hosts. Check resolution with:\n'
+        '  getent hosts ' + host + '\n'
+        'If that prints nothing, point the name at your console:\n'
+        "  echo '<controller-ip>  " + host + "' | sudo tee -a /etc/hosts\n"
+        'If a .local name still fails after that, an mDNS source followed by\n'
+        '[NOTFOUND=return] ahead of files on the hosts: line of /etc/nsswitch.conf\n'
+        'is stopping the search before /etc/hosts is read; move files ahead of it.\n'
+        'See docs/controller-setup.md step 1.')
+
+
+def temporary_resolution_help(host):
+    """The message for EAI_AGAIN, which is not a misconfiguration.
+
+    resolution_help would send this reader to make two persistent edits — an
+    /etc/hosts entry and an /etc/nsswitch.conf reorder — for a condition that
+    clears on its own. That is the same mis-blame this preflight exists to
+    remove, so the two cases are told apart by errno rather than merged.
+    """
+    return (
+        'The controller address ' + host + ' could not be resolved right now:\n'
+        'the name server did not answer. This is usually temporary, and often\n'
+        'means the network is not up yet. Check the connection and run setup again.\n'
+        "If it keeps failing once the network is up, check that this computer's DNS\n"
+        'server is reachable, for example with: resolvectl status')
 
 
 def read_key(args, interactive):
@@ -238,7 +337,17 @@ def run(argv):
     if shutil.which('omarchy') is None:
         raise SetupError('The omarchy command is required. Run setup on your Omarchy desktop.')
     root = normalize_controller(args.controller or input('Controller address [unifi.local]: ').strip() or 'unifi.local')
-    context, pem = establish_trust(root, args.trust_fingerprint, interactive)
+    check_resolvable(root)
+    try:
+        context, pem = establish_trust(root, args.trust_fingerprint, interactive)
+    except socket.gaierror as failure:
+        # Resolution can break between the preflight and the handshake. The
+        # hostname is still in scope here, so the reader gets the same message
+        # the preflight would have given rather than main()'s last-resort one,
+        # which cannot name it. That includes telling EAI_AGAIN apart: a name
+        # that resolved a moment ago and now fails is more likely a resolver
+        # blip than a misconfiguration.
+        raise SetupError(resolution_failure_message(routes.parse_api_root(root)[1], failure))
     raw = read_key(args, interactive)
     key = credential.parse(raw)
     sites = discover_sites(root, key, context)
@@ -274,6 +383,15 @@ def main(argv=None):
         print(failure.message, file=sys.stderr)
     except (EOFError, KeyboardInterrupt):
         print('Setup cancelled.', file=sys.stderr)
+    except socket.gaierror:
+        # Last resort: a gaierror from somewhere that does not know the
+        # hostname, so it cannot print resolution_help's steps. It must stay
+        # ABOVE the OSError clause below - gaierror subclasses OSError, and
+        # below it this would be shadowed and the reader sent to the
+        # certificate. SetupResolution.test_main_names_a_late_resolution_failure
+        # fails if the two are ever swapped.
+        print('Setup could not finish: the controller address stopped resolving.\n'
+              'See docs/controller-setup.md step 1.', file=sys.stderr)
     except (OSError, ValueError, subprocess.SubprocessError):
         print('Setup could not finish. Check connectivity, file permissions and the controller certificate.', file=sys.stderr)
     return 1

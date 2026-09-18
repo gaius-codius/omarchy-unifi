@@ -65,6 +65,9 @@ your controller, then paste the verified fingerprint to approve it. The wizard
 saves the certificate and keeps TLS verification enabled.
 
 Use a hostname that resolves on your machine and matches the certificate.
+Setup checks this first and tells you how to fix it if it doesn't — on
+Omarchy a `.local` name needs an `/etc/nsswitch.conf` change as well as an
+`/etc/hosts` entry; see [name resolution](docs/controller-setup.md).
 The wizard won't change your DNS settings or accept a mismatched or expired
 certificate. See [certificate troubleshooting](docs/controller-setup.md) if it
 cannot verify the connection.
@@ -72,7 +75,7 @@ cannot verify the connection.
 After setup, click the bar icon and check the site name and last-update time.
 The wizard verifies API access; the panel confirms that the widget is refreshing.
 
-Using an AI agent? Follow the [agent installation guide](docs/agent-install.md).
+Using an AI agent? Follow the [agent instructions](docs/agent-instructions.md).
 For manual configuration, see the [configuration reference](docs/usage.md#controller-configuration).
 
 ## Use the widget
@@ -115,6 +118,7 @@ changes apply live without a restart.
 | No widget or updates | Add the widget to the bar; enabling the plugin alone doesn't start its service. |
 | Unsupported controller version | Use a supported version; only 10.6.x has been tested on hardware. |
 | TLS error | Check the hostname and certificate using the [setup guide](docs/controller-setup.md). |
+| Controller can't be reached, or its name won't resolve | Check `getent hosts <name>`. If it prints nothing, see [name resolution](docs/controller-setup.md). Omarchy ships the mDNS entry *ahead of* `files` on the `hosts:` line of `/etc/nsswitch.conf`, which stops `/etc/hosts` from being read for a `.local` name; move `files` ahead of it. |
 | WAN status is unknown | See the gateway limitation above. |
 | Edited config files by hand | Run `~/.config/omarchy/plugins/gaius-codius.unifi/scripts/configure --commit`. |
 | Duplicate widgets disagree | If the widget was added twice in `shell.json`, give both entries the same `refreshIntervalSec`, or remove the extra copy. |
