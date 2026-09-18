@@ -76,7 +76,7 @@
       "apiRootHost": "192.168.1.1",
       "commitGeneration": 7,
       "customCaInUse": false,
-      "helperVersion": "0.1.0",
+      "helperVersion": "0.1.1",
       "siteId": "00000000-0000-5000-9000-000000000001"
     },
     "observedAt": "2026-01-15T12:00:02Z",

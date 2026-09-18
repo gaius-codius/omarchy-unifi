@@ -48,7 +48,7 @@ LAUNCH_AT = "2026-01-15T11:58:00Z"  # service launch, for the DATA-008 skew wind
 ATTEMPTED_AT = "2026-01-15T12:00:00Z"
 OBSERVED_AT = "2026-01-15T12:00:02Z"
 RECEIPT_AT = "2026-01-15T12:00:03Z"
-HELPER_VERSION = "0.1.0"
+HELPER_VERSION = "0.1.1"
 
 CLASSES = ["online", "transitional", "down", "impaired", "unknown"]
 
