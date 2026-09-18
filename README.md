@@ -15,6 +15,15 @@ three Omarchy themes including one light theme.
   <img src="docs/images/unifi-clients.png" alt="Searchable UniFi clients list in the Omarchy bar panel" width="31%">
 </p>
 
+Expand a device to see its firmware, addresses, uplink, CPU and memory,
+throughput, and its ports or radios. A switch shows every port as a square:
+filled when up, outlined when down, and underlined when it carries PoE.
+
+<p align="center">
+  <img src="docs/images/unifi-device-switch.png" alt="An expanded UniFi switch showing its details and a grid of 52 ports" width="31%">
+  <img src="docs/images/unifi-device-ap.png" alt="An expanded UniFi access point showing its details and radios" width="31%">
+</p>
+
 ## Before you install
 
 You'll need:
