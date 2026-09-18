@@ -1192,6 +1192,7 @@ function deviceDetail(device, context) {
   const fetched = detail !== null
   const ports = fetched ? (detail.ports || []) : []
   const radios = fetched ? (detail.radios || []) : []
+  const updateText = entry.firmwareUpdatable === true ? "update available" : ""
   return {
     id: typeof entry.id === "string" ? entry.id : "",
     nameText: displayName(entry),
@@ -1201,13 +1202,13 @@ function deviceDetail(device, context) {
     // present both pass a test that only looks at one device.
     unavailableText: fetched ? "" : DETAIL_NOT_FETCHED,
     updateAvailable: entry.firmwareUpdatable === true,
-    updateText: entry.firmwareUpdatable === true ? "update available" : "",
+    updateText: updateText,
     rows: withCopy([
       // REQ-B14's "update available" mark rides on the firmware row, which is
       // what it is about. `updateText` alone was built, tested and never
       // bound, so the expanded detail never said it.
       { key: "firmware", label: "Firmware", value: formatOptional(entry.firmwareVersion)
-        + (entry.firmwareUpdatable === true ? "  \u00b7  update available" : "") },
+        + (updateText !== "" ? "  \u00b7  " + updateText : "") },
       // The device's own address. It is on the collapsed row inside the
       // `·`-joined context line, which is fine to glance at and useless to
       // copy from — the same gap the client rows had.
@@ -2668,5 +2669,6 @@ if (typeof module !== "undefined") module.exports = {
   focusAfterViewChange: focusAfterViewChange,
   homeFocus: homeFocus,
   settleFocus: settleFocus,
-  focusAfterHover: focusAfterHover
+  focusAfterHover: focusAfterHover,
+  pointerMoved: pointerMoved
 }

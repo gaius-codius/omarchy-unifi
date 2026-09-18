@@ -66,7 +66,12 @@ Panel {
   // `ViewModel.js` as pure functions — a state machine reachable only through a
   // five-minute live harness is one that gets tested once. What is here is the
   // current stop and what each stop does when activated.
-  property string focusStop: ViewModel.homeFocus(focusState)
+  // Set, not bound. A binding to `homeFocus(focusState)` stayed live until
+  // the first assignment, so a panel opened while loading had Refresh
+  // selected and then moved it to the page chips the moment the first reading
+  // arrived — under a user about to press Enter. Where the panel opens is
+  // decided once, when it opens (`onOpenedChanged`, `resetBrowse`).
+  property string focusStop: ViewModel.FOCUS_SEGMENTS
 
   // What is on screen, as far as the stop list cares (SPEC-AMD-13). A stop
   // that is not drawn is one Tab lands on with no ring and Enter does nothing
@@ -88,6 +93,10 @@ Panel {
   // exactly as a browse page's rows are.
   readonly property int inventoryCount: vm.hasSnapshot ? 2 + vm.countRows.length : 0
   property int inventoryCursor: 0
+  // Kept on a row: a poll that drops a role would otherwise leave the cursor
+  // past the end, highlighting nothing, with Enter answering "empty".
+  onInventoryCountChanged: inventoryCursor = Math.max(0,
+    Math.min(inventoryCursor, inventoryCount - 1))
 
   // REQ-B10's view state, passed into `build` rather than held by it. The panel
   // owns it because it is the panel's: which page is showing, what is typed in
@@ -347,6 +356,10 @@ Panel {
     // applicable here"; a key that quietly moves your focus and then changes
     // the page reads as broken.
     if (dx !== 0) {
+      // SPEC-AMD-13: before the first reading there are no pages to move
+      // between — the chips are hidden, and a page opened here would be an
+      // empty one with the cursor on a stop Tab does not have.
+      if (!vm.hasSnapshot) return
       setView(ViewModel.nextBrowseView(view, dx))
       return
     }
@@ -368,18 +381,54 @@ Panel {
   // caret is in the search field with the mouse merely resting, and again when
   // the freshness tick rebuilds the delegates under a hand that has not moved.
   // Only the first of the three is a reason to take the ring off the control
-  // the keyboard is on. The cursor follows all three, because pointing at a row
-  // and pressing Enter must still open the row that was pointed at.
+  // the keyboard is on — and only the first moves the CURSOR, too. The cursor
+  // used to follow all three, so Down three times from the row under a resting
+  // pointer was undone by the next tick's rebuild, and Enter opened the row
+  // the pointer happened to be over. A pointer that moves is still followed,
+  // and the rows report every movement, so pointing and pressing Enter opens
+  // the row pointed at.
   function hoverList(index, at) {
     if (!browsing) return
+    var moved = ViewModel.pointerMoved(lastHoverPoint, at)
     focusStop = ViewModel.focusAfterHover(focusStop, searchHasFocus,
                                           lastHoverPoint, at)
     // Recorded whichever way that went. It is where the pointer IS, not what
     // was decided about it, and a position dropped on a refused hover is a
     // position the next poll's re-delivered hover would read as a movement.
     lastHoverPoint = at
+    if (!moved) return
     if (view === "devices") deviceCursor = index
     else clientCursor = index
+  }
+
+  // The same rule for Overview's Inventory rows, which are its list
+  // (SPEC-AMD-13): a moving pointer takes the cursor, so the row under it is
+  // the one Enter opens and only one row reads as selected.
+  function hoverInventory(index, at) {
+    if (browsing) return
+    var moved = ViewModel.pointerMoved(lastHoverPoint, at)
+    focusStop = ViewModel.focusAfterHover(focusStop, false, lastHoverPoint, at)
+    lastHoverPoint = at
+    if (moved) inventoryCursor = index
+  }
+
+  // The page an Inventory row opens, with nothing left over from an earlier
+  // visit hiding what the row counted: its search cleared, and the cursor on
+  // the list if the list has rows (on the search field if it has none).
+  function openFromInventory(page, role) {
+    if (page === "clients") {
+      clientBrowse.setSearchText("")
+      clientSearch = ""
+      typeFilter = ""
+      clientCursor = 0
+      setView("clients")
+    } else {
+      deviceBrowse.setSearchText("")
+      deviceSearch = ""
+      deviceCursor = 0
+      setView("devices", role)
+    }
+    focusStop = ViewModel.settleFocus(view, ViewModel.FOCUS_LIST, focusState)
   }
 
   function moveListCursor(delta) {
@@ -558,7 +607,13 @@ Panel {
   // REQ-B10: the panel returns to Overview and clears both searches when it
   // closes. The widget's job is health, and reopening it should answer that
   // question rather than resume a browse.
-  onOpenedChanged: if (!opened) resetBrowse()
+  // Opening decides where the cursor starts, from what is on screen NOW —
+  // not from what was when the panel last closed.
+  onOpenedChanged: {
+    if (!opened) resetBrowse()
+    else focusStop = ViewModel.homeFocus(focusState)
+  }
+  Component.onCompleted: focusStop = ViewModel.homeFocus(focusState)
 
   function resetBrowse() {
     copiedKey = ""
@@ -654,6 +709,8 @@ Panel {
         // panel that refreshed on a keystroke meant for the search box would be
         // both surprising and a request the user did not make.
         if (t === "/") {
+          // Nothing to search before the first reading (SPEC-AMD-13).
+          if (!root.vm.hasSnapshot) return
           if (!root.browsing) root.setView("devices")
           root.focusStop = ViewModel.FOCUS_SEARCH
           var field = root.activeBrowse()
@@ -1060,24 +1117,12 @@ Panel {
             // a filtered Devices page. The role value travels with the row from
             // `ViewModel.countRows`, so nothing between here and there
             // translates a plural noun into a feature name.
-            onRoleActivated: function (role) {
-              root.setView("devices", role)
-              root.focusStop = ViewModel.FOCUS_LIST
-            }
+            onRoleActivated: function (role) { root.openFromInventory("devices", role) }
             // The two totals above the role rows open their pages UNFILTERED:
             // "Connected clients 44" has to land on the 44, not on whichever
             // Wired/Wireless chip was left selected earlier in this session.
-            onPageActivated: function (page) {
-              if (page === "clients") {
-                root.typeFilter = ""
-                root.clientCursor = 0
-                root.setView("clients")
-              } else {
-                root.deviceCursor = 0
-                root.setView("devices", "")
-              }
-              root.focusStop = ViewModel.FOCUS_LIST
-            }
+            onPageActivated: function (page) { root.openFromInventory(page, "") }
+            onRowHovered: function (index, at) { root.hoverInventory(index, at) }
           }
 
           DeviceList {

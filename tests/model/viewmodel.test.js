@@ -1886,6 +1886,9 @@ test("AC-B10: a non-boolean firmwareUpdatable does not claim an update", () => {
     // mutation survived a version of this test that only checked the sentence.
     assert.strictEqual(detail.updateText, "", JSON.stringify(value))
     assert.strictEqual(detail.updateAvailable, false, JSON.stringify(value))
+    // And the third place the mark appears, the Firmware row's value.
+    const firmware = detail.rows.filter((r) => r.key === "firmware")[0]
+    assert.strictEqual(firmware.value.indexOf("update available"), -1, JSON.stringify(value))
   }
 })
 

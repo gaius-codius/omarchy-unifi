@@ -24,6 +24,10 @@ Column {
   // its own page, unfiltered, so the list under the pointer is the number the
   // user just clicked. `view` is "clients" or "devices".
   signal pageActivated(string view)
+  // A pointer over Inventory row `index` (drawing order), in scene
+  // coordinates, for the panel to move its cursor with — as `BrowseRow`'s
+  // `hoverRequested` does on a browse page.
+  signal rowHovered(int index, point at)
   // The panel's scale, handed down rather than rebuilt. This was a local copy
   // of `Emphasis.qml`'s `level(0.52)` — "one level is all it uses" was true,
   // and still made this the third file a change to the scale had to be made
@@ -225,6 +229,8 @@ Column {
       fontFamily: root.fontFamily
       label: "Connected clients"
       hasCursor: root.cursorIndex === 0
+      listHasCursor: root.cursorIndex >= 0
+      onHovered: function (at) { root.rowHovered(0, at) }
       valueText: root.vm ? root.vm.clientsText : "unknown"
       onActivated: root.pageActivated("clients")
     }
@@ -235,6 +241,8 @@ Column {
       fontFamily: root.fontFamily
       label: "Adopted devices"
       hasCursor: root.cursorIndex === 1
+      listHasCursor: root.cursorIndex >= 0
+      onHovered: function (at) { root.rowHovered(1, at) }
       valueText: root.vm ? root.vm.devicesTotalText : "unknown"
       onActivated: root.pageActivated("devices")
     }
@@ -250,6 +258,8 @@ Column {
         required property var modelData
         required property int index
         hasCursor: root.cursorIndex === index + 2
+        listHasCursor: root.cursorIndex >= 0
+        onHovered: function (at) { root.rowHovered(index + 2, at) }
         foreground: root.foreground
         dim: root.dim
         fontFamily: root.fontFamily
@@ -274,7 +284,9 @@ Column {
     // The keyboard's cursor, drawn as the pointer's hover is: this is the row
     // Enter opens.
     property bool hasCursor: false
+    property bool listHasCursor: false
     signal activated()
+    signal hovered(point at)
     width: parent ? parent.width : 0
     // Padded, so the hover rectangle has room around the text instead of
     // sitting on its ascenders, and the rows get the same air the Uplink rows
@@ -295,7 +307,11 @@ Column {
       anchors.rightMargin: -Style.spacing.xs
       radius: Style.cornerRadius
       color: Style.controlFill(false, true, roleRow.foreground, roleRow.foreground)
-      visible: roleArea.containsMouse || roleRow.hasCursor
+      // One row reads as selected, never two: while the list stop has the
+      // cursor the fill is the cursor's (a moving pointer takes it, so it is
+      // still under the pointer when the hand is what is driving). Otherwise
+      // it is the hover, as `DetailRows` draws it.
+      visible: roleRow.hasCursor || (roleArea.containsMouse && !roleRow.listHasCursor)
     }
 
     Text {
@@ -361,6 +377,12 @@ Column {
       acceptedButtons: Qt.LeftButton
       cursorShape: Qt.PointingHandCursor
       onClicked: roleRow.activated()
+      onContainsMouseChanged: if (containsMouse) {
+        roleRow.hovered(mapToItem(null, mouseX, mouseY))
+      }
+      onPositionChanged: function (mouse) {
+        roleRow.hovered(mapToItem(null, mouse.x, mouse.y))
+      }
     }
   }
 }
