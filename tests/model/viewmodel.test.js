@@ -3438,3 +3438,14 @@ test("BIZ-003: only CPU and memory carry a bar, and an unknown one carries none"
     }
   }
 })
+
+test("REQ-008a: a gateway's identity names the model only when the name does not", () => {
+  const rows = ViewModel.gatewayRows([
+    { id: "a", name: "UDM-Pro", model: "UDM Pro", class: "online", metrics: null },
+    { id: "b", name: "Garage", model: "UCG-Ultra", class: "online", metrics: null },
+    { id: "c", name: "Edge", model: null, class: "online", metrics: null }
+  ], [])
+  assert.strictEqual(rows[0].identityText, "UDM-Pro")
+  assert.strictEqual(rows[1].identityText, "Garage  ·  UCG-Ultra")
+  assert.strictEqual(rows[2].identityText, "Edge")
+})

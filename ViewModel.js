@@ -446,6 +446,11 @@ function metricsBody(value) {
     ? value : null
 }
 
+function sameWords(a, b) {
+  const squash = (s) => String(s).toLowerCase().replace(/[^a-z0-9]/g, "")
+  return squash(a) === squash(b)
+}
+
 function gatewayRows(gateways, warnings) {
   const list = Array.isArray(gateways) ? gateways : []
   const failed = statisticsFailedIds(warnings)
@@ -488,7 +493,14 @@ function gatewayRows(gateways, warnings) {
       metricsState: metricsState,
       metricsText: metricsText,
       // The whole caption line. The view binds this and composes nothing.
-      detailText: modelText + "  ·  " + metricsText
+      detailText: modelText + "  ·  " + metricsText,
+      // Who the gateway is, in one string: the name, and the model after it
+      // only when it says something the name does not. A gateway left at its
+      // factory name is named after its model in a different spelling
+      // ("UDM-Pro" for a "UDM Pro"), and the two side by side read as a
+      // stutter — so they are compared ignoring case and punctuation.
+      identityText: sameWords(displayName(entry), modelText) || modelText === "unknown model"
+        ? displayName(entry) : displayName(entry) + "  ·  " + modelText
     })
   }
   return rows

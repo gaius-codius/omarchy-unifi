@@ -79,17 +79,15 @@ Column {
       // value in a label/value row. The NAME stays, because REQ-008a lists
       // every gateway individually and on a one-gateway site this is that
       // listing; the model follows it when it says something the name does
-      // not, which is what the design wanted the heading to carry.
+      // not (`identityText`, decided in the model), which is what the design
+      // wanted the heading to carry.
       Text {
         anchors.left: uplinkHeading.right
         anchors.right: parent.right
         anchors.baseline: uplinkHeading.baseline
         visible: text !== ""
         text: (root.vm && root.vm.gatewayRows.length === 1)
-          ? "  \u00b7  " + root.vm.gatewayRows[0].nameText
-            + (root.vm.gatewayRows[0].modelText !== root.vm.gatewayRows[0].nameText
-               ? "  \u00b7  " + root.vm.gatewayRows[0].modelText : "")
-          : ""
+          ? "  \u00b7  " + root.vm.gatewayRows[0].identityText : ""
         color: root.dim
         font.family: root.fontFamily
         font.pixelSize: Style.font.caption
