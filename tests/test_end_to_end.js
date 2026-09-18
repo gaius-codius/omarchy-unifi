@@ -68,7 +68,7 @@ test("a healthy site produces an envelope the service accepts, and green", () =>
   assert.strictEqual(result.stderr, "")
   assert.strictEqual(envelope.ok, true)
   assert.strictEqual(envelope.error, null)
-  assert.strictEqual(envelope.meta.helperVersion, "0.1.1")
+  assert.strictEqual(envelope.meta.helperVersion, "0.2.0")
   // meta carries the transport facts the panel cannot get any other way: QML
   // cannot read config.json.
   assert.strictEqual(envelope.meta.allowInsecureTls, false)
@@ -340,7 +340,7 @@ test("AC-052: meta is an object on both shapes, and null-filled when unreadable"
   assert.notStrictEqual(broken.meta, null)
   assert.strictEqual(broken.meta.apiRootHost, null)
   assert.strictEqual(broken.meta.commitGeneration, null)
-  assert.strictEqual(broken.meta.helperVersion, "0.1.1")
+  assert.strictEqual(broken.meta.helperVersion, "0.2.0")
 })
 
 test("AC-015a request half: a real request writes no TLS key log", () => {

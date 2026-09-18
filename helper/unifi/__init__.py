@@ -18,4 +18,4 @@
 # `version`: the manifest is what the user sees in the plugin list, and an
 # envelope reporting a different number would make a bug report unanswerable.
 # tests/test_unifi_status.py asserts the equality rather than a comment doing it.
-HELPER_VERSION = "0.1.1"
+HELPER_VERSION = "0.2.0"
