@@ -1887,6 +1887,26 @@ ShellRoot {
       }
     })
 
+    // The foot of the panel reads "?  keys", which names a key; pressing it
+    // has to open the legend, and pressing it again has to close it.
+    pending.push({
+      name: "REQ-B15: ? toggles the keyboard legend",
+      waitMs: 120,
+      assert: function () {
+        if (panelWidget === null) return
+        ensurePanelOpen()
+        panelWidget.resetBrowse()
+        var catcher = findByObjectName(panelWidget, "unifi-key-catcher", 0)
+        if (catcher === null) { bad("the key catcher is reachable"); return }
+        check("the legend starts closed", false, panelWidget.keysOpen)
+        catcher.textKey("?")
+        check("? opens the legend", true, panelWidget.keysOpen)
+        check("the legend is on screen", true, panelTextContains("Esc close"))
+        catcher.textKey("?")
+        check("? closes it again", false, panelWidget.keysOpen)
+      }
+    })
+
     // --- REQ-B15, corrected 2026-09-10 --------------------------------------
     //
     // The defect: Tab out of the search field and the panel went deaf. Escape,

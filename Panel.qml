@@ -618,7 +618,12 @@ Panel {
         // REQ-B15 (SPEC-AMD-9/10). `f` cycles the filter of whichever browse
         // page is showing — the keyboard half of a chooser that is deliberately
         // not a Tab stop. Announced in the hint line below, as `/` and `r` are.
-        if (t === "f" || t === "F") root.cycleFilter()
+        if (t === "f" || t === "F") { root.cycleFilter(); return }
+        // The legend's own key. The disclosure at the foot of the panel is
+        // labelled "?  keys", which reads as an instruction to press `?` — and
+        // it only answered a click, so the one key the panel names on screen
+        // did nothing.
+        if (t === "?") root.keysOpen = !root.keysOpen
       }
 
       Flickable {
