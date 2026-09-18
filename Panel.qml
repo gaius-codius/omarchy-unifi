@@ -977,6 +977,7 @@ Panel {
           }
 
           StatusPanel {
+            objectName: "unifi-status-panel"
             width: parent.width
             visible: root.vm.hasSnapshot && !root.browsing
             vm: root.vm
@@ -990,6 +991,20 @@ Panel {
             // translates a plural noun into a feature name.
             onRoleActivated: function (role) {
               root.setView("devices", role)
+              root.focusStop = ViewModel.FOCUS_LIST
+            }
+            // The two totals above the role rows open their pages UNFILTERED:
+            // "Connected clients 44" has to land on the 44, not on whichever
+            // Wired/Wireless chip was left selected earlier in this session.
+            onPageActivated: function (page) {
+              if (page === "clients") {
+                root.typeFilter = ""
+                root.clientCursor = 0
+                root.setView("clients")
+              } else {
+                root.deviceCursor = 0
+                root.setView("devices", "")
+              }
               root.focusStop = ViewModel.FOCUS_LIST
             }
           }

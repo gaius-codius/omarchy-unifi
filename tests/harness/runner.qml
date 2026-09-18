@@ -2146,6 +2146,39 @@ ShellRoot {
       }
     })
 
+    // REQ-B10a, extended: the two totals open their own pages, unfiltered.
+    // Driven through StatusPanel's signal so the wiring in Panel.qml is what
+    // is under test, and started from a filtered state so "unfiltered" is a
+    // claim the case can fail.
+    pending.push({
+      name: "REQ-B10a: Overview's client and device totals open their pages",
+      waitMs: 0,
+      assert: function () {
+        if (panelWidget === null || service === null) return
+        ensurePanelOpen()
+        panelWidget.resetBrowse()
+        var status = findByObjectName(panelWidget, "unifi-status-panel", 0)
+        if (status === null) { bad("the status panel is reachable"); return }
+
+        panelWidget.typeFilter = "WIRED"
+        status.pageActivated("clients")
+        check("Connected clients opens Clients", "clients", panelWidget.view)
+        check("with the type filter cleared", "", panelWidget.typeFilter)
+        check("and the list focused", ViewModel.FOCUS_LIST, panelWidget.focusStop)
+
+        panelWidget.resetBrowse()
+        var rows = panelWidget.vm.countRows
+        if (rows.length > 0) panelWidget.roleFilter = rows[0].role
+        panelWidget.view = "overview"
+        status.pageActivated("devices")
+        check("Adopted devices opens Devices", "devices", panelWidget.view)
+        check("with the role filter cleared", "", panelWidget.roleFilter)
+        check("and every listed device shown", panelWidget.vm.deviceList.listed,
+              panelWidget.vm.deviceList.rows.length)
+        panelWidget.resetBrowse()
+      }
+    })
+
     pending.push({
       name: "AC-B19: an Overview role row opens Devices filtered to that role",
       waitMs: 0,

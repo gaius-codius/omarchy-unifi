@@ -21,9 +21,11 @@ A refresh failure and a reported network problem are separate states. The
 
 Overview shows the site's last update, device and client counts, available WAN
 metrics, offline or impaired devices, and warnings with searchable codes. When
-nothing is offline it says so, rather than leaving the section out. Select a
-device-role count to open Devices filtered to that role; those rows carry a
-`›` and highlight under the pointer.
+nothing is offline it says so, rather than leaving the section out. Every row
+under Inventory opens a page: **Connected clients** opens Clients and
+**Adopted devices** opens Devices, both unfiltered, and a device-role count
+opens Devices filtered to that role. These rows carry a `›` and highlight
+under the pointer.
 
 The Gateways section appears only on sites with more than one gateway. With a
 single gateway its figures are the same ones Uplink already shows, so only the
