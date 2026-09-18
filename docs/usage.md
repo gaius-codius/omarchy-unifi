@@ -11,7 +11,7 @@ condition in words.
 | Foreground with an urgent dot | Degraded |
 | Urgent colour | All reported gateways are down |
 | Dimmed | Unknown or stale reading |
-| Hollow ring in the opposite corner | The last refresh failed, but the displayed reading is still current |
+| Short bar in the opposite corner | The last refresh failed, but the displayed reading is still current |
 
 A refresh failure and a reported network problem are separate states. The
 [known gateway limitation](../README.md#before-you-install) can prevent the
@@ -20,13 +20,27 @@ A refresh failure and a reported network problem are separate states. The
 ## Browse devices and clients
 
 Overview shows the site's last update, device and client counts, available WAN
-metrics, offline or impaired devices, and warnings with searchable codes.
-Select a device-role count to open Devices filtered to that role.
+metrics, offline or impaired devices, and warnings with searchable codes. When
+nothing is offline it says so, rather than leaving the section out. Select a
+device-role count to open Devices filtered to that role; those rows carry a
+`›` and highlight under the pointer.
+
+The Gateways section appears only on sites with more than one gateway. With a
+single gateway its figures are the same ones Uplink already shows, so only the
+model name is kept, beside the Uplink heading.
 
 Device rows expand to show firmware and update availability, addresses, CPU,
 memory, throughput, upstream and downstream connections, client counts, and
-port or radio information. Client rows show addresses, MAC addresses, access
-type and connection time. Availability depends on what the controller reports.
+port or radio information. Ports are drawn as one mark each — filled when the
+link is up, outlined when it is down, underlined when the port carries PoE —
+with the same counts written out beside them. Client rows show addresses, MAC
+addresses, access type and connection time. Availability depends on what the
+controller reports.
+
+A device's status word is printed only when it is not "Online", so a healthy
+list leaves that column empty and anything wrong is the only thing in it.
+Clients always show their connection type, because neither wired nor wireless
+is the expected value.
 
 Search matches text without regard to case; it doesn't use fuzzy matching.
 Devices filter by role, and Clients by connection type. Filters stay active
@@ -53,7 +67,13 @@ in expanded rows, not in logs, warnings or `status` output.
 | Escape | Clear a search before closing the panel |
 
 The panel scrolls to the focused control. Leaving the search field returns
-keyboard navigation to the panel.
+keyboard navigation to the panel. `f` is printed beside the filter chips it
+operates; the full list above is behind **? keys** at the foot of the panel.
+
+**Refresh** and **Open UniFi** sit under the page chips, so they are reachable
+without scrolling. **Details** — site, controller, site id, helper version and
+configuration generation — is collapsed by default and opens itself whenever
+the panel is reporting a problem.
 
 ## Widget settings
 

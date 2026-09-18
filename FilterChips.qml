@@ -43,9 +43,10 @@ Item {
 
   Row {
     id: chips
+    // Left only. A Row sizes itself to its content; anchoring both edges would
+    // fix its width and clip the last chip instead of letting it run to the
+    // hint.
     anchors.left: parent.left
-    anchors.right: keyHint.left
-    anchors.rightMargin: Style.spacing.md
     spacing: Style.spacing.md
 
     Repeater {
@@ -115,8 +116,10 @@ Item {
   Text {
     id: keyHint
     anchors.right: parent.right
-    anchors.baseline: chips.top
-    anchors.baselineOffset: Style.font.caption
+    // Tops, not baselines. The chip labels sit at the top of their own Items,
+    // so this lines up with them, and a top anchor cannot be wrong about a
+    // baseline the Row does not really have.
+    anchors.top: chips.top
     visible: root.options.length > 0
     text: "f"
     color: root._tertiary
