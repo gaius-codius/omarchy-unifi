@@ -1112,12 +1112,22 @@ ShellRoot {
         // The panel, not just the model. A binding that dropped the headline
         // would leave every assertion above green.
         //
-        // The timestamp rides in `PanelHero`'s `detail`, which is drawn as
-        // given — only its `meta` line is upper-cased, and that now carries the
-        // verdict alone (Panel.qml's hero). Matched on the host's rendering,
-        // because the string the user reads is the subject here.
+        // The hero is the plugin's own now (Panel.qml), and draws both lines
+        // exactly as the model gives them. The verdict is matched in sentence
+        // case on purpose: the host's `PanelHero` upper-cased it, which is the
+        // treatment the design reserves for section headings, and a return to
+        // that hero would fail here rather than only on screen.
         checkPanelText("the panel shows the update time",
                        vm.lastUpdateText)
+        checkPanelText("the verdict is drawn in sentence case",
+                       vm.headlineWord)
+        var glyph = findByObjectName(panelWidget, "unifi-hero-glyph", 0)
+        var refresh = findByObjectName(panelWidget, "unifi-refresh", 0)
+        if (glyph === null || refresh === null) {
+          bad("the hero carries Refresh", "glyph=" + glyph + " refresh=" + refresh)
+        } else {
+          check("the hero carries Refresh", glyph.parent, refresh.parent)
+        }
       }
     })
 

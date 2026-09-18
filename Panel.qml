@@ -642,31 +642,101 @@ Panel {
           width: panelFlick.width
           spacing: Style.spacing.md
 
-          PanelHero {
+          // The hero, drawn here rather than by `Ui/PanelHero`, because the
+          // host's hero cannot draw the design this panel asked for. It renders
+          // `meta` bold, upper-cased and letter-spaced, and `detail` as a bold
+          // bordered pill in the top corner a size above `meta`
+          // (Ui/PanelHero.qml). So "Healthy" arrived as tracked caps — the
+          // treatment `SectionHeader` is meant to own alone — and "updated just
+          // now", the least important fact in the header, became the loudest
+          // thing in it. Neither is a property the host lets a caller turn off.
+          //
+          // Three lines: the site, the verdict at body size in full strength,
+          // and the timestamp at caption size in tertiary under it. Refresh is
+          // an icon button at the trailing edge, beside the timestamp it
+          // invalidates. It lives here rather than in `PanelHero`'s
+          // `trailingControl` for a reason that outlives the hero: that
+          // property is a `Component`, and an item built from a Component is
+          // out of reach of `focusedItem()`, which has to return it by id.
+          Item {
+            id: hero
             width: parent.width
-            title: root.vm.siteName === "" ? "UniFi" : root.vm.siteName
-            // The verdict and its timestamp, apart. `PanelHero` renders `meta`
-            // in tracked small caps — the loudest treatment in this panel — and
-            // `headline` gave it both facts as one string, so "UPDATED JUST
-            // NOW" shouted exactly as loud as "HEALTHY". The verdict keeps the
-            // emphasis; the timestamp drops to `detail`, which is the quieter
-            // line the hero already had and was not using.
-            //
-            // It also frees the tracked treatment for `SectionHeader`, which
-            // now owns it alone: one treatment, one meaning.
-            meta: root.vm.headlineWord
-            detail: root.vm.headlineDetail
-            foreground: root.foreground
-            fontFamily: root.fontFamily
-            iconComponent: Component {
-              UnifiGlyph {
-                objectName: "unifi-hero-glyph"
-                iconSize: Style.font.display
-                glyphColor: health.colorFor(root.vm.rendering)
-                badgeColor: root.urgent
-                fontFamily: root.fontFamily
-                showBadge: root.vm.rendering ? root.vm.rendering.badge === true : false
+            implicitHeight: Math.max(heroGlyph.implicitHeight, heroLabels.implicitHeight,
+                                     refreshButton.implicitHeight)
+
+            UnifiGlyph {
+              id: heroGlyph
+              objectName: "unifi-hero-glyph"
+              anchors.left: parent.left
+              anchors.verticalCenter: parent.verticalCenter
+              iconSize: Style.font.display
+              glyphColor: health.colorFor(root.vm.rendering)
+              badgeColor: root.urgent
+              fontFamily: root.fontFamily
+              showBadge: root.vm.rendering ? root.vm.rendering.badge === true : false
+            }
+
+            Column {
+              id: heroLabels
+              anchors.left: heroGlyph.right
+              anchors.leftMargin: Style.space(14)
+              anchors.right: refreshButton.left
+              anchors.rightMargin: Style.spacing.lg
+              anchors.verticalCenter: parent.verticalCenter
+              spacing: Style.space(2)
+
+              Text {
+                width: parent.width
+                text: root.vm.siteName === "" ? "UniFi" : root.vm.siteName
+                color: root.foreground
+                font.family: root.fontFamily
+                font.pixelSize: Style.font.title
+                font.bold: true
+                textFormat: Text.PlainText
+                elide: Text.ElideRight
               }
+              // The verdict: the one word the panel exists to deliver, on its
+              // own line, in sentence case, at full strength.
+              Text {
+                width: parent.width
+                visible: text !== ""
+                text: root.vm.headlineWord
+                color: root.foreground
+                font.family: root.fontFamily
+                font.pixelSize: Style.font.body
+                textFormat: Text.PlainText
+                elide: Text.ElideRight
+              }
+              Text {
+                width: parent.width
+                visible: text !== ""
+                text: root.vm.headlineDetail
+                color: root.dim
+                font.family: root.fontFamily
+                font.pixelSize: Style.font.caption
+                textFormat: Text.PlainText
+                elide: Text.ElideRight
+              }
+            }
+
+            // U+21BB rather than a Nerd Font codepoint, for the reason
+            // `UnifiGlyph` gives: a codepoint the user's font lacks is a tofu
+            // box, and Qt's fallback finds this one in any stock font. The
+            // tooltip is the button's name, since the glyph alone is not one.
+            Button {
+              id: refreshButton
+              objectName: "unifi-refresh"
+              anchors.right: parent.right
+              anchors.top: heroLabels.top
+              iconText: "\u21bb"
+              tooltipText: "Refresh"
+              enabled: root.vm.refreshEnabled
+              opacity: enabled ? 1.0 : 0.45
+              hasCursor: root.focusStop === ViewModel.FOCUS_REFRESH
+              foreground: root.foreground
+              fontFamily: root.fontFamily
+              bordered: true
+              onClicked: root.doRefresh()
             }
           }
 
@@ -750,54 +820,6 @@ Panel {
               }
           }
 
-          // --- the two actions (REQ-011, REQ-012, UX-008) -------------------
-          //
-          // ABOVE the content, not below it.
-          //
-          // They were the last children of a scrolling column, under Details,
-          // under a list that may be 320 px tall in a panel capped at 560 — so
-          // on two of the three pages neither button was on screen, and the
-          // shipped Clients screenshot shows exactly that. Someone opening the
-          // panel to re-poll had to scroll past everything the stale poll
-          // produced in order to ask for a fresh one.
-          //
-          // Here they cost one row and Details (below) gives back five.
-          //
-          // The nicer version of this puts Refresh in `PanelHero`'s
-          // `trailingControl`, beside the timestamp it invalidates. That is
-          // left alone deliberately: this tree cannot run qmllint or Quickshell,
-          // the contract file records the property's NAME but not its type, and
-          // guessing wrong on a Component-versus-Item is a panel that fails to
-          // load rather than one that looks slightly off. Worth doing on a host
-          // where it can be checked.
-          Row {
-            spacing: Style.spacing.controlGap
-
-            Button {
-              id: refreshButton
-              text: "Refresh"
-              enabled: root.vm.refreshEnabled
-              opacity: enabled ? 1.0 : 0.45
-              hasCursor: root.focusStop === ViewModel.FOCUS_REFRESH
-              foreground: root.foreground
-              fontFamily: root.fontFamily
-              bordered: true
-              onClicked: root.doRefresh()
-            }
-
-            Button {
-              id: dashboardButton
-              text: "Open UniFi"
-              enabled: root.vm.dashboard ? root.vm.dashboard.accepted : false
-              opacity: enabled ? 1.0 : 0.45
-              hasCursor: root.focusStop === ViewModel.FOCUS_DASHBOARD
-              foreground: root.foreground
-              fontFamily: root.fontFamily
-              bordered: true
-              onClicked: root.openDashboard()
-            }
-          }
-
           // REQ-011: disabled WITH an explanatory label. A greyed button that
           // says nothing sends the user to look for a fault in the button.
           Text {
@@ -806,29 +828,6 @@ Panel {
             text: root.vm.refreshDisabledReason === ""
               ? "" : "Refresh is unavailable: " + root.vm.refreshDisabledReason
             color: root.dim
-            font.family: root.fontFamily
-            font.pixelSize: Style.font.caption
-            textFormat: Text.PlainText
-            wrapMode: Text.WordWrap
-          }
-
-          // REQ-012's disabled label, and UX-010's warning. The warning is a
-          // BINDING, not something raised on click, which is precisely what
-          // "rendered before the launch occurs" requires: it is on screen for
-          // as long as the URL is plain HTTP, whether or not anyone presses the
-          // button.
-          Text {
-            visible: text !== ""
-            width: parent.width
-            text: !root.vm.dashboard ? ""
-              : !root.vm.dashboard.accepted
-                ? "Open UniFi is unavailable: " + root.vm.dashboard.reason + "."
-                : root.vm.dashboard.warnPlainHttp
-                  ? "This dashboard URL is plain HTTP. Your session, including "
-                    + "anything you type into it, will not be encrypted."
-                  : ""
-            color: root.vm.dashboard && root.vm.dashboard.warnPlainHttp
-              ? root.urgent : root.dim
             font.family: root.fontFamily
             font.pixelSize: Style.font.caption
             textFormat: Text.PlainText
@@ -1033,46 +1032,71 @@ Panel {
           // `unconfigured` failure — the case with the least information and
           // the most need for it — still shows the same rows in the same
           // places.
+          // The one rule in the panel's own flow: it sits where the content
+          // stops and the chrome at the foot begins. Sections above it are
+          // separated by space alone.
           PanelSeparator { foreground: root.foreground }
 
-          // The heading is the control. Closed by default, and opened for you
-          // in any state that is not `ok` — where the controller host and the
-          // config generation stop being trivia and become the diagnosis.
-          // `sentence` is non-empty in exactly those states (see its binding
-          // above), so this reads the fact rather than re-deriving it.
+          // Two disclosures on one line, at tertiary. Details used to be a
+          // `SectionHeader` with a chevron at the far edge, which gave setup
+          // diagnostics the same heading as Uplink and Inventory; it is an
+          // affordance, and now looks like one.
+          //
+          // Details is closed by default and opened for you in any state that
+          // is not `ok` — where the controller host and the config generation
+          // stop being trivia and become the diagnosis. `sentence` is non-empty
+          // in exactly those states, so `detailsExpanded` reads the fact rather
+          // than re-deriving it.
+          //
+          // The keys work today and nothing said so — which is the same as them
+          // not working. `Ui/PanelKeyCatcher` maps the arrows AND hjkl,
+          // Tab/Shift-Tab, Enter, Space and Escape (PanelKeyCatcher.qml:51-83),
+          // and this panel adds "/", "f" and "?"; the legend names them.
           Item {
             width: parent.width
-            implicitHeight: detailsHeading.implicitHeight
+            implicitHeight: detailsToggle.implicitHeight
 
-            SectionHeader {
-              id: detailsHeading
-              anchors.left: parent.left
-              text: "Details"
-              foreground: root.foreground
-              fontFamily: root.fontFamily
-              emphasis: root.emphasis
-            }
+            // Points down when open, right when closed. Shapes rather than
+            // glyph names, for the reason `UnifiGlyph` gives: a codepoint the
+            // user's font lacks renders as a tofu box, and these two are in
+            // every font that has ever shipped.
             Text {
-              anchors.right: parent.right
-              anchors.baseline: detailsHeading.baseline
-              // Points down when open, right when closed. A shape rather than
-              // a glyph name, for the reason `UnifiGlyph` gives: a codepoint
-              // the user's font lacks renders as a tofu box, and these two are
-              // in every font that has ever shipped.
-              text: root.detailsExpanded ? "\u25be" : "\u25b8"
+              id: detailsToggle
+              anchors.left: parent.left
+              text: (root.detailsExpanded ? "\u25be" : "\u25b8") + "  Details"
               color: root.dim
               font.family: root.fontFamily
-              font.pixelSize: Style.font.caption
+              font.pixelSize: Style.font.bodySmall
               textFormat: Text.PlainText
+
+              MouseArea {
+                anchors.fill: parent
+                anchors.margins: -Style.spacing.xs
+                hoverEnabled: true
+                acceptedButtons: Qt.LeftButton
+                cursorShape: Qt.PointingHandCursor
+                onClicked: root.detailsOpen = !root.detailsOpen
+              }
             }
-            MouseArea {
-              anchors.fill: parent
-              anchors.leftMargin: -Style.spacing.xs
-              anchors.rightMargin: -Style.spacing.xs
-              hoverEnabled: true
-              acceptedButtons: Qt.LeftButton
-              cursorShape: Qt.PointingHandCursor
-              onClicked: root.detailsOpen = !root.detailsOpen
+
+            Text {
+              anchors.right: parent.right
+              anchors.baseline: detailsToggle.baseline
+              visible: root.vm.hasSnapshot
+              text: root.keysOpen ? "\u25be  keys" : "?  keys"
+              color: root.dim
+              font.family: root.fontFamily
+              font.pixelSize: Style.font.bodySmall
+              textFormat: Text.PlainText
+
+              MouseArea {
+                anchors.fill: parent
+                anchors.margins: -Style.spacing.xs
+                hoverEnabled: true
+                acceptedButtons: Qt.LeftButton
+                cursorShape: Qt.PointingHandCursor
+                onClicked: root.keysOpen = !root.keysOpen
+              }
             }
           }
 
@@ -1110,53 +1134,58 @@ Panel {
             wrapMode: Text.WordWrap
           }
 
-          // The keys work today and nothing said so — which is the same as
-          // them not working. `Ui/PanelKeyCatcher` maps the arrows AND hjkl,
-          // Tab/Shift-Tab, Enter, Space and Escape (PanelKeyCatcher.qml:51-83),
-          // and this panel adds "/" and "r"; none of it was discoverable.
-          //
-          // Tertiary weight and one line: an affordance, not a manual.
-          Column {
+          Text {
             width: parent.width
-            visible: root.vm.hasSnapshot
-            spacing: Style.spacing.xs
+            visible: root.keysOpen && root.vm.hasSnapshot
+            // `f` is named on both browse pages and on neither Overview,
+            // which has nothing to filter — a key named where it does nothing
+            // is worse than one that is not named.
+            text: root.browsing
+              ? "←→ pages  ·  ↑↓ select  ·  ⏎ open  ·  f filter  ·  / search  ·  Esc close"
+              : "←→ pages  ·  Tab move  ·  ⏎ activate  ·  / search  ·  Esc close"
+            color: root.dim
+            font.family: root.fontFamily
+            font.pixelSize: Style.font.caption
+            textFormat: Text.PlainText
+            wrapMode: Text.WordWrap
+          }
 
-            // One line at rest instead of two wrapped ones, and it is the
-            // control that opens the rest. The legend still exists for the
-            // newcomer who needs it and stops being furniture for everyone
-            // else.
-            Text {
-              text: root.keysOpen ? "\u25be  keys" : "?  keys"
-              color: root.dim
-              font.family: root.fontFamily
-              font.pixelSize: Style.font.caption
-              textFormat: Text.PlainText
+          // Last, below everything, because it is the one action that leaves the
+          // panel: reaching it should take a deliberate scroll, not a stray
+          // click on the way to Refresh.
+          Button {
+            id: dashboardButton
+            text: "Open UniFi  \u2197"
+            enabled: root.vm.dashboard ? root.vm.dashboard.accepted : false
+            opacity: enabled ? 1.0 : 0.45
+            hasCursor: root.focusStop === ViewModel.FOCUS_DASHBOARD
+            foreground: root.foreground
+            fontFamily: root.fontFamily
+            bordered: true
+            onClicked: root.openDashboard()
+          }
 
-              MouseArea {
-                anchors.fill: parent
-                anchors.margins: -Style.spacing.xs
-                hoverEnabled: true
-                acceptedButtons: Qt.LeftButton
-                cursorShape: Qt.PointingHandCursor
-                onClicked: root.keysOpen = !root.keysOpen
-              }
-            }
-
-            Text {
-              width: parent.width
-              visible: root.keysOpen
-              // `f` is named on both browse pages and on neither Overview,
-              // which has nothing to filter — a key named where it does nothing
-              // is worse than one that is not named.
-              text: root.browsing
-                ? "←→ pages  ·  ↑↓ select  ·  ⏎ open  ·  f filter  ·  / search  ·  Esc close"
-                : "←→ pages  ·  Tab move  ·  ⏎ activate  ·  / search  ·  Esc close"
-              color: root.dim
-              font.family: root.fontFamily
-              font.pixelSize: Style.font.caption
-              textFormat: Text.PlainText
-              wrapMode: Text.WordWrap
-            }
+          // REQ-012's disabled label, and UX-010's warning. The warning is a
+          // BINDING, not something raised on click, which is precisely what
+          // "rendered before the launch occurs" requires: it is on screen for
+          // as long as the URL is plain HTTP, whether or not anyone presses the
+          // button.
+          Text {
+            visible: text !== ""
+            width: parent.width
+            text: !root.vm.dashboard ? ""
+              : !root.vm.dashboard.accepted
+                ? "Open UniFi is unavailable: " + root.vm.dashboard.reason + "."
+                : root.vm.dashboard.warnPlainHttp
+                  ? "This dashboard URL is plain HTTP. Your session, including "
+                    + "anything you type into it, will not be encrypted."
+                  : ""
+            color: root.vm.dashboard && root.vm.dashboard.warnPlainHttp
+              ? root.urgent : root.dim
+            font.family: root.fontFamily
+            font.pixelSize: Style.font.caption
+            textFormat: Text.PlainText
+            wrapMode: Text.WordWrap
           }
 
         }

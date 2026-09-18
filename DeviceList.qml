@@ -52,7 +52,9 @@ Column {
   property bool active: true
   visible: active && (offline ? (listed > 0 || offline.summaryText !== "") : false)
 
-  PanelSeparator { foreground: root.foreground }
+  // No rule above this section. The panel keeps one, at its foot, where the
+  // content ends and the chrome begins; a rule per section was five lines of
+  // ink saying what the space between sections already says.
 
   // The heading belongs to the LIST, not to the section. Guarded on the rows
   // actually present rather than on the count, because a count with an empty
@@ -74,7 +76,11 @@ Column {
   Text {
     visible: text !== ""
     width: root.width
-    text: root.offline ? root.offline.summaryText : ""
+    // A check before the all-clear and nothing before a count: the mark is
+    // for the one reading that means "nothing to do". U+2713 is in the bar's
+    // own face, so it cannot arrive as a tofu box.
+    text: !root.offline || root.offline.summaryText === "" ? ""
+      : (root.offline.total === 0 ? "\u2713  " : "") + root.offline.summaryText
     color: root.dim
     font.family: root.fontFamily
     font.pixelSize: Style.font.bodySmall

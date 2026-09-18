@@ -72,8 +72,9 @@ The panel scrolls to the focused control. Leaving the search field returns
 keyboard navigation to the panel. `f` is printed beside the filter chips it
 operates; the full list above is behind **? keys** at the foot of the panel.
 
-**Refresh** and **Open UniFi** sit under the page chips, so they are reachable
-without scrolling. **Details** — site, controller, site id, helper version and
+**Refresh** is the ↻ button beside the timestamp in the panel's header.
+**Open UniFi** is the last thing in the panel, because it is the one action that
+leaves it. **Details** — site, controller, site id, helper version and
 configuration generation — is collapsed by default and opens itself whenever
 the panel is reporting a problem.
 
