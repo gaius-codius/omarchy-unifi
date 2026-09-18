@@ -864,6 +864,7 @@ Panel {
             foreground: root.foreground
             urgent: root.urgent
             fontFamily: root.fontFamily
+            emphasis: root.emphasis
             // REQ-B10a / AC-B19. The Overview count row is an entry point into
             // a filtered Devices page. The role value travels with the row from
             // `ViewModel.countRows`, so nothing between here and there
@@ -880,6 +881,7 @@ Panel {
             vm: root.vm
             foreground: root.foreground
             fontFamily: root.fontFamily
+            emphasis: root.emphasis
           }
 
           WarningList {
@@ -887,6 +889,7 @@ Panel {
             vm: root.vm
             foreground: root.foreground
             fontFamily: root.fontFamily
+            emphasis: root.emphasis
           }
 
           // AC-052. Rendered as "unknown" rather than omitted, so an
