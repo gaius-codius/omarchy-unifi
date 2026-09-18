@@ -7,7 +7,6 @@
 // once. If a number is being computed in this file, it is in the wrong file.
 import QtQuick
 import qs.Commons
-import qs.Ui
 
 Column {
   id: root
@@ -21,49 +20,127 @@ Column {
   // to turn into a filtered Devices page. This component does not know what a
   // page is, which is why it emits rather than navigating.
   signal roleActivated(string role)
-  // Blended toward the background rather than darkened, so it mutes on a light
-  // theme too. The formula is `Emphasis.qml`'s `level(0.52)`; this component is
-  // not given the whole scale because one level is all it uses.
-  readonly property color dim: Qt.tint(Color.background,
-    Qt.rgba(foreground.r, foreground.g, foreground.b, 0.52))
+  // "Connected clients" and "Adopted devices" are entry points too: each opens
+  // its own page, unfiltered, so the list under the pointer is the number the
+  // user just clicked. `view` is "clients" or "devices".
+  signal pageActivated(string view)
+  // A pointer over Inventory row `index` (drawing order), in scene
+  // coordinates, for the panel to move its cursor with — as `BrowseRow`'s
+  // `hoverRequested` does on a browse page.
+  signal rowHovered(int index, point at)
+  // The panel's scale, handed down rather than rebuilt. This was a local copy
+  // of `Emphasis.qml`'s `level(0.52)` — "one level is all it uses" was true,
+  // and still made this the third file a change to the scale had to be made
+  // in. The contrast fix that moved tertiary to 0.62 would have applied to
+  // two thirds of the panel and looked, from inside the panel, like it had
+  // worked.
+  property var emphasis: null
+  readonly property color dim: emphasis ? emphasis.tertiary : foreground
 
   readonly property var model: vm ? vm : null
 
-  spacing: Style.spacing.md
+  // SPEC-AMD-13. Overview's list stop is the Inventory rows. The panel owns
+  // the cursor, as it owns the browse pages' cursors; this file draws it and
+  // knows what each row does. -1 is "the list stop does not have focus".
+  property int cursorIndex: -1
+  readonly property Item inventoryItem: inventory
 
-  // --- REQ-008 / REQ-008a: the uplink -------------------------------------
-  PanelSectionHeader {
-    text: "Uplink"
-    foreground: root.foreground
-    fontFamily: root.fontFamily
+  // Row `index` in drawing order: the two totals, then the role rows.
+  function activateRow(index) {
+    if (index === 0) { pageActivated("clients"); return }
+    if (index === 1) { pageActivated("devices"); return }
+    var rows = vm ? vm.countRows : []
+    if (index - 2 >= 0 && index - 2 < rows.length) roleActivated(rows[index - 2].role)
   }
 
-  Repeater {
-    model: root.vm ? root.vm.wanRows : []
-    delegate: Item {
-      required property var modelData
-      width: root.width
-      implicitHeight: Math.max(wanLabel.implicitHeight, wanValue.implicitHeight)
+  // The section rhythm, and why there are no rules between these blocks.
+  //
+  // Every section used to arrive with its own `PanelSeparator`, spaced by the
+  // same `spacing.md` that separated the rows INSIDE it. So the gaps carried no
+  // information — a row break and a section break measured the same — and five
+  // horizontal rules in a 560 px popup spent a divider that is only strong
+  // while it is rare.
+  //
+  // Now: `xxl` between sections, a small step within them, and no rules at all here. The
+  // grouping is done by the space and by the heading treatment
+  // (`SectionHeader.qml`). The rules that survive in this panel are the two
+  // where the KIND of content changes — Warnings, and Details — and they mean
+  // something again.
+  spacing: Style.spacing.xxl
 
-      Text {
-        id: wanLabel
+  // --- REQ-008 / REQ-008a: the uplink -------------------------------------
+  Column {
+    width: root.width
+    spacing: Style.spacing.md
+
+    // The heading, and on a single-gateway site the gateway's model beside it.
+    //
+    // That model name is the ONE thing the Gateways section below adds when
+    // there is only one gateway to attribute the numbers to, so it comes up
+    // here and the section goes away. It is drawn as its own Text rather than
+    // appended to the heading's string because `SectionHeader` upper-cases
+    // what it is given, and "UDM-PRO" is not what the controller calls it.
+    Item {
+      width: parent.width
+      implicitHeight: uplinkHeading.implicitHeight
+
+      SectionHeader {
+        id: uplinkHeading
         anchors.left: parent.left
-        anchors.verticalCenter: parent.verticalCenter
-        text: modelData.label
+        text: "Uplink"
+        foreground: root.foreground
+        fontFamily: root.fontFamily
+        emphasis: root.emphasis
+      }
+      // Read as part of the heading — "UPLINK · Gateway · UDM-Pro" — so it
+      // sits beside it rather than out at the far edge, where it read as a
+      // value in a label/value row. The NAME stays, because REQ-008a lists
+      // every gateway individually and on a one-gateway site this is that
+      // listing; the model follows it when it says something the name does
+      // not (`identityText`, decided in the model), which is what the design
+      // wanted the heading to carry.
+      Text {
+        anchors.left: uplinkHeading.right
+        anchors.right: parent.right
+        anchors.baseline: uplinkHeading.baseline
+        visible: text !== ""
+        text: (root.vm && root.vm.gatewayRows.length === 1)
+          ? "  \u00b7  " + root.vm.gatewayRows[0].identityText : ""
         color: root.dim
         font.family: root.fontFamily
-        font.pixelSize: Style.font.bodySmall
+        font.pixelSize: Style.font.caption
         textFormat: Text.PlainText
+        elide: Text.ElideRight
       }
-      Text {
-        id: wanValue
-        anchors.right: parent.right
-        anchors.verticalCenter: parent.verticalCenter
-        text: modelData.value
-        color: root.foreground
-        font.family: root.fontFamily
-        font.pixelSize: Style.font.bodySmall
-        textFormat: Text.PlainText
+    }
+
+    Repeater {
+      model: root.vm ? root.vm.wanRows : []
+      delegate: Item {
+        required property var modelData
+        width: root.width
+        implicitHeight: Math.max(wanLabel.implicitHeight, wanValue.implicitHeight)
+
+        Text {
+          id: wanLabel
+          anchors.left: parent.left
+          anchors.verticalCenter: parent.verticalCenter
+          text: modelData.label
+          color: root.dim
+          font.family: root.fontFamily
+          font.pixelSize: Style.font.body
+          textFormat: Text.PlainText
+        }
+        Text {
+          id: wanValue
+          anchors.right: parent.right
+          anchors.verticalCenter: parent.verticalCenter
+          text: modelData.value
+          color: root.foreground
+          font.family: root.fontFamily
+          font.pixelSize: Style.font.body
+          textFormat: Text.PlainText
+        }
       }
     }
   }
@@ -74,23 +151,25 @@ Column {
   // aggregate status. On a multi-gateway site those two are not the same fact,
   // so the list is not a nicety: without it "Uptime 4d" over "WAN Degraded" is
   // unattributable.
-  PanelSeparator {
-    visible: gatewayList.visible
-    foreground: root.foreground
-  }
-
-  PanelSectionHeader {
-    visible: gatewayList.visible
-    text: "Gateways"
-    foreground: root.foreground
-    fontFamily: root.fontFamily
-  }
-
+  //
+  // Which is exactly why it is gated at MORE THAN ONE. With a single gateway
+  // there is nothing to attribute — the aggregate status and that gateway's
+  // status are the same fact — and the block reprinted uptime, download and
+  // upload verbatim, 90 px under the identical figures in Uplink. Its only
+  // unique contribution was the model name, which now sits in the Uplink
+  // heading. Four rows back, on the common configuration, with nothing lost.
   Column {
     id: gatewayList
     width: root.width
     spacing: Style.spacing.xs
-    visible: root.vm ? root.vm.gatewayRows.length > 0 : false
+    visible: root.vm ? root.vm.gatewayRows.length > 1 : false
+
+    SectionHeader {
+      text: "Gateways"
+      foreground: root.foreground
+      fontFamily: root.fontFamily
+      emphasis: root.emphasis
+    }
 
     Repeater {
       model: root.vm ? root.vm.gatewayRows : []
@@ -100,7 +179,7 @@ Column {
         spacing: 0
 
         Text {
-          text: modelData.nameText + "  ·  " + modelData.classText
+          text: modelData.nameText + "  \u00b7  " + modelData.classText
           color: root.foreground
           font.family: root.fontFamily
           font.pixelSize: Style.font.bodySmall
@@ -129,120 +208,180 @@ Column {
   }
 
   // --- REQ-009: clients, devices, and the role rows -------------------------
-  PanelSeparator { foreground: root.foreground }
-
-  PanelSectionHeader {
-    text: "Devices"
-    foreground: root.foreground
-    fontFamily: root.fontFamily
-  }
-
-  Item {
+  Column {
+    id: inventory
     width: root.width
-    implicitHeight: Math.max(clientsLabel.implicitHeight, clientsValue.implicitHeight)
-    Text {
-      id: clientsLabel
-      anchors.left: parent.left
-      text: "Connected clients"
-      color: root.dim
-      font.family: root.fontFamily
-      font.pixelSize: Style.font.bodySmall
-      textFormat: Text.PlainText
+    spacing: Style.spacing.xs
+
+    SectionHeader {
+      text: "Inventory"
+      foreground: root.foreground
+      fontFamily: root.fontFamily
+      emphasis: root.emphasis
     }
-    Text {
-      id: clientsValue
-      anchors.right: parent.right
-      text: root.vm ? root.vm.clientsText : "unknown"
-      color: root.foreground
-      font.family: root.fontFamily
-      font.pixelSize: Style.font.bodySmall
-      textFormat: Text.PlainText
+
+    // Every row in this section navigates, and they are all one component so
+    // they cannot drift apart in how they look under the pointer. The two
+    // counts open their pages; the role rows open Devices filtered to a role.
+    NavRow {
+      foreground: root.foreground
+      dim: root.dim
+      fontFamily: root.fontFamily
+      label: "Connected clients"
+      hasCursor: root.cursorIndex === 0
+      listHasCursor: root.cursorIndex >= 0
+      onHovered: function (at) { root.rowHovered(0, at) }
+      valueText: root.vm ? root.vm.clientsText : "unknown"
+      onActivated: root.pageActivated("clients")
+    }
+
+    NavRow {
+      foreground: root.foreground
+      dim: root.dim
+      fontFamily: root.fontFamily
+      label: "Adopted devices"
+      hasCursor: root.cursorIndex === 1
+      listHasCursor: root.cursorIndex >= 0
+      onHovered: function (at) { root.rowHovered(1, at) }
+      valueText: root.vm ? root.vm.devicesTotalText : "unknown"
+      onActivated: root.pageActivated("devices")
+    }
+
+    // REQ-009 / REQ-B10a. The role rows. They used to be a two-line block — a
+    // foreground label with the class cells in a Row underneath — which put two
+    // opposite emphasis rules in one section, and only that kind was clickable.
+    // `valueText` composes the cells (ViewModel.js) so the delegate stays a
+    // delegate, and each role costs one line instead of two.
+    Repeater {
+      model: root.vm ? root.vm.countRows : []
+      delegate: NavRow {
+        required property var modelData
+        required property int index
+        hasCursor: root.cursorIndex === index + 2
+        listHasCursor: root.cursorIndex >= 0
+        onHovered: function (at) { root.rowHovered(index + 2, at) }
+        foreground: root.foreground
+        dim: root.dim
+        fontFamily: root.fontFamily
+        label: modelData.label
+        valueText: modelData.valueText
+        onActivated: root.roleActivated(modelData.role)
+      }
     }
   }
 
-  Item {
-    width: root.width
-    implicitHeight: Math.max(totalLabel.implicitHeight, totalValue.implicitHeight)
+  // One Overview row that goes somewhere: label left, value right, a resting
+  // chevron, and the hover rectangle `DetailRows` draws.
+  component NavRow: Item {
+    id: roleRow
+    // Passed in rather than read from `root`: an inline component does not
+    // share the enclosing file's id scope.
+    property color foreground: Color.foreground
+    property color dim: foreground
+    property string fontFamily: Style.font.family
+    property string label: ""
+    property string valueText: ""
+    // The keyboard's cursor, drawn as the pointer's hover is: this is the row
+    // Enter opens.
+    property bool hasCursor: false
+    property bool listHasCursor: false
+    signal activated()
+    signal hovered(point at)
+    width: parent ? parent.width : 0
+    // Padded, so the hover rectangle has room around the text instead of
+    // sitting on its ascenders, and the rows get the same air the Uplink rows
+    // take from their column's spacing.
+    implicitHeight: Math.max(roleLabel.implicitHeight, roleValue.implicitHeight)
+      + 2 * Style.spacing.xs
+    height: implicitHeight
+
+    // The resting and hover affordances this row never had. It is the only
+    // navigation in the panel besides the page chips, and it announced itself
+    // with a cursor shape — which nobody sees until they are already on it.
+    // Meanwhile `DetailRows`, whose rows merely copy a string, drew a hover
+    // rectangle. Same rectangle, same token, same geometry as that one, so a
+    // row under the pointer here reads exactly as it does there.
+    Rectangle {
+      anchors.fill: parent
+      anchors.leftMargin: -Style.spacing.xs
+      anchors.rightMargin: -Style.spacing.xs
+      radius: Style.cornerRadius
+      color: Style.controlFill(false, true, roleRow.foreground, roleRow.foreground)
+      // One row reads as selected, never two: while the list stop has the
+      // cursor the fill is the cursor's (a moving pointer takes it, so it is
+      // still under the pointer when the hand is what is driving). Otherwise
+      // it is the hover, as `DetailRows` draws it.
+      visible: roleRow.hasCursor || (roleArea.containsMouse && !roleRow.listHasCursor)
+    }
+
     Text {
-      id: totalLabel
+      id: roleLabel
       anchors.left: parent.left
-      text: "Adopted devices"
-      color: root.dim
-      font.family: root.fontFamily
-      font.pixelSize: Style.font.bodySmall
+      anchors.right: roleValue.left
+      anchors.rightMargin: Style.spacing.md
+      anchors.verticalCenter: parent.verticalCenter
+      text: roleRow.label
+      color: roleRow.dim
+      font.family: roleRow.fontFamily
+      font.pixelSize: Style.font.body
       textFormat: Text.PlainText
+      elide: Text.ElideRight
     }
+
     Text {
-      id: totalValue
-      anchors.right: parent.right
-      text: root.vm ? root.vm.devicesTotalText : "unknown"
-      color: root.foreground
-      font.family: root.fontFamily
-      font.pixelSize: Style.font.bodySmall
+      id: roleValue
+      anchors.right: chevron.left
+      anchors.rightMargin: Style.spacing.md
+      anchors.verticalCenter: parent.verticalCenter
+      // SPEC-AMD-3: every cell behind this string is non-zero, because
+      // `countRows` drops the empty classes. The colour is unconditional for
+      // that reason and not because the distinction stopped mattering — a
+      // zero arriving here would be a defect in ViewModel.js, and dimming it
+      // would hide that.
+      text: roleRow.valueText
+      color: roleRow.foreground
+      font.family: roleRow.fontFamily
+      font.pixelSize: Style.font.body
       textFormat: Text.PlainText
     }
-  }
 
-  Repeater {
-    model: root.vm ? root.vm.countRows : []
-    delegate: Item {
-      id: roleRow
-      required property var modelData
-      width: root.width
-      implicitHeight: roleColumn.implicitHeight
-      height: implicitHeight
+    // The resting half of the affordance: the row says it goes somewhere
+    // before the pointer arrives, and keeps saying it for a keyboard user who
+    // never produces a hover at all. Tertiary, because it is a mark about the
+    // row rather than part of the reading.
+    Text {
+      id: chevron
+      anchors.right: parent.right
+      anchors.baseline: roleValue.baseline
+      text: "\u203a"
+      color: roleRow.dim
+      font.family: roleRow.fontFamily
+      font.pixelSize: Style.font.body
+      textFormat: Text.PlainText
+    }
 
-      Column {
-      id: roleColumn
-      width: parent.width
-      spacing: 0
-
-      Text {
-        text: roleRow.modelData.label
-        color: root.foreground
-        font.family: root.fontFamily
-        font.pixelSize: Style.font.bodySmall
-        textFormat: Text.PlainText
+    // REQ-B10a, and its extension to the two count rows: activating the row
+    // is the caller's decision (`activated`), so the role rows can carry the
+    // role value from `ViewModel.countRows` untranslated and the count rows can
+    // name a page.
+    //
+    // A `MouseArea`, as the host's own panel rows use
+    // (bluetooth/Panel.qml:933-957). §7's "never write a MouseArea" is about
+    // BAR BUTTONS; `Ui/WidgetButton` is additionally unusable for an
+    // invisible target, being `visible: hasVisualContent || keepSpace` with
+    // `hasVisualContent: text !== ""`.
+    MouseArea {
+      id: roleArea
+      anchors.fill: parent
+      hoverEnabled: true
+      acceptedButtons: Qt.LeftButton
+      cursorShape: Qt.PointingHandCursor
+      onClicked: roleRow.activated()
+      onContainsMouseChanged: if (containsMouse) {
+        roleRow.hovered(mapToItem(null, mouseX, mouseY))
       }
-      Row {
-        spacing: Style.spacing.lg
-        Repeater {
-          model: roleRow.modelData.cells
-          delegate: Text {
-            required property var modelData
-            text: modelData.value + " " + modelData.label
-            // SPEC-AMD-3: every cell that reaches here is non-zero, because
-            // `countRows` drops the empty classes. The colour is unconditional
-            // for that reason and not because the distinction stopped
-            // mattering — a zero cell arriving here would be a defect in
-            // ViewModel.js, and dimming it would hide that.
-            color: root.foreground
-            font.family: root.fontFamily
-            font.pixelSize: Style.font.caption
-            textFormat: Text.PlainText
-          }
-        }
-      }
-      }
-
-      // REQ-B10a. The row is an entry point: activating it opens Devices
-      // filtered to this role. `modelData.role` carries the value
-      // `devices[].roles` uses — decided in ViewModel.js, because the count
-      // buckets are plural nouns and the roles are the API's feature names, and
-      // a view translating between them is the one place a typo produces an
-      // always-empty list rather than an error.
-      //
-      // A `MouseArea`, as the host's own panel rows use
-      // (bluetooth/Panel.qml:933-957). §7's "never write a MouseArea" is about
-      // BAR BUTTONS; `Ui/WidgetButton` is additionally unusable for an
-      // invisible target, being `visible: hasVisualContent || keepSpace` with
-      // `hasVisualContent: text !== ""`.
-      MouseArea {
-        anchors.fill: parent
-        hoverEnabled: true
-        acceptedButtons: Qt.LeftButton
-        cursorShape: Qt.PointingHandCursor
-        onClicked: root.roleActivated(roleRow.modelData.role)
+      onPositionChanged: function (mouse) {
+        roleRow.hovered(mapToItem(null, mouse.x, mouse.y))
       }
     }
   }

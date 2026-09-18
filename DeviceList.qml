@@ -19,23 +19,73 @@ Column {
   property var vm: null
   property color foreground: Color.foreground
   property string fontFamily: Style.font.family
-  // Blended toward the background rather than darkened, so it mutes on a light
-  // theme too. The formula is `Emphasis.qml`'s `level(0.52)`; this component is
-  // not given the whole scale because one level is all it uses.
-  readonly property color dim: Qt.tint(Color.background,
-    Qt.rgba(foreground.r, foreground.g, foreground.b, 0.52))
+  // The panel's scale, handed down rather than rebuilt. This was a local copy
+  // of `Emphasis.qml`'s `level(0.52)` — "one level is all it uses" was true,
+  // and still made this the third file a change to the scale had to be made
+  // in. The contrast fix that moved tertiary to 0.62 would have applied to
+  // two thirds of the panel and looked, from inside the panel, like it had
+  // worked.
+  property var emphasis: null
+  readonly property color dim: emphasis ? emphasis.tertiary : foreground
 
   readonly property var offline: vm && vm.offline ? vm.offline : null
 
+  readonly property int listed: offline ? offline.devices.length : 0
+
   spacing: Style.spacing.xs
-  visible: offline ? (offline.devices.length > 0 || offline.total > 0) : false
+  // Present whenever there is a reading, whatever the reading says. The
+  // section's whole job is to answer "is anything broken?", and it used to
+  // answer it by not being there — which is also what a rendering fault and a
+  // poll that never arrived look like. With no snapshot it is hidden, because
+  // then nothing HAS been checked and an all-clear would be a claim; `vm`
+  // decides that by leaving `summaryText` empty (ViewModel.js).
+  // `active`, and not a second `visible` binding, because a `visible` set at
+  // the CALL SITE replaces the one written here — a derived binding wins over
+  // the base's. Panel.qml binds `visible: !root.browsing` on this instance, so
+  // the guard this file used to carry never ran at all, and the section drew
+  // its heading on every Overview whatever the reading said. That is the empty
+  // "Offline and impaired" heading in the shipped screenshot: not a mistaken
+  // condition, a condition that was never evaluated.
+  //
+  // The two facts now live where each belongs. The panel owns "is this page
+  // showing"; this file owns "has this section anything to say".
+  property bool active: true
+  visible: active && (offline ? (listed > 0 || offline.summaryText !== "") : false)
 
-  PanelSeparator { foreground: root.foreground }
+  // No rule above this section. The panel keeps one, at its foot, where the
+  // content ends and the chrome begins; a rule per section was five lines of
+  // ink saying what the space between sections already says.
 
-  PanelSectionHeader {
+  // The heading belongs to the LIST, not to the section. Guarded on the rows
+  // actually present rather than on the count, because a count with an empty
+  // array — which is what the shipped Overview screenshot shows — drew a rule,
+  // a heading, and nothing under it. The count is still reported; it is
+  // reported as a sentence, below, instead of as a heading over emptiness.
+  SectionHeader {
+    visible: root.listed > 0
     text: "Offline and impaired"
     foreground: root.foreground
     fontFamily: root.fontFamily
+    emphasis: root.emphasis
+  }
+
+  // Said out loud, in the same place on screen, whether the answer is good or
+  // bad — so the reader confirms it rather than inferring it from a gap.
+  // Tertiary: it is reassurance when it reads "Nothing offline or impaired",
+  // and the list itself carries the weight when there is one.
+  Text {
+    visible: text !== ""
+    width: root.width
+    // A check before the all-clear and nothing before a count: the mark is
+    // for the one reading that means "nothing to do". U+2713 is in the bar's
+    // own face, so it cannot arrive as a tofu box.
+    text: !root.offline || root.offline.summaryText === "" ? ""
+      : (root.offline.total === 0 ? "\u2713  " : "") + root.offline.summaryText
+    color: root.dim
+    font.family: root.fontFamily
+    font.pixelSize: Style.font.bodySmall
+    textFormat: Text.PlainText
+    wrapMode: Text.WordWrap
   }
 
   Repeater {

@@ -11,7 +11,7 @@ condition in words.
 | Foreground with an urgent dot | Degraded |
 | Urgent colour | All reported gateways are down |
 | Dimmed | Unknown or stale reading |
-| Hollow ring in the opposite corner | The last refresh failed, but the displayed reading is still current |
+| Short bar in the opposite corner | The last refresh failed, but the displayed reading is still current |
 
 A refresh failure and a reported network problem are separate states. The
 [known gateway limitation](../README.md#before-you-install) can prevent the
@@ -20,13 +20,30 @@ A refresh failure and a reported network problem are separate states. The
 ## Browse devices and clients
 
 Overview shows the site's last update, device and client counts, available WAN
-metrics, offline or impaired devices, and warnings with searchable codes.
-Select a device-role count to open Devices filtered to that role.
+metrics, offline or impaired devices, and warnings with searchable codes. When
+nothing is offline it says so, rather than leaving the section out. Every row
+under Inventory opens a page: **Connected clients** opens Clients and
+**Adopted devices** opens Devices, both unfiltered, and a device-role count
+opens Devices filtered to that role. These rows carry a `›` and highlight
+under the pointer.
+
+The Gateways section appears only on sites with more than one gateway. With a
+single gateway its figures are the same ones Uplink already shows, so only its
+name is kept, beside the Uplink heading — with the model after it when the name
+doesn't already say it.
 
 Device rows expand to show firmware and update availability, addresses, CPU,
 memory, throughput, upstream and downstream connections, client counts, and
-port or radio information. Client rows show addresses, MAC addresses, access
-type and connection time. Availability depends on what the controller reports.
+port or radio information. Ports are drawn as one mark each — filled when the
+link is up, outlined when it is down, underlined when the port carries PoE —
+with the same counts written out beside them. Client rows show addresses, MAC
+addresses, access type and connection time. Availability depends on what the
+controller reports.
+
+A device's status word is printed only when it is not "Online", so a healthy
+list leaves that column empty and anything wrong is the only thing in it.
+Clients always show their connection type, because neither wired nor wireless
+is the expected value.
 
 Search matches text without regard to case; it doesn't use fuzzy matching.
 Devices filter by role, and Clients by connection type. Filters stay active
@@ -48,12 +65,25 @@ in expanded rows, not in logs, warnings or `status` output.
 | Left / Right | Switch pages |
 | `/` | Focus search |
 | `f` | Cycle the current page's filter |
-| Up / Down | Move through the list |
-| Enter | Expand a row |
+| Up / Down | Move through the list; elsewhere, move between controls |
+| Enter | Expand a row, or open an Inventory row on Overview |
+| `r` | Refresh |
+| `d` | Show or hide Details |
+| `?` | Show or hide the key legend |
 | Escape | Clear a search before closing the panel |
 
-The panel scrolls to the focused control. Leaving the search field returns
-keyboard navigation to the panel.
+The panel scrolls to the focused control. Controls that aren't on screen are
+skipped: before the first reading Tab moves between Refresh and Open UniFi
+only, the panel opens on Refresh, and the page and search keys do nothing. On
+Overview, `/` opens Devices with the caret in its search field. Leaving the search field returns
+keyboard navigation to the panel. The full list above is behind **? keys** at
+the foot of the panel.
+
+**Refresh** is the ↻ button beside the timestamp in the panel's header.
+**Open UniFi** is the last thing in the panel, because it is the one action that
+leaves it. **Details** — site, controller, site id, helper version and
+configuration generation — is collapsed by default and opens itself whenever
+the panel is reporting a problem; you can still close it.
 
 ## Widget settings
 

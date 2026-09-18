@@ -10,8 +10,13 @@
 // UX-003's entire requirement is that "the last refresh failed" be
 // distinguishable from "the site is confirmed bad":
 //
-//   filled dot,  bottom-right  -> REQ-001a's persistent degraded badge
-//   hollow ring, top-right     -> UX-003's refresh-failure affordance
+//   round dot,     bottom-right  -> REQ-001a's persistent degraded badge
+//   straight bar,  top-right     -> UX-003's refresh-failure affordance
+//
+// Different in KIND, not merely in fill. They were a dot and a hollow ring of
+// the same size, which at a 16 px bar icon differ by about three interior
+// pixels — a distinction the documentation had to explain in words for anyone
+// to see it.
 //
 // Colour is never the sole signal (UX-002): the tooltip and the panel state
 // both conditions in words, and this file is only the glance-able half.
@@ -69,21 +74,34 @@ Item {
     anchors.bottomMargin: -Math.round(height / 5)
   }
 
-  // UX-003. Hollow, and in the opposite corner, so it reads as "the last
-  // attempt failed" over whatever colour the glyph already carries — including
-  // over a green one, which is exactly the case REQ-004 exists for.
+  // UX-003. A BAR, not a ring.
+  //
+  // Drawing both affordances as shapes is right — a Rectangle cannot be missing
+  // from a font — but the two shapes chosen were a 5 px filled dot and a 5 px
+  // ring with a 1 px border, at a 16 px icon. Same size, same colour, same
+  // family, differing by about three interior pixels and which corner they sat
+  // in. That is not a distinction at bar scale, and the giveaway is that
+  // docs/usage.md has to spell out "hollow ring in the opposite corner" for a
+  // reader to have any chance of telling them apart.
+  //
+  // UX-003's entire requirement is that "the last refresh failed" be
+  // distinguishable from "the site is confirmed bad", so the two marks now
+  // differ in KIND: a round dot for the condition, a straight bar for the
+  // staleness. Shape survives a small size and a bad display in a way that
+  // fill does not, and the corners still differ as a second cue.
+  //
+  // Colour is still never the sole signal (UX-002): the tooltip and the panel
+  // state both conditions in words.
   Rectangle {
     id: refreshMark
     visible: root.showRefreshFailure
-    width: Math.max(4, Math.round(root.iconSize / 3))
-    height: width
-    radius: width / 2
-    color: "transparent"
-    border.width: Math.max(1, Math.round(width / 4))
-    border.color: root.badgeColor
+    width: Math.max(5, Math.round(root.iconSize / 2.2))
+    height: Math.max(2, Math.round(root.iconSize / 8))
+    radius: 0
+    color: root.badgeColor
     anchors.right: mark.right
     anchors.top: mark.top
-    anchors.rightMargin: -Math.round(width / 3)
-    anchors.topMargin: -Math.round(height / 5)
+    anchors.rightMargin: -Math.round(width / 4)
+    anchors.topMargin: -Math.round(height / 2)
   }
 }

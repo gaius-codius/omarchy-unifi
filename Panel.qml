@@ -66,7 +66,37 @@ Panel {
   // `ViewModel.js` as pure functions — a state machine reachable only through a
   // five-minute live harness is one that gets tested once. What is here is the
   // current stop and what each stop does when activated.
+  // Set, not bound. A binding to `homeFocus(focusState)` stayed live until
+  // the first assignment, so a panel opened while loading had Refresh
+  // selected and then moved it to the page chips the moment the first reading
+  // arrived — under a user about to press Enter. Where the panel opens is
+  // decided once, when it opens (`onOpenedChanged`, `resetBrowse`).
   property string focusStop: ViewModel.FOCUS_SEGMENTS
+
+  // What is on screen, as far as the stop list cares (SPEC-AMD-13). A stop
+  // that is not drawn is one Tab lands on with no ring and Enter does nothing
+  // on — the segmented control before the first snapshot, a list a search has
+  // emptied — so the stop list is built from this rather than from the page
+  // alone, and a change here moves a cursor that was on a stop that went away.
+  readonly property var focusState: ({
+    hasSnapshot: vm.hasSnapshot,
+    hasList: view === "overview" ? inventoryCount > 0
+      : (activeList ? activeList.rows.length > 0 : false)
+  })
+  onFocusStateChanged: {
+    var settled = ViewModel.settleFocus(view, focusStop, focusState)
+    if (settled !== focusStop) focusStop = settled
+  }
+
+  // The Inventory rows are Overview's list: two totals, then a row per role.
+  // Walked with Up/Down while the list stop has focus, opened with Enter,
+  // exactly as a browse page's rows are.
+  readonly property int inventoryCount: vm.hasSnapshot ? 2 + vm.countRows.length : 0
+  property int inventoryCursor: 0
+  // Kept on a row: a poll that drops a role would otherwise leave the cursor
+  // past the end, highlighting nothing, with Enter answering "empty".
+  onInventoryCountChanged: inventoryCursor = Math.max(0,
+    Math.min(inventoryCursor, inventoryCount - 1))
 
   // REQ-B10's view state, passed into `build` rather than held by it. The panel
   // owns it because it is the panel's: which page is showing, what is typed in
@@ -101,6 +131,34 @@ Panel {
   // colours from the bar it belongs to (`foreground` above does the same), so a
   // scale built from `Color.foreground` would drift from everything around it.
   Emphasis { id: emphasisTokens; foreground: root.foreground }
+
+  // The two disclosures at the foot of the panel (REQ-B10's view state, same
+  // rule: the panel owns what the panel shows).
+  //
+  // Both were permanent blocks. Details is five rows of site id, controller
+  // host, helper version and config generation — read once, during setup, and
+  // never again — sitting between the content and the actions on every page.
+  // The keyboard legend is two wrapped lines naming keys, at the very bottom:
+  // too far down for the newcomer who needs it, always present for the expert
+  // who does not, and the only place `f` was ever mentioned.
+  //
+  // Reset with the rest of the browse state when the panel closes, because
+  // reopening should answer the health question rather than resume a rummage.
+  //
+  // Details has a default and a choice. The default is open in any state that
+  // is not `ok` — `sentence` is non-empty in exactly those — and closed
+  // otherwise; `detailsChoice` is the user's click or `d`, null until they
+  // make one. A plain `detailsOpen || sentence !== ""` could not be closed
+  // during an error, and the click it swallowed resurfaced as Details open
+  // once the error cleared. The choice is dropped when the sentence changes,
+  // so a new error still opens it.
+  property var detailsChoice: null
+  property bool keysOpen: false
+  readonly property bool detailsExpanded: detailsChoice !== null
+    ? detailsChoice : vm.sentence !== ""
+  readonly property string currentSentence: vm.sentence
+  onCurrentSentenceChanged: detailsChoice = null
+  function toggleDetails() { detailsChoice = !detailsExpanded }
 
   // REQ-B24 (SPEC-AMD-6). The key of the value most recently copied, so the row
   // that was clicked can confirm it. Cleared by everything the user might do
@@ -282,7 +340,7 @@ Panel {
 
   function moveFocus(direction) {
     if (direction === 0) return
-    focusStop = ViewModel.nextFocus(view, focusStop, direction)
+    focusStop = ViewModel.nextFocus(view, focusStop, direction, focusState)
   }
 
   function moveCursor(dx, dy) {
@@ -298,6 +356,10 @@ Panel {
     // applicable here"; a key that quietly moves your focus and then changes
     // the page reads as broken.
     if (dx !== 0) {
+      // SPEC-AMD-13: before the first reading there are no pages to move
+      // between — the chips are hidden, and a page opened here would be an
+      // empty one with the cursor on a stop Tab does not have.
+      if (!vm.hasSnapshot) return
       setView(ViewModel.nextBrowseView(view, dx))
       return
     }
@@ -319,21 +381,62 @@ Panel {
   // caret is in the search field with the mouse merely resting, and again when
   // the freshness tick rebuilds the delegates under a hand that has not moved.
   // Only the first of the three is a reason to take the ring off the control
-  // the keyboard is on. The cursor follows all three, because pointing at a row
-  // and pressing Enter must still open the row that was pointed at.
+  // the keyboard is on — and only the first moves the CURSOR, too. The cursor
+  // used to follow all three, so Down three times from the row under a resting
+  // pointer was undone by the next tick's rebuild, and Enter opened the row
+  // the pointer happened to be over. A pointer that moves is still followed,
+  // and the rows report every movement, so pointing and pressing Enter opens
+  // the row pointed at.
   function hoverList(index, at) {
     if (!browsing) return
+    var moved = ViewModel.pointerMoved(lastHoverPoint, at)
     focusStop = ViewModel.focusAfterHover(focusStop, searchHasFocus,
                                           lastHoverPoint, at)
     // Recorded whichever way that went. It is where the pointer IS, not what
     // was decided about it, and a position dropped on a refused hover is a
     // position the next poll's re-delivered hover would read as a movement.
     lastHoverPoint = at
+    if (!moved) return
     if (view === "devices") deviceCursor = index
     else clientCursor = index
   }
 
+  // The same rule for Overview's Inventory rows, which are its list
+  // (SPEC-AMD-13): a moving pointer takes the cursor, so the row under it is
+  // the one Enter opens and only one row reads as selected.
+  function hoverInventory(index, at) {
+    if (browsing) return
+    var moved = ViewModel.pointerMoved(lastHoverPoint, at)
+    focusStop = ViewModel.focusAfterHover(focusStop, false, lastHoverPoint, at)
+    lastHoverPoint = at
+    if (moved) inventoryCursor = index
+  }
+
+  // The page an Inventory row opens, with nothing left over from an earlier
+  // visit hiding what the row counted: its search cleared, and the cursor on
+  // the list if the list has rows (on the search field if it has none).
+  function openFromInventory(page, role) {
+    if (page === "clients") {
+      clientBrowse.setSearchText("")
+      clientSearch = ""
+      typeFilter = ""
+      clientCursor = 0
+      setView("clients")
+    } else {
+      deviceBrowse.setSearchText("")
+      deviceSearch = ""
+      deviceCursor = 0
+      setView("devices", role)
+    }
+    focusStop = ViewModel.settleFocus(view, ViewModel.FOCUS_LIST, focusState)
+  }
+
   function moveListCursor(delta) {
+    if (view === "overview") {
+      if (inventoryCount === 0) return
+      inventoryCursor = Math.min(inventoryCount - 1, Math.max(0, inventoryCursor + delta))
+      return
+    }
     if (!activeList) return
     var count = activeList.rows.length
     if (count === 0) return
@@ -359,7 +462,7 @@ Panel {
     var wanted = ViewModel.browseView(next)
     view = wanted
     if (role !== undefined) roleFilter = role
-    focusStop = ViewModel.focusAfterViewChange(wanted, focusStop)
+    focusStop = ViewModel.focusAfterViewChange(wanted, focusStop, focusState)
   }
 
   // Which axis the page on screen filters on. Overview has none.
@@ -395,6 +498,8 @@ Panel {
     if (focusStop === ViewModel.FOCUS_SEGMENTS) return segmentsFrame
     if (focusStop === ViewModel.FOCUS_REFRESH) return refreshButton
     if (focusStop === ViewModel.FOCUS_DASHBOARD) return dashboardButton
+    if (view === "overview" && focusStop === ViewModel.FOCUS_LIST)
+      return statusPanel.inventoryItem
     var browse = activeBrowse()
     if (browse === null) return null
     if (focusStop === ViewModel.FOCUS_SEARCH) return browse.searchItem
@@ -437,6 +542,11 @@ Panel {
       var field = activeBrowse()
       if (field) field.focusSearch()
       return "searching"
+    }
+    if (focusStop === ViewModel.FOCUS_LIST && view === "overview") {
+      if (inventoryCursor >= inventoryCount) return "empty"
+      statusPanel.activateRow(inventoryCursor)
+      return "navigated"
     }
     if (focusStop === ViewModel.FOCUS_LIST) {
       if (!activeList || activeCursor >= activeList.rows.length) return "empty"
@@ -497,10 +607,18 @@ Panel {
   // REQ-B10: the panel returns to Overview and clears both searches when it
   // closes. The widget's job is health, and reopening it should answer that
   // question rather than resume a browse.
-  onOpenedChanged: if (!opened) resetBrowse()
+  // Opening decides where the cursor starts, from what is on screen NOW —
+  // not from what was when the panel last closed.
+  onOpenedChanged: {
+    if (!opened) resetBrowse()
+    else focusStop = ViewModel.homeFocus(focusState)
+  }
+  Component.onCompleted: focusStop = ViewModel.homeFocus(focusState)
 
   function resetBrowse() {
     copiedKey = ""
+    detailsChoice = null
+    keysOpen = false
     clearSearch()
     view = "overview"
     roleFilter = ""
@@ -509,7 +627,8 @@ Panel {
     expandedClientId = ""
     deviceCursor = 0
     clientCursor = 0
-    focusStop = ViewModel.FOCUS_SEGMENTS
+    inventoryCursor = 0
+    focusStop = ViewModel.homeFocus(focusState)
     // Forgotten with the rest of the browse state. A position held across a
     // close would be compared against the pointer's position in a session that
     // has nothing to do with it — and if the panel reopened under a motionless
@@ -590,6 +709,8 @@ Panel {
         // panel that refreshed on a keystroke meant for the search box would be
         // both surprising and a request the user did not make.
         if (t === "/") {
+          // Nothing to search before the first reading (SPEC-AMD-13).
+          if (!root.vm.hasSnapshot) return
           if (!root.browsing) root.setView("devices")
           root.focusStop = ViewModel.FOCUS_SEARCH
           var field = root.activeBrowse()
@@ -600,11 +721,23 @@ Panel {
         // REQ-B15 (SPEC-AMD-9/10). `f` cycles the filter of whichever browse
         // page is showing — the keyboard half of a chooser that is deliberately
         // not a Tab stop. Announced in the hint line below, as `/` and `r` are.
-        if (t === "f" || t === "F") root.cycleFilter()
+        if (t === "f" || t === "F") { root.cycleFilter(); return }
+        // The legend's own key. The disclosure at the foot of the panel is
+        // labelled "?  keys", which reads as an instruction to press `?` — and
+        // it only answered a click, so the one key the panel names on screen
+        // did nothing.
+        if (t === "?") { root.keysOpen = !root.keysOpen; return }
+        // Details' key, for the reason `?` has one: it is a disclosure that
+        // holds something worth copying (the site id, REQ-B24), and a control
+        // only a pointer can open is one a keyboard user cannot reach.
+        if (t === "d" || t === "D") root.toggleDetails()
       }
 
       Flickable {
         id: panelFlick
+        // AC-B17 measures the viewport by name: "the focused control is on
+        // screen" is a claim about this Flickable, not about `visible`.
+        objectName: "unifi-panel-flick"
         anchors.fill: parent
         contentWidth: width
         contentHeight: column.implicitHeight
@@ -617,23 +750,113 @@ Panel {
         Column {
           id: column
           width: panelFlick.width
-          spacing: Style.spacing.md
+          // The gap between blocks — hero, pages, content, foot. It was `md`,
+          // the same 6 px that separates rows INSIDE a block, so nothing on
+          // screen said where one thing ended and the next began and the
+          // whole panel read as one run of lines. Rows keep the small step;
+          // blocks take the large one.
+          spacing: Style.spacing.xxl
 
-          PanelHero {
+          // The hero, drawn here rather than by `Ui/PanelHero`, because the
+          // host's hero cannot draw the design this panel asked for. It renders
+          // `meta` bold, upper-cased and letter-spaced, and `detail` as a bold
+          // bordered pill in the top corner a size above `meta`
+          // (Ui/PanelHero.qml). So "Healthy" arrived as tracked caps — the
+          // treatment `SectionHeader` is meant to own alone — and "updated just
+          // now", the least important fact in the header, became the loudest
+          // thing in it. Neither is a property the host lets a caller turn off.
+          //
+          // Three lines: the site, the verdict at body size in full strength,
+          // and the timestamp at caption size in tertiary under it. Refresh is
+          // an icon button at the trailing edge, beside the timestamp it
+          // invalidates. It lives here rather than in `PanelHero`'s
+          // `trailingControl` for a reason that outlives the hero: that
+          // property is a `Component`, and an item built from a Component is
+          // out of reach of `focusedItem()`, which has to return it by id.
+          Item {
+            id: hero
             width: parent.width
-            title: root.vm.siteName === "" ? "UniFi" : root.vm.siteName
-            meta: root.vm.headline
-            foreground: root.foreground
-            fontFamily: root.fontFamily
-            iconComponent: Component {
-              UnifiGlyph {
-                objectName: "unifi-hero-glyph"
-                iconSize: Style.font.display
-                glyphColor: health.colorFor(root.vm.rendering)
-                badgeColor: root.urgent
-                fontFamily: root.fontFamily
-                showBadge: root.vm.rendering ? root.vm.rendering.badge === true : false
+            implicitHeight: Math.max(heroGlyph.implicitHeight, heroLabels.implicitHeight,
+                                     refreshButton.implicitHeight)
+
+            UnifiGlyph {
+              id: heroGlyph
+              objectName: "unifi-hero-glyph"
+              anchors.left: parent.left
+              anchors.verticalCenter: parent.verticalCenter
+              iconSize: Style.font.display
+              glyphColor: health.colorFor(root.vm.rendering)
+              badgeColor: root.urgent
+              fontFamily: root.fontFamily
+              showBadge: root.vm.rendering ? root.vm.rendering.badge === true : false
+            }
+
+            Column {
+              id: heroLabels
+              anchors.left: heroGlyph.right
+              anchors.leftMargin: Style.space(14)
+              anchors.right: refreshButton.left
+              anchors.rightMargin: Style.spacing.lg
+              anchors.verticalCenter: parent.verticalCenter
+              spacing: Style.space(2)
+
+              Text {
+                width: parent.width
+                text: root.vm.siteName === "" ? "UniFi" : root.vm.siteName
+                color: root.foreground
+                font.family: root.fontFamily
+                // The largest type in the panel, at regular weight: size alone
+                // makes it the title, and a bold 14 px beside a 24 px glyph
+                // read as a label that had lost its title. 1.75 × body is the
+                // design's 21 px at the default 12, and scales with the user's
+                // font size as the tokens do; no token sits between `heading`
+                // (16) and `display` (24).
+                font.pixelSize: Math.round(Style.font.body * 1.75)
+                textFormat: Text.PlainText
+                elide: Text.ElideRight
               }
+              // The verdict: the one word the panel exists to deliver, on its
+              // own line, in sentence case, at full strength.
+              Text {
+                width: parent.width
+                visible: text !== ""
+                text: root.vm.headlineWord
+                color: root.foreground
+                font.family: root.fontFamily
+                font.pixelSize: Style.font.body
+                textFormat: Text.PlainText
+                elide: Text.ElideRight
+              }
+              Text {
+                width: parent.width
+                visible: text !== ""
+                text: root.vm.headlineDetail
+                color: root.dim
+                font.family: root.fontFamily
+                font.pixelSize: Style.font.caption
+                textFormat: Text.PlainText
+                elide: Text.ElideRight
+              }
+            }
+
+            // U+21BB rather than a Nerd Font codepoint, for the reason
+            // `UnifiGlyph` gives: a codepoint the user's font lacks is a tofu
+            // box, and Qt's fallback finds this one in any stock font. The
+            // tooltip is the button's name, since the glyph alone is not one.
+            Button {
+              id: refreshButton
+              objectName: "unifi-refresh"
+              anchors.right: parent.right
+              anchors.top: heroLabels.top
+              iconText: "\u21bb"
+              tooltipText: "Refresh"
+              enabled: root.vm.refreshEnabled
+              opacity: enabled ? 1.0 : 0.45
+              hasCursor: root.focusStop === ViewModel.FOCUS_REFRESH
+              foreground: root.foreground
+              fontFamily: root.fontFamily
+              bordered: true
+              onClicked: root.doRefresh()
             }
           }
 
@@ -697,6 +920,10 @@ Panel {
                 // it says where the keyboard is without touching what is selected.
                 cursorIndex: -1
                 focusable: false
+                // The kit's gap between buttons, not ButtonGroup's `md`: the
+                // group is built for a dense row of options in a form, and at
+                // 6 px three page tabs read as one control split in three.
+                spacing: Style.spacing.controlGap
                 foreground: root.foreground
                 fontFamily: root.fontFamily
                 onChanged: function (next) {
@@ -715,6 +942,20 @@ Panel {
                 // A CLICK still sets it, in `onChanged` above, which is the case
                 // where the user did ask.
               }
+          }
+
+          // REQ-011: disabled WITH an explanatory label. A greyed button that
+          // says nothing sends the user to look for a fault in the button.
+          Text {
+            visible: text !== ""
+            width: parent.width
+            text: root.vm.refreshDisabledReason === ""
+              ? "" : "Refresh is unavailable: " + root.vm.refreshDisabledReason
+            color: root.dim
+            font.family: root.fontFamily
+            font.pixelSize: Style.font.caption
+            textFormat: Text.PlainText
+            wrapMode: Text.WordWrap
           }
 
           // REQ-013 / UX-007. One sentence naming what failed and the single
@@ -753,10 +994,11 @@ Panel {
             spacing: 0
             visible: root.vm.sites.length > 0
 
-            PanelSectionHeader {
+            SectionHeader {
               text: "Sites on this controller"
               foreground: root.foreground
               fontFamily: root.fontFamily
+              emphasis: root.emphasis
             }
             Repeater {
               model: root.vm.sites
@@ -805,6 +1047,7 @@ Panel {
             // `.pragma library`, HC-16, so a third importer would evaluate
             // ViewModel.js again inside every panel, twice, per monitor).
             scrollAfterRowsChange: ViewModel.scrollAfterRowsChange
+            scrollParent: panelFlick
             searchFocused: root.focusStop === ViewModel.FOCUS_SEARCH
             listFocused: root.focusStop === ViewModel.FOCUS_LIST
             cursorIndex: root.deviceCursor
@@ -836,6 +1079,7 @@ Panel {
             // a property set on one of two deliberately parallel blocks is the
             // asymmetry nobody notices until the other page misbehaves.
             scrollAfterRowsChange: ViewModel.scrollAfterRowsChange
+            scrollParent: panelFlick
             searchFocused: root.focusStop === ViewModel.FOCUS_SEARCH
             listFocused: root.focusStop === ViewModel.FOCUS_LIST
             cursorIndex: root.clientCursor
@@ -858,28 +1102,39 @@ Panel {
           }
 
           StatusPanel {
+            id: statusPanel
+            objectName: "unifi-status-panel"
             width: parent.width
             visible: root.vm.hasSnapshot && !root.browsing
             vm: root.vm
             foreground: root.foreground
             urgent: root.urgent
             fontFamily: root.fontFamily
+            emphasis: root.emphasis
+            cursorIndex: root.focusStop === ViewModel.FOCUS_LIST && !root.browsing
+              ? root.inventoryCursor : -1
             // REQ-B10a / AC-B19. The Overview count row is an entry point into
             // a filtered Devices page. The role value travels with the row from
             // `ViewModel.countRows`, so nothing between here and there
             // translates a plural noun into a feature name.
-            onRoleActivated: function (role) {
-              root.setView("devices", role)
-              root.focusStop = ViewModel.FOCUS_LIST
-            }
+            onRoleActivated: function (role) { root.openFromInventory("devices", role) }
+            // The two totals above the role rows open their pages UNFILTERED:
+            // "Connected clients 44" has to land on the 44, not on whichever
+            // Wired/Wireless chip was left selected earlier in this session.
+            onPageActivated: function (page) { root.openFromInventory(page, "") }
+            onRowHovered: function (index, at) { root.hoverInventory(index, at) }
           }
 
           DeviceList {
             width: parent.width
-            visible: !root.browsing
+            // `active`, not `visible`: a `visible` written here would replace
+            // the component's own guard rather than combine with it, which is
+            // exactly how the empty "Offline and impaired" heading shipped.
+            active: !root.browsing
             vm: root.vm
             foreground: root.foreground
             fontFamily: root.fontFamily
+            emphasis: root.emphasis
           }
 
           WarningList {
@@ -887,18 +1142,79 @@ Panel {
             vm: root.vm
             foreground: root.foreground
             fontFamily: root.fontFamily
+            emphasis: root.emphasis
           }
 
           // AC-052. Rendered as "unknown" rather than omitted, so an
           // `unconfigured` failure — the case with the least information and
           // the most need for it — still shows the same rows in the same
           // places.
+          // The one rule in the panel's own flow: it sits where the content
+          // stops and the chrome at the foot begins. Sections above it are
+          // separated by space alone.
           PanelSeparator { foreground: root.foreground }
 
-          PanelSectionHeader {
-            text: "Details"
-            foreground: root.foreground
-            fontFamily: root.fontFamily
+          // Two disclosures on one line, at tertiary. Details used to be a
+          // `SectionHeader` with a chevron at the far edge, which gave setup
+          // diagnostics the same heading as Uplink and Inventory; it is an
+          // affordance, and now looks like one.
+          //
+          // Details is closed by default and opened for you in any state that
+          // is not `ok` — where the controller host and the config generation
+          // stop being trivia and become the diagnosis. `sentence` is non-empty
+          // in exactly those states, so `detailsExpanded` reads the fact rather
+          // than re-deriving it.
+          //
+          // The keys work today and nothing said so — which is the same as them
+          // not working. `Ui/PanelKeyCatcher` maps the arrows AND hjkl,
+          // Tab/Shift-Tab, Enter, Space and Escape (PanelKeyCatcher.qml:51-83),
+          // and this panel adds "/", "f" and "?"; the legend names them.
+          Item {
+            width: parent.width
+            implicitHeight: detailsToggle.implicitHeight
+
+            // Points down when open, right when closed. Shapes rather than
+            // glyph names, for the reason `UnifiGlyph` gives: a codepoint the
+            // user's font lacks renders as a tofu box, and these two are in
+            // every font that has ever shipped.
+            Text {
+              id: detailsToggle
+              anchors.left: parent.left
+              text: (root.detailsExpanded ? "\u25be" : "\u25b8") + "  Details"
+              color: root.dim
+              font.family: root.fontFamily
+              font.pixelSize: Style.font.bodySmall
+              textFormat: Text.PlainText
+
+              MouseArea {
+                anchors.fill: parent
+                anchors.margins: -Style.spacing.xs
+                hoverEnabled: true
+                acceptedButtons: Qt.LeftButton
+                cursorShape: Qt.PointingHandCursor
+                onClicked: root.toggleDetails()
+              }
+            }
+
+            Text {
+              anchors.right: parent.right
+              anchors.baseline: detailsToggle.baseline
+              visible: root.vm.hasSnapshot
+              text: root.keysOpen ? "\u25be  keys" : "?  keys"
+              color: root.dim
+              font.family: root.fontFamily
+              font.pixelSize: Style.font.bodySmall
+              textFormat: Text.PlainText
+
+              MouseArea {
+                anchors.fill: parent
+                anchors.margins: -Style.spacing.xs
+                hoverEnabled: true
+                acceptedButtons: Qt.LeftButton
+                cursorShape: Qt.PointingHandCursor
+                onClicked: root.keysOpen = !root.keysOpen
+              }
+            }
           }
 
           // `DetailRows`, not a second hand-rolled label/value Repeater. These
@@ -912,6 +1228,7 @@ Panel {
           // host and a long label could overlap rather than elide.
           DetailRows {
             width: parent.width
+            visible: root.detailsExpanded
             rows: root.vm.metaRows
             foreground: root.foreground
             fontFamily: root.fontFamily
@@ -934,52 +1251,16 @@ Panel {
             wrapMode: Text.WordWrap
           }
 
-          PanelSeparator { foreground: root.foreground }
-
-          // --- the two actions (REQ-011, REQ-012, UX-008) -------------------
-          Row {
-            spacing: Style.spacing.controlGap
-
-            Button {
-              id: refreshButton
-              text: "Refresh"
-              enabled: root.vm.refreshEnabled
-              opacity: enabled ? 1.0 : 0.45
-              hasCursor: root.focusStop === ViewModel.FOCUS_REFRESH
-              foreground: root.foreground
-              fontFamily: root.fontFamily
-              bordered: true
-              onClicked: root.doRefresh()
-            }
-
-            Button {
-              id: dashboardButton
-              text: "Open UniFi"
-              enabled: root.vm.dashboard ? root.vm.dashboard.accepted : false
-              opacity: enabled ? 1.0 : 0.45
-              hasCursor: root.focusStop === ViewModel.FOCUS_DASHBOARD
-              foreground: root.foreground
-              fontFamily: root.fontFamily
-              bordered: true
-              onClicked: root.openDashboard()
-            }
-          }
-
-          // The keys work today and nothing said so — which is the same as
-          // them not working. `Ui/PanelKeyCatcher` maps the arrows AND hjkl,
-          // Tab/Shift-Tab, Enter, Space and Escape (PanelKeyCatcher.qml:51-83),
-          // and this panel adds "/" and "r"; none of it was discoverable.
-          //
-          // Tertiary weight and one line: an affordance, not a manual.
           Text {
             width: parent.width
-            visible: root.vm.hasSnapshot
+            visible: root.keysOpen && root.vm.hasSnapshot
             // `f` is named on both browse pages and on neither Overview,
             // which has nothing to filter — a key named where it does nothing
-            // is worse than one that is not named.
+            // is worse than one that is not named. `/` stays on Overview: it
+            // opens Devices with the caret in its search field.
             text: root.browsing
-              ? "←→ pages  ·  ↑↓ select  ·  ⏎ open  ·  f filter  ·  / search  ·  Esc close"
-              : "←→ pages  ·  Tab move  ·  ⏎ activate  ·  / search  ·  Esc close"
+              ? "←→ pages  ·  Tab move  ·  ↑↓ select  ·  ⏎ open  ·  f filter  ·  / search  ·  r refresh  ·  d details  ·  ? keys  ·  Esc close"
+              : "←→ pages  ·  Tab move  ·  ↑↓ select  ·  ⏎ open  ·  / search  ·  r refresh  ·  d details  ·  ? keys  ·  Esc close"
             color: root.dim
             font.family: root.fontFamily
             font.pixelSize: Style.font.caption
@@ -987,18 +1268,19 @@ Panel {
             wrapMode: Text.WordWrap
           }
 
-          // REQ-011: disabled WITH an explanatory label. A greyed button that
-          // says nothing sends the user to look for a fault in the button.
-          Text {
-            visible: text !== ""
-            width: parent.width
-            text: root.vm.refreshDisabledReason === ""
-              ? "" : "Refresh is unavailable: " + root.vm.refreshDisabledReason
-            color: root.dim
-            font.family: root.fontFamily
-            font.pixelSize: Style.font.caption
-            textFormat: Text.PlainText
-            wrapMode: Text.WordWrap
+          // Last, below everything, because it is the one action that leaves the
+          // panel: reaching it should take a deliberate scroll, not a stray
+          // click on the way to Refresh.
+          Button {
+            id: dashboardButton
+            text: "Open UniFi  \u2197"
+            enabled: root.vm.dashboard ? root.vm.dashboard.accepted : false
+            opacity: enabled ? 1.0 : 0.45
+            hasCursor: root.focusStop === ViewModel.FOCUS_DASHBOARD
+            foreground: root.foreground
+            fontFamily: root.fontFamily
+            bordered: true
+            onClicked: root.openDashboard()
           }
 
           // REQ-012's disabled label, and UX-010's warning. The warning is a
@@ -1023,6 +1305,7 @@ Panel {
             textFormat: Text.PlainText
             wrapMode: Text.WordWrap
           }
+
         }
       }
     }

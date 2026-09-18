@@ -33,6 +33,9 @@ Column {
   property bool searchFocused: false
   property bool listFocused: false
   property int cursorIndex: 0
+  // The panel's own scroller, which a wheel over this list hands the rest of
+  // its travel to once the list is at the end it is scrolling towards.
+  property Flickable scrollParent: null
 
   signal searchChanged(string text)
   // REQ-B15. Tab must keep cycling the panel's stops while the search field has
@@ -114,19 +117,23 @@ Column {
   function setSearchText(next) { searchField.text = next }
   readonly property string searchText: searchField.text
 
-  spacing: Style.spacing.sm
+  // The filter row, the field and the list are three different things and
+  // need air between them; at `sm` the underline of the chosen filter sat on
+  // the field's border.
+  spacing: Style.spacing.xl
 
   // REQ-B10a's filter, offered here rather than only from Overview — a device
   // role on one page, a client's connection type on the other (SPEC-AMD-10).
   // This file does not know which: the model hands it options and a selected
   // value, and the panel decides what a change means (REQ-014).
   //
-  // The SAME control the pages use one row above — `Ui/ButtonGroup`, driven by
-  // `cursorIndex: -1` and `focusable: false`, which is the path the host's own
-  // bar panels take (host-contract §7). Two chip rows in a column is the risk
-  // this accepts: they are told apart by the caption-size font, which makes
-  // this row read as subordinate to the pages above it, and by the fact that
-  // one says page names and the other role names.
+  // NOT the control the pages use one row above. It was — the same
+  // `Ui/ButtonGroup`, distinguished only by a caption-size font — and the risk
+  // that file accepted did not pay off: two levels of the hierarchy in
+  // identical chrome, directly stacked, read as one control with seven options.
+  // `FilterChips` keeps the kit's tokens and drops its chrome, so the selected
+  // option is marked with a rule instead of a fill and the row reads as a
+  // condition on the page rather than as a peer of it.
   //
   // It REPLACED a chip reading "Access points only ✕" (SPEC-AMD-8). A chooser
   // showing the current state and every other one available says strictly more
@@ -138,17 +145,16 @@ Column {
   // clearing the search does not clear it.
   //
   // NOT a Tab stop, deliberately — one more stop would amend REQ-B15's focus
-  // order. The keyboard route is `f`, which cycles this list and is announced
-  // in the panel's hint line, the same way `/` and `r` are.
-  ButtonGroup {
-    visible: root.filterChips.length > 0
+  // order. The keyboard route is `f`, which cycles this list; `FilterChips`
+  // prints that key on the row itself, because naming it only in a legend at
+  // the foot of the panel put it two screens below the control it operates.
+  FilterChips {
+    width: parent.width
     options: root.filterChips
     value: root.filterValue
-    cursorIndex: -1
-    focusable: false
     foreground: root.foreground
     fontFamily: root.fontFamily
-    fontSize: Style.font.caption
+    emphasis: root.emphasis
     onChanged: function (value) { root.filterChanged(value) }
   }
 
@@ -167,6 +173,21 @@ Column {
     // caret every time the model rebuilt — which, since `nowWall` moves the
     // model every five seconds, is while they are still typing.
     onTextChanged: root.searchChanged(text)
+
+    // REQ-B15's `/`, printed on the field it focuses.
+    // Only while the field is empty and unfocused: once there is a caret the
+    // key has done its job, and text would run under it.
+    Text {
+      anchors.right: parent.right
+      anchors.rightMargin: Style.spacing.lg
+      anchors.verticalCenter: parent.verticalCenter
+      visible: !searchField.activeFocus && searchField.text === ""
+      text: "/"
+      color: root._tertiary
+      font.family: root.fontFamily
+      font.pixelSize: Style.font.caption
+      textFormat: Text.PlainText
+    }
 
     Keys.onTabPressed: function (event) {
       root.releaseSearch()
@@ -237,6 +258,30 @@ Column {
     // zero-height one, so an empty list would leave a gap under the sentence
     // explaining why it is empty.
     visible: root.rows.length > 0
+    // This cap is also what makes the list a second scroller, and that has a
+    // consequence worth recording here rather than rediscovering:
+    //
+    // `interactive` below turns true at exactly the point the content exceeds
+    // this height, and Qt Quick does not chain a wheel event past an
+    // interactive flickable. So from that point a wheel over the list never
+    // reaches the panel underneath it, and the pointer has to leave the list
+    // for the panel to scroll at all. Five devices is under the cap; nine
+    // clients is not, which is the state the shipped Clients screenshot is in.
+    //
+    // NOT changed here. The obvious fix — drop the cap, let the panel's own
+    // Flickable own the scrolling — also retires this view's scroll position
+    // entirely, and with it AC-B18's "a refresh preserves where you were" and
+    // the `scrollAfterRowsChange` rule it is built on. That is a behavioural
+    // change with live-harness coverage, and this tree has neither qmllint nor
+    // Quickshell to check it against. Guessing at it blind is how you trade a
+    // wheel annoyance for a scroll position that silently resets on every poll.
+    //
+    // FIXED by chaining rather than by dropping the cap: the `WheelHandler`
+    // below scrolls the list while it has travel left in the wheel's
+    // direction and gives the remainder to `scrollParent`, so the panel keeps
+    // scrolling past the end of the list. That matters because Open UniFi, its
+    // disabled reason and the plain-HTTP warning sit BELOW the list, at the
+    // foot of the panel.
     height: Math.min(contentHeight, Style.space(320))
     spacing: Style.spacing.sm
     clip: true
@@ -248,6 +293,32 @@ Column {
     interactive: contentHeight > height
 
     ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
+
+    // The wheel, chained to the panel. A pointer handler sees the event before
+    // the Flickable does, and accepting it here keeps the list's own wheel
+    // handling out of it, so both scrollers move by the same arithmetic.
+    WheelHandler {
+      target: null
+      enabled: view.interactive && root.scrollParent !== null
+      onWheel: function (event) { view.chainWheel(event) }
+    }
+
+    // A notch is 120 units of `angleDelta`; a touchpad reports pixels.
+    function chainWheel(event) {
+      var dy = event.pixelDelta.y !== 0 ? event.pixelDelta.y
+        : event.angleDelta.y / 120 * Style.space(48)
+      if (dy === 0) return
+      var wanted = contentY - dy
+      var top = originY
+      var bottom = originY + Math.max(0, contentHeight - height)
+      var inside = Math.min(bottom, Math.max(top, wanted))
+      contentY = inside
+      var rest = wanted - inside
+      if (rest === 0) return
+      var outer = root.scrollParent
+      var outerBottom = outer.originY + Math.max(0, outer.contentHeight - outer.height)
+      outer.contentY = Math.min(outerBottom, Math.max(outer.originY, outer.contentY + rest))
+    }
 
     // NOT `root.rows` — see `adoptRows`. Only that function writes this, so the
     // one thing that can swap the model is the one thing that remembers where

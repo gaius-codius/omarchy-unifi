@@ -874,6 +874,103 @@ test("REQ-009: role rows carry their non-empty classes in a fixed order", () => 
   assert.strictEqual(ViewModel.countRows(null).length, 0)
 })
 
+test("F18: the hero's verdict and its timestamp are separate strings", () => {
+  // PanelHero renders `meta` in tracked small caps, the loudest treatment in
+  // the panel. `headline` handed it both facts at once, so the timestamp
+  // shouted as loud as the verdict.
+  const m = build()
+  assert.strictEqual(m.headlineWord, "Healthy")
+  assert.ok(m.headlineDetail.indexOf("updated") === 0, m.headlineDetail)
+  assert.strictEqual(m.headlineDetail.indexOf("Healthy"), -1,
+    "the detail line must not repeat the verdict")
+
+  // `headline` is unchanged: the tooltip and a surface with one line still
+  // want both facts in one string, and splitting is a rendering choice rather
+  // than a change to what the panel knows.
+  assert.ok(m.headline.indexOf("Healthy") !== -1)
+  assert.ok(m.headline.indexOf("updated") !== -1)
+
+  // The never-updated case keeps its wording in both shapes.
+  const cold = ViewModel.forNullService()
+  assert.strictEqual(cold.headlineDetail, "never updated")
+  assert.strictEqual(cold.headlineWord, ViewModel.headlineWord("grey"))
+
+  // Present and a string on every path, so the hero never binds to undefined.
+  for (const model of [m, cold, ViewModel.EMPTY_MODEL]) {
+    assert.strictEqual(typeof model.headlineWord, "string")
+    assert.strictEqual(typeof model.headlineDetail, "string")
+  }
+})
+
+test("F03: the offline section states the good case and never heads an empty list", () => {
+  // A healthy site says so. The panel used to answer "is anything broken?" by
+  // hiding the section, and a reader cannot tell an absent section from a
+  // rendering fault or a poll that never arrived.
+  const clear = ViewModel.offlineList({ offlineDevices: [], counts: { offlineTotal: 0 } })
+  assert.strictEqual(clear.summaryText, "Nothing offline or impaired")
+  assert.strictEqual(clear.devices.length, 0)
+
+  // A count with no array. This is the state the shipped Overview screenshot
+  // is in, and it used to draw a separator, a heading, and nothing else. The
+  // count is still reported — as a sentence, not as a heading over emptiness.
+  const countOnly = ViewModel.offlineList({ offlineDevices: [], counts: { offlineTotal: 5 } })
+  assert.strictEqual(countOnly.summaryText, "5 devices offline or impaired")
+  assert.strictEqual(countOnly.devices.length, 0)
+  const one = ViewModel.offlineList({ offlineDevices: [], counts: { offlineTotal: 1 } })
+  assert.strictEqual(one.summaryText, "1 device offline or impaired")
+
+  // With rows to show, the list and its "and N more" line speak and the
+  // sentence gets out of the way — the section must not say the same thing
+  // twice in a panel this short of room.
+  const listed = ViewModel.offlineList({
+    offlineDevices: [{ id: "d1", name: "Garage AP", class: "down" }],
+    counts: { offlineTotal: 1 }
+  })
+  assert.strictEqual(listed.summaryText, "")
+  assert.strictEqual(listed.devices.length, 1)
+
+  // No reading at all is not an all-clear: nothing has been checked, so the
+  // section has nothing to say and the panel hides it.
+  assert.strictEqual(ViewModel.EMPTY_MODEL.offline.summaryText, "")
+  assert.strictEqual(ViewModel.forNullService().offline.summaryText, "")
+  // And not from `build` either. The two constants above are what the panel
+  // shows before the service exists; `build` is what it shows for every
+  // failure after that, and it used to read a null snapshot's total as zero
+  // and draw the all-clear under the error sentence.
+  for (const kind of ["network", "tls", "auth"]) {
+    const failed = ViewModel.build({ error: { kind: kind } })
+    assert.strictEqual(failed.hasSnapshot, false, kind)
+    assert.strictEqual(failed.offline.summaryText, "", kind)
+    assert.strictEqual(failed.offline.devices.length, 0, kind)
+  }
+})
+
+test("F10: a role row carries its cells as one right-hand value", () => {
+  // The Overview role rows render label-left / value-right, the same shape as
+  // "Connected clients" four rows above them. Joining the cells is a wording
+  // decision, so it is made here rather than by a Row of Texts in the delegate
+  // (REQ-014) — and asserting it here is what stops the separator and the
+  // ordering drifting when someone edits the QML.
+  const healthy = ViewModel.countRows(HEALTHY.counts)
+  const aps = healthy.find((r) => r.key === "accessPoints")
+  assert.strictEqual(aps.valueText, "2 online")
+
+  // A mixed role keeps every non-zero class, in CLASS_ORDER, joined rather
+  // than stacked. This is the case the right-hand column exists for.
+  const mixed = ViewModel.countRows({
+    switches: { online: 2, transitional: 0, down: 1, impaired: 0, unknown: 0 }
+  })
+  assert.strictEqual(mixed[0].valueText, "2 online  \u00b7  1 down")
+
+  // `cells` is unchanged by the addition: the tests above read it, and a
+  // future column may want the parts back rather than the sentence.
+  assert.deepStrictEqual(mixed[0].cells.map((c) => c.key), ["online", "down"])
+
+  // Every row has one, so the delegate never binds to undefined.
+  for (const row of healthy) assert.strictEqual(typeof row.valueText, "string")
+  for (const row of healthy) assert.notStrictEqual(row.valueText, "")
+})
+
 test("AC-025: the flag is exposed, and the panel carries the unique total", () => {
   // AC-025 asks for two things: the model exposes `roleCountsAreNotAPartition`,
   // and the panel label carries the unique total. Both still hold — the total is
@@ -1789,6 +1886,9 @@ test("AC-B10: a non-boolean firmwareUpdatable does not claim an update", () => {
     // mutation survived a version of this test that only checked the sentence.
     assert.strictEqual(detail.updateText, "", JSON.stringify(value))
     assert.strictEqual(detail.updateAvailable, false, JSON.stringify(value))
+    // And the third place the mark appears, the Firmware row's value.
+    const firmware = detail.rows.filter((r) => r.key === "firmware")[0]
+    assert.strictEqual(firmware.value.indexOf("update available"), -1, JSON.stringify(value))
   }
 })
 
@@ -1993,6 +2093,17 @@ test("REQ-B14: the detail is built for the expanded row and for no other", () =>
   assert.strictEqual(list.expandedDetail.id, "2")
   const firmware = list.expandedDetail.rows.filter((r) => r.key === "firmware")[0]
   assert.strictEqual(firmware.value, "9.2.0")
+})
+
+test("REQ-B14: the expanded detail carries the update-available mark", () => {
+  const snapshot = snapshotWith([
+    device({ id: "1", name: "one", firmwareVersion: "9.1.0", firmwareUpdatable: true }),
+    device({ id: "2", name: "two", firmwareVersion: "9.2.0", firmwareUpdatable: false })
+  ], [])
+  const firmwareOf = (id) => ViewModel.deviceListModel(snapshot, { expandedId: id })
+    .expandedDetail.rows.filter((r) => r.key === "firmware")[0].value
+  assert.strictEqual(firmwareOf("1"), "9.1.0  \u00b7  update available")
+  assert.strictEqual(firmwareOf("2"), "9.2.0")
 })
 
 test("REQ-B14: a row filtered out by a search takes its detail with it", () => {
@@ -2744,30 +2855,70 @@ test("REQ-B15: Tab cycles the five stops in the order the spec states", () => {
   assert.ok(rule, "SPEC-v1.1-browse.md: could not locate REQ-B15's Tab order")
   const named = rule[1].replace(/\s+and wraps$/, "").split("→").map((s) => s.trim())
   assert.deepStrictEqual(named,
-    ["segmented control", "search", "list", "Refresh", "Open UniFi"])
+    ["Refresh", "segmented control", "search", "list", "Open UniFi"])
   assert.strictEqual(ViewModel.focusStops("devices").length, named.length)
   assert.deepStrictEqual(ViewModel.focusStops("devices"),
-    ["segments", "search", "list", "refresh", "dashboard"])
+    ["refresh", "segments", "search", "list", "dashboard"])
   assert.deepStrictEqual(ViewModel.focusStops("clients"),
     ViewModel.focusStops("devices"))
 })
 
-test("REQ-B15: Overview has three stops, because it has no search and no list", () => {
+test("REQ-B15: Overview has four stops — no search, and the Inventory rows as its list", () => {
+  // SPEC-AMD-13. The Inventory rows are the only navigation on Overview
+  // besides the page chips, and they were reachable only by pointer.
   assert.deepStrictEqual(ViewModel.focusStops("overview"),
-    ["segments", "refresh", "dashboard"])
+    ["refresh", "segments", "list", "dashboard"])
   // The default, and anything unrecognised, is Overview — so a junk view value
   // cannot produce a stop list with a search field the panel is not drawing.
   for (const junk of [null, undefined, "", "Devices", 7]) {
     assert.deepStrictEqual(ViewModel.focusStops(junk),
-      ["segments", "refresh", "dashboard"], JSON.stringify(junk))
+      ["refresh", "segments", "list", "dashboard"], JSON.stringify(junk))
   }
 })
 
+test("REQ-B15: a stop the panel is not drawing is not a stop", () => {
+  // SPEC-AMD-13. With no snapshot the segmented control and every list are
+  // hidden, and Refresh is the one action that can change that — so it is
+  // where the panel opens, and Tab goes between it and Open UniFi.
+  const cold = { hasSnapshot: false, hasList: false }
+  for (const view of ["overview", "devices", "clients"]) {
+    assert.deepStrictEqual(ViewModel.focusStops(view, cold), ["refresh", "dashboard"], view)
+    assert.strictEqual(ViewModel.nextFocus(view, "refresh", 1, cold), "dashboard", view)
+    assert.strictEqual(ViewModel.nextFocus(view, "segments", 1, cold), "refresh", view)
+  }
+  assert.strictEqual(ViewModel.homeFocus(cold), "refresh")
+  assert.strictEqual(ViewModel.homeFocus({ hasSnapshot: true }), "segments")
+  assert.strictEqual(ViewModel.homeFocus(undefined), "segments")
+
+  // A list emptied by a search is skipped rather than walked onto, where Tab
+  // would put the cursor on a hidden ListView with no ring.
+  const empty = { hasSnapshot: true, hasList: false }
+  assert.deepStrictEqual(ViewModel.focusStops("devices", empty),
+    ["refresh", "segments", "search", "dashboard"])
+  assert.strictEqual(ViewModel.nextFocus("devices", "search", 1, empty), "dashboard")
+})
+
+test("REQ-B15: a stop that goes away under the cursor settles somewhere drawn", () => {
+  const empty = { hasSnapshot: true, hasList: false }
+  // The list emptied while the cursor was on it: the search field above is
+  // what the user is most likely to change next.
+  assert.strictEqual(ViewModel.settleFocus("devices", "list", empty), "search")
+  // Overview has no search field, so its emptied list goes home.
+  assert.strictEqual(ViewModel.settleFocus("overview", "list", empty), "segments")
+  // The snapshot lost: everything but Refresh and Open UniFi goes to Refresh.
+  const cold = { hasSnapshot: false, hasList: false }
+  assert.strictEqual(ViewModel.settleFocus("devices", "search", cold), "refresh")
+  assert.strictEqual(ViewModel.settleFocus("overview", "segments", cold), "refresh")
+  assert.strictEqual(ViewModel.settleFocus("overview", "dashboard", cold), "dashboard")
+  // A stop still drawn is left alone.
+  assert.strictEqual(ViewModel.settleFocus("devices", "list", { hasSnapshot: true, hasList: true }), "list")
+})
+
 test("REQ-B15: Tab wraps in both directions", () => {
-  assert.strictEqual(ViewModel.nextFocus("devices", "dashboard", 1), "segments")
-  assert.strictEqual(ViewModel.nextFocus("devices", "segments", -1), "dashboard")
-  assert.strictEqual(ViewModel.nextFocus("overview", "dashboard", 1), "segments")
-  assert.strictEqual(ViewModel.nextFocus("overview", "segments", -1), "dashboard")
+  assert.strictEqual(ViewModel.nextFocus("devices", "dashboard", 1), "refresh")
+  assert.strictEqual(ViewModel.nextFocus("devices", "refresh", -1), "dashboard")
+  assert.strictEqual(ViewModel.nextFocus("overview", "dashboard", 1), "refresh")
+  assert.strictEqual(ViewModel.nextFocus("overview", "refresh", -1), "dashboard")
   // A full cycle returns to where it started, in both directions, on both stop
   // lists — which is what "wraps" means and what an off-by-one in the modulo
   // would break without changing any single step.
@@ -2802,9 +2953,12 @@ test("REQ-B15: a view change keeps the stop when it survives and resets when it 
   // switched pages to look at the same thing in a different list.
   assert.strictEqual(ViewModel.focusAfterViewChange("clients", "list"), "list")
   assert.strictEqual(ViewModel.focusAfterViewChange("devices", "search"), "search")
-  // Overview has neither, so both go back to the control that got them here.
-  assert.strictEqual(ViewModel.focusAfterViewChange("overview", "list"), "segments")
+  // Overview has no search field, so the cursor goes back to the control that
+  // got it here; the list stop survives, as the Inventory rows (SPEC-AMD-13).
   assert.strictEqual(ViewModel.focusAfterViewChange("overview", "search"), "segments")
+  assert.strictEqual(ViewModel.focusAfterViewChange("overview", "list"), "list")
+  assert.strictEqual(ViewModel.focusAfterViewChange("overview", "list",
+    { hasSnapshot: true, hasList: false }), "segments")
   // And the stops Overview does have are left alone.
   assert.strictEqual(ViewModel.focusAfterViewChange("overview", "refresh"), "refresh")
   assert.strictEqual(ViewModel.focusAfterViewChange("overview", "dashboard"), "dashboard")
@@ -2900,8 +3054,8 @@ test("REQ-B15: every stop name is a constant, so no caller spells one", () => {
   // The names are compared with `===` in QML and a misspelling there is a stop
   // that silently never matches — Tab would appear to skip it. Exported so
   // `Panel.qml` binds to the constant rather than to a string literal.
-  const constants = [ViewModel.FOCUS_SEGMENTS, ViewModel.FOCUS_SEARCH,
-    ViewModel.FOCUS_LIST, ViewModel.FOCUS_REFRESH, ViewModel.FOCUS_DASHBOARD]
+  const constants = [ViewModel.FOCUS_REFRESH, ViewModel.FOCUS_SEGMENTS,
+    ViewModel.FOCUS_SEARCH, ViewModel.FOCUS_LIST, ViewModel.FOCUS_DASHBOARD]
   assert.deepStrictEqual(ViewModel.focusStops("devices"), constants)
   assert.strictEqual(new Set(constants).size, constants.length)
 })
@@ -2955,6 +3109,73 @@ test("REQ-B14: the status word is a field of its own, not the head of the meta l
   assert.strictEqual(clientRow.tokenText, clientRow.typeText)
   assert.strictEqual(clientRow.metaText.indexOf("Wired"), -1)
   assert.ok(clientRow.metaText.indexOf("via sw") !== -1)
+})
+
+test("F14: the port grid carries its counts in words", () => {
+  // The ports render as a mark each rather than a row each — 48 rows inside a
+  // 560 px popup is a detail that cannot be opened. A mark is not a word, so
+  // this sentence is what keeps the shape from being the only signal (UX-002)
+  // and what a bug report can quote.
+  const summary = ViewModel.portsSummaryText([
+    { state: "UP", poe: { enabled: true, standard: "802.3at" } },
+    { state: "UP", poe: null },
+    { state: "DOWN", poe: null }
+  ])
+  assert.strictEqual(summary, "2 up  \u00b7  1 down  \u00b7  1 PoE")
+
+  // PoE switched off is not PoE. `poeText` says "PoE off" for it, which is
+  // non-empty, and a count built on that drew a switch with PoE disabled on
+  // every port as a PoE switch.
+  assert.strictEqual(ViewModel.portsSummaryText([
+    { state: "UP", poe: { enabled: false, standard: "802.3at" } },
+    { state: "DOWN", poe: { enabled: false } }
+  ]), "1 up  \u00b7  1 down")
+  assert.strictEqual(ViewModel.portRow({ idx: 1, poe: { enabled: false } }).poeLive, false)
+  assert.strictEqual(ViewModel.portRow({ idx: 1, poe: { enabled: true } }).poeLive, true)
+  assert.strictEqual(ViewModel.portRow({ idx: 1, poe: null }).poeLive, false)
+
+  // A class with nothing in it is dropped rather than printed as a zero — the
+  // same rule countRows applies to the Overview, for the same reason.
+  assert.strictEqual(
+    ViewModel.portsSummaryText([{ state: "UP", poe: null }]), "1 up")
+  assert.strictEqual(
+    ViewModel.portsSummaryText([{ state: "DOWN", poe: null }]), "1 down")
+
+  // Nothing for an empty array. `portsEmptyText` already says that, and says
+  // it only in the case where it is true — the detail was actually fetched.
+  assert.strictEqual(ViewModel.portsSummaryText([]), "")
+  assert.strictEqual(ViewModel.portsSummaryText(null), "")
+})
+
+test("F07: the status column prints exceptions, not the expected state", () => {
+  // The column exists so the eye can run down one edge and find the broken
+  // thing. On a healthy site it printed "Online" once per row in the quietest
+  // colour on screen — a column whose value never varies is one the eye stops
+  // checking, which loses it on the day it has something to say.
+  const up = ViewModel.browseDeviceRow(
+    device({ id: "1", name: "Attic AP", class: "online", ipAddress: "192.0.2.7" }))
+  assert.strictEqual(up.tokenText, "")
+  // The word itself is not lost — `classText` carries it unconditionally, and
+  // the Overview's offline list reads that one.
+  assert.strictEqual(up.classText, "Online")
+
+  // Only `online` is suppressed, because only `online` is expected. Everything
+  // else is the exception the column is there to show.
+  for (const cls of ["down", "impaired", "transitional", "unknown"]) {
+    const row = ViewModel.browseDeviceRow(device({ id: "2", name: "x", class: cls }))
+    assert.notStrictEqual(row.tokenText, "",
+      cls + " must keep its word: it is not the expected state")
+    assert.strictEqual(row.tokenText, row.classText)
+  }
+
+  // A client keeps its word even though its column is the more repetitive of
+  // the two. There is no expected value to suppress — wired and wireless are
+  // equally ordinary — and the filter chips default to All, so dropping it
+  // would delete the only place the connection type appears rather than
+  // quieting a redundancy.
+  const wired = ViewModel.browseClientRow(
+    client({ id: "3", name: "pi", type: "WIRED" }), "sw", null)
+  assert.strictEqual(wired.tokenText, "Wired")
 })
 
 test("REQ-B14: the delegate is told WHICH states are urgent, and does not decide", () => {
@@ -3243,4 +3464,66 @@ test("REQ-B24: what is copied is the raw value, not the rendered one", () => {
   assert.strictEqual(byKey.site.copy, "")
   assert.notStrictEqual(byKey.siteId.copy, "")
   assert.strictEqual(byKey.siteId.copy, byKey.siteId.value)
+})
+
+// --- the row's columns and the detail's bars (design review, 2026-09-18) ---
+
+test("REQ-B14: the device row's context arrives as fixed slots, empty when unknown", () => {
+  // The row is drawn as columns, so a missing uptime must leave its slot empty
+  // rather than shift nothing into place — an absent slot is a misaligned row.
+  const bare = ViewModel.browseDeviceRow(device({ id: "1", name: "n", metrics: null }))
+  assert.deepStrictEqual(bare.metaColumns, ["IP unknown", ""])
+  const up = ViewModel.browseDeviceRow(device({
+    id: "1", name: "n", ipAddress: "10.0.0.2", metrics: { uptimeSec: 864000 } }))
+  assert.deepStrictEqual(up.metaColumns, ["10.0.0.2", "up 10d 0h"])
+})
+
+test("REQ-B14: a client with no uplink keeps an empty first slot", () => {
+  const row = ViewModel.browseClientRow(
+    client({ id: "1", name: "pi", type: "WIRED", uplinkDeviceId: null }), "", null)
+  assert.strictEqual(row.metaColumns.length, 2)
+  assert.strictEqual(row.metaColumns[0], "")
+})
+
+test("BIZ-003: a bar is drawn only for a figure that exists, and never past full", () => {
+  assert.strictEqual(ViewModel.pctFraction(null), null)
+  assert.strictEqual(ViewModel.pctFraction(undefined), null)
+  assert.strictEqual(ViewModel.pctFraction(NaN), null)
+  assert.strictEqual(ViewModel.pctFraction("48"), null)
+  assert.strictEqual(ViewModel.pctFraction(48), 0.48)
+  assert.strictEqual(ViewModel.pctFraction(0), 0)
+  assert.strictEqual(ViewModel.pctFraction(104), 1)
+  assert.strictEqual(ViewModel.pctFraction(-3), 0)
+})
+
+test("BIZ-003: only CPU and memory carry a bar, and an unknown one carries none", () => {
+  const known = ViewModel.deviceDetail(device({ id: "1", detail: {},
+    metrics: { cpuUtilizationPct: 12, memoryUtilizationPct: 48 } }), {})
+  const byKey = {}
+  for (const row of known.rows) byKey[row.key] = row
+  assert.strictEqual(byKey.cpu.fraction, 0.12)
+  assert.strictEqual(byKey.memory.fraction, 0.48)
+  for (const row of known.rows) {
+    if (row.key !== "cpu" && row.key !== "memory") {
+      assert.strictEqual(row.fraction, undefined, row.key)
+    }
+  }
+  const unknown = ViewModel.deviceDetail(device({ id: "1", detail: {}, metrics: null }), {})
+  for (const row of unknown.rows) {
+    if (row.key === "cpu" || row.key === "memory") {
+      assert.strictEqual(row.value, "unknown")
+      assert.strictEqual(row.fraction, null)
+    }
+  }
+})
+
+test("REQ-008a: a gateway's identity names the model only when the name does not", () => {
+  const rows = ViewModel.gatewayRows([
+    { id: "a", name: "UDM-Pro", model: "UDM Pro", class: "online", metrics: null },
+    { id: "b", name: "Garage", model: "UCG-Ultra", class: "online", metrics: null },
+    { id: "c", name: "Edge", model: null, class: "online", metrics: null }
+  ], [])
+  assert.strictEqual(rows[0].identityText, "UDM-Pro")
+  assert.strictEqual(rows[1].identityText, "Garage  ·  UCG-Ultra")
+  assert.strictEqual(rows[2].identityText, "Edge")
 })

@@ -1056,9 +1056,19 @@ ShellRoot {
         for (var m = 0; m < model.metaRows.length; m++) {
           if (model.metaRows[m].key === "helperVersion") helperRow = model.metaRows[m]
         }
+        // Details is a disclosure, collapsed in the healthy state and opened
+        // by the panel itself in any state that carries a sentence. So the row
+        // is asserted twice: absent while collapsed, which proves the
+        // disclosure is real, and present once opened, which proves it renders.
         if (helperRow === null) bad("the meta rows carry the helper version")
-        else check("the helper version row is on screen", true,
-                   panelTextContains(helperRow.value))
+        else {
+          check("the helper version row is hidden while Details is collapsed", false,
+                panelTextContains(helperRow.value))
+          panelWidget.detailsChoice = true
+          check("the helper version row is on screen once Details opens", true,
+                panelTextContains(helperRow.value))
+          panelWidget.detailsChoice = null
+        }
       }
     })
 
@@ -1102,12 +1112,22 @@ ShellRoot {
         // The panel, not just the model. A binding that dropped the headline
         // would leave every assertion above green.
         //
-        // Upper-cased because `PanelHero` is Omarchy's, and it upcases its
-        // `meta` line — the model's "just now" reaches the screen as
-        // "JUST NOW". Matched on the host's rendering rather than worked
-        // around, because the string the user reads is the subject here.
+        // The hero is the plugin's own now (Panel.qml), and draws both lines
+        // exactly as the model gives them. The verdict is matched in sentence
+        // case on purpose: the host's `PanelHero` upper-cased it, which is the
+        // treatment the design reserves for section headings, and a return to
+        // that hero would fail here rather than only on screen.
         checkPanelText("the panel shows the update time",
-                       vm.lastUpdateText.toUpperCase())
+                       vm.lastUpdateText)
+        checkPanelText("the verdict is drawn in sentence case",
+                       vm.headlineWord)
+        var glyph = findByObjectName(panelWidget, "unifi-hero-glyph", 0)
+        var refresh = findByObjectName(panelWidget, "unifi-refresh", 0)
+        if (glyph === null || refresh === null) {
+          bad("the hero carries Refresh", "glyph=" + glyph + " refresh=" + refresh)
+        } else {
+          check("the hero carries Refresh", glyph.parent, refresh.parent)
+        }
       }
     })
 
@@ -1498,8 +1518,7 @@ ShellRoot {
         // driver's own scheduling on top of the nominal window.
         between("the relative time aged by roughly the elapsed time",
                 10, 30, parseInt(after.replace(/[^0-9]/g, ""), 10))
-        checkPanelText("the new relative time reached the panel",
-                       after.toUpperCase())
+        checkPanelText("the new relative time reached the panel", after)
         // The panel holds no timer of its own: one clock, in the object that
         // owns it, so every monitor's widget updates from the same instant
         // (REQ-014 / UX-011).
@@ -1539,19 +1558,66 @@ ShellRoot {
       assert: function () {
         if (panelWidget === null) return
         // REQ-B15 replaced the two-stop `focusIndex` with a named stop list
-        // that depends on the page. On Overview it is three long, and the two
-        // actions keep the last two places — which is what UX-008 asserted and
-        // still asserts.
+        // that depends on the page and on what is drawn (SPEC-AMD-12, -13).
+        // This case runs with Refresh refused, which is the state before a
+        // first reading: the pages and the Inventory rows are hidden, so
+        // Tab goes between Refresh and Open UniFi and nothing else — a hidden
+        // stop is one Tab lands on with no ring and Enter does nothing on.
         panelWidget.view = "overview"
+        var expected = panelWidget.vm.hasSnapshot
+          ? ["refresh", "segments", "list", "dashboard"] : ["refresh", "dashboard"]
         panelWidget.focusStop = "refresh"
-        panelWidget.moveFocus(1)
-        check("Tab moves to Open UniFi", "dashboard", panelWidget.focusStop)
-        panelWidget.moveFocus(1)
-        check("Tab wraps to the segmented control", "segments", panelWidget.focusStop)
-        panelWidget.moveFocus(1)
-        check("Tab reaches Refresh", "refresh", panelWidget.focusStop)
+        var walkedStops = []
+        for (var w = 0; w < expected.length; w++) {
+          walkedStops.push(panelWidget.focusStop)
+          panelWidget.moveFocus(1)
+        }
+        check("Tab walks only the drawn stops", expected.join(","), walkedStops.join(","))
+        check("Tab wraps to Refresh", "refresh", panelWidget.focusStop)
         panelWidget.moveFocus(-1)
-        check("Backtab wraps the other way", "segments", panelWidget.focusStop)
+        check("Backtab wraps the other way", "dashboard", panelWidget.focusStop)
+        // This case runs before a first reading, and the checks below are
+        // about that state. A fixture change that gave it a snapshot would
+        // otherwise turn all of them into silent passes.
+        if (panelWidget.vm.hasSnapshot) {
+          bad("UX-008 runs before a first reading")
+        } else {
+          panelWidget.resetBrowse()
+          check("with nothing read, the panel opens on Refresh", "refresh",
+                panelWidget.focusStop)
+          // No pages to move to, and nothing to search.
+          var coldKeys = findByObjectName(panelWidget, "unifi-key-catcher", 0)
+          if (coldKeys === null) bad("the key catcher is reachable")
+          else {
+            coldKeys.moveRequested(1, 0)
+            check("Right does nothing before a first reading", "overview", panelWidget.view)
+            coldKeys.textKey("/")
+            check("and / does nothing either", "overview", panelWidget.view)
+            check("and the cursor stays on Refresh", "refresh", panelWidget.focusStop)
+          }
+          // Nothing has been read, so nothing has been cleared: the all-clear
+          // under an error sentence is a claim about a site nobody checked.
+          check("no all-clear is drawn before the first reading", false,
+                panelTextContains("Nothing offline or impaired"))
+          // Details opens itself in this state, and can still be closed —
+          // from the keyboard too.
+          if (panelWidget.vm.sentence === "") {
+            bad("the state before a first reading carries a sentence")
+          } else {
+            check("Details is open while the panel reports a problem", true,
+                  panelWidget.detailsExpanded)
+            panelWidget.toggleDetails()
+            check("and a click closes it", false, panelWidget.detailsExpanded)
+            var keys = findByObjectName(panelWidget, "unifi-key-catcher", 0)
+            if (keys === null) bad("the key catcher is reachable")
+            else {
+              keys.textKey("d")
+              check("and d opens it again", true, panelWidget.detailsExpanded)
+            }
+            panelWidget.detailsChoice = null
+          }
+          panelWidget.focusStop = "refresh"
+        }
         openedUrls = []
         panelWidget.focusStop = "dashboard"
         check("Enter on Open UniFi tries the dashboard", "rejected",
@@ -1713,15 +1779,25 @@ ShellRoot {
         ensurePanelOpen()
         panelWidget.resetBrowse()
         panelWidget.setView("devices")
-        var order = ["segments", "search", "list", "refresh", "dashboard"]
+        var order = ["refresh", "segments", "search", "list", "dashboard"]
         var walked = []
-        panelWidget.focusStop = "segments"
+        panelWidget.focusStop = "refresh"
+        // Through the key catcher's own signal, which is what a Tab press
+        // emits — `moveFocus` directly would pass with the Tab wiring cut.
+        var tabber = findByObjectName(panelWidget, "unifi-key-catcher", 0)
+        var flick = findByObjectName(panelWidget, "unifi-panel-flick", 0)
+        if (tabber === null || flick === null) {
+          bad("the key catcher and the panel's scroller are reachable")
+          return
+        }
         for (var i = 0; i < order.length; i++) {
           walked.push(panelWidget.focusStop)
-          panelWidget.moveFocus(1)
+          tabber.tabRequested(1)
         }
         check("Tab walks REQ-B15's five stops", order.join(","), walked.join(","))
-        check("and wraps to the first", "segments", panelWidget.focusStop)
+        check("and wraps to the first", "refresh", panelWidget.focusStop)
+        // Whether the panel SCROLLS to the stop is the next case's, which
+        // waits for the deferred reveal rather than running it by hand.
 
         // REQ-B15 / UX-008: every stop names an item the panel can scroll to.
         //
@@ -1741,9 +1817,36 @@ ShellRoot {
         }
         check("every focus stop maps to a visible item", "", unmapped.join(","))
 
-        // Overview has three stops and no search or list, so those two must map
-        // to nothing rather than to a hidden page's widgets — scrolling to an
-        // invisible item is how a panel jumps somewhere with nothing in it.
+        // Overview has no search field, so that stop must map to nothing
+        // rather than to a hidden page's widgets — scrolling to an invisible
+        // item is how a panel jumps somewhere with nothing in it. Its list
+        // stop is the Inventory rows (SPEC-AMD-13).
+        panelWidget.setView("overview")
+        panelWidget.focusStop = "list"
+        var inventory = panelWidget.focusedItem()
+        check("Overview's list stop is the Inventory rows", true,
+              inventory !== null && inventory !== undefined && inventory.visible)
+
+        // A list emptied under the cursor hands it to the search field — by
+        // the panel's own `onFocusStateChanged`, which is what is under test:
+        // nothing here calls the rule.
+        panelWidget.setView("devices")
+        panelWidget.focusStop = "list"
+        panelWidget.setSearch("zz-no-device-matches-this-zz")
+        check("a search that empties the list moves the cursor to the search field",
+              "search", panelWidget.focusStop)
+
+        // And an Inventory row opens its page without that search: the
+        // total it counted is what the page shows, and the list takes the
+        // cursor because it has rows.
+        panelWidget.setView("overview")
+        var statusForOpen = findByObjectName(panelWidget, "unifi-status-panel", 0)
+        if (statusForOpen === null) bad("the status panel is reachable")
+        else {
+          statusForOpen.pageActivated("devices")
+          check("Adopted devices clears a search left on Devices", "", panelWidget.deviceSearch)
+          check("and lands on the list, which has rows", "list", panelWidget.focusStop)
+        }
         panelWidget.setView("overview")
         panelWidget.focusStop = "search"
         check("a stop that does not exist on this page maps to nothing", true,
@@ -1825,18 +1928,63 @@ ShellRoot {
 
         // Leaving for a page that has no such stop still relocates, because the
         // stop genuinely is not there — that rule is REQ-B10's and is unchanged.
-        panelWidget.focusStop = ViewModel.FOCUS_LIST
+        panelWidget.focusStop = ViewModel.FOCUS_SEARCH
         panelWidget.moveCursor(-1, 0)
-        check("Overview has no list, so the stop resets", "overview",
+        check("Overview has no search, so the stop resets", "overview",
               panelWidget.view)
         check("and the focus went to the segments", ViewModel.FOCUS_SEGMENTS,
               panelWidget.focusStop)
 
-        // Vertical keys are now the only thing that walks the stops, and only
-        // where there is no list cursor to claim them.
+        // Vertical keys walk the stops where there is no list cursor to claim
+        // them, and move the Inventory cursor once they reach it.
         panelWidget.moveCursor(0, 1)
-        check("Down walks the stops on Overview", ViewModel.FOCUS_REFRESH,
+        check("Down walks the stops on Overview", ViewModel.FOCUS_LIST,
               panelWidget.focusStop)
+        panelWidget.inventoryCursor = 0
+        panelWidget.moveCursor(0, 1)
+        check("and then moves the Inventory cursor", 1, panelWidget.inventoryCursor)
+        check("Enter on Adopted devices opens Devices", "navigated",
+              panelWidget.activateFocused())
+        check("which is the page it names", "devices", panelWidget.view)
+        panelWidget.resetBrowse()
+      }
+    })
+
+    // The half of AC-B17 that needs a turn to pass: `onFocusStopChanged`
+    // defers the reveal, so the scroll is asserted after it has had one.
+    pending.push({
+      name: "AC-B17: Tab scrolls the panel to the control it lands on",
+      waitMs: 300,
+      setup: function () {
+        if (panelWidget === null || service === null) return
+        ensurePanelOpen()
+        panelWidget.resetBrowse()
+        panelWidget.setView("devices")
+        // Expanded, so the panel is taller than its viewport and Open UniFi
+        // is below the fold — the state the reveal exists for.
+        var rows = panelWidget.vm.deviceList.rows
+        if (rows.length > 0) panelWidget.expandedDeviceId = rows[0].id
+        var flick = findByObjectName(panelWidget, "unifi-panel-flick", 0)
+        if (flick !== null) flick.contentY = 0
+        panelWidget.focusStop = "list"
+        var tabber = findByObjectName(panelWidget, "unifi-key-catcher", 0)
+        if (tabber !== null) tabber.tabRequested(1)
+      },
+      assert: function () {
+        if (panelWidget === null || service === null) return
+        var flick = findByObjectName(panelWidget, "unifi-panel-flick", 0)
+        if (flick === null) { bad("the panel's scroller is reachable"); return }
+        check("Tab landed on Open UniFi", "dashboard", panelWidget.focusStop)
+        // Otherwise every control is on screen and the check below is free.
+        check("the panel is taller than its viewport", true,
+              flick.contentHeight > flick.height)
+        var item = panelWidget.focusedItem()
+        if (item === null || item === undefined) { bad("Open UniFi maps to an item"); return }
+        var at = item.mapToItem(flick.contentItem, 0, 0)
+        check("and the panel scrolled it fully into view", true,
+              at.y >= flick.contentY - 0.5
+              && at.y + item.height <= flick.contentY + flick.height + 0.5)
+        panelWidget.resetBrowse()
       }
     })
 
@@ -1875,6 +2023,26 @@ ShellRoot {
         // eventually do.
         check("blocked is the caret's own state", panelWidget.searchHasFocus,
               catcher.blocked)
+      }
+    })
+
+    // The foot of the panel reads "?  keys", which names a key; pressing it
+    // has to open the legend, and pressing it again has to close it.
+    pending.push({
+      name: "REQ-B15: ? toggles the keyboard legend",
+      waitMs: 120,
+      assert: function () {
+        if (panelWidget === null) return
+        ensurePanelOpen()
+        panelWidget.resetBrowse()
+        var catcher = findByObjectName(panelWidget, "unifi-key-catcher", 0)
+        if (catcher === null) { bad("the key catcher is reachable"); return }
+        check("the legend starts closed", false, panelWidget.keysOpen)
+        catcher.textKey("?")
+        check("? opens the legend", true, panelWidget.keysOpen)
+        check("the legend is on screen", true, panelTextContains("Esc close"))
+        catcher.textKey("?")
+        check("? closes it again", false, panelWidget.keysOpen)
       }
     })
 
@@ -2114,6 +2282,42 @@ ShellRoot {
         }
         check("a search puts the list back at the top", 0, list.contentY)
         panelWidget.setSearch("")
+      }
+    })
+
+    // REQ-B10a, extended: the two totals open their own pages, unfiltered.
+    // Driven through StatusPanel's signal so the wiring in Panel.qml is what
+    // is under test, and started from a filtered state so "unfiltered" is a
+    // claim the case can fail.
+    pending.push({
+      name: "REQ-B10a: Overview's client and device totals open their pages",
+      waitMs: 0,
+      assert: function () {
+        if (panelWidget === null || service === null) return
+        ensurePanelOpen()
+        panelWidget.resetBrowse()
+        var status = findByObjectName(panelWidget, "unifi-status-panel", 0)
+        if (status === null) { bad("the status panel is reachable"); return }
+
+        panelWidget.typeFilter = "WIRED"
+        status.pageActivated("clients")
+        check("Connected clients opens Clients", "clients", panelWidget.view)
+        check("with the type filter cleared", "", panelWidget.typeFilter)
+        check("and the list focused", ViewModel.FOCUS_LIST, panelWidget.focusStop)
+
+        panelWidget.resetBrowse()
+        var rows = panelWidget.vm.countRows
+        // Without a role there is no filter to clear, and "cleared" below
+        // would pass having tested nothing.
+        if (rows.length === 0) { bad("the fixture has a role row to filter by"); return }
+        panelWidget.roleFilter = rows[0].role
+        panelWidget.view = "overview"
+        status.pageActivated("devices")
+        check("Adopted devices opens Devices", "devices", panelWidget.view)
+        check("with the role filter cleared", "", panelWidget.roleFilter)
+        check("and every listed device shown", panelWidget.vm.deviceList.listed,
+              panelWidget.vm.deviceList.rows.length)
+        panelWidget.resetBrowse()
       }
     })
 

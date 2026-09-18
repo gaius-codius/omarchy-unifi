@@ -10,18 +10,25 @@
 // The MAC address is not here (REQ-B21 / D3). It appears in `detailRows` and
 // therefore only after a deliberate expansion.
 //
-// The layout is two lines:
+// The layout is two lines and three columns:
 //
-//   name .................................................. Online
-//   UDM Pro  ·  192.168.1.5  ·  up 3d 4h
+//   Switch 1 ................................................ Down
+//   USW-Pro-48-PoE    192.168.1.5  ·  up 3d 4h
+//
+// The second line's first field is a FIXED column, so whatever follows begins
+// on the same left edge on every row and a list of addresses can be read down
+// rather than hunted across. The separator that used to precede it is gone: it
+// was standing in for an alignment that did not exist.
 //
 // The status word sits in a fixed right-hand column rather than at the head of
 // the second line, so the eye can run down one edge and find every broken
-// device. That is what a list ordered by brokenness is for, and while the word
-// was the first of four `·`-joined segments it was just another word in a
-// sentence. It also frees the name: the previous layout put the model on the
-// same line, right-aligned and capped at 40% of the width, which meant a long
-// model name ate the name the user was actually searching for.
+// device — and it is printed only when it is NOT the expected one, so on a
+// healthy list that edge is empty and a broken device is the only thing on it.
+// `vm` decides which states qualify. That is what a list ordered by brokenness
+// is for, and while the word was the first of four `·`-joined segments it was
+// just another word in a sentence. It also frees the name: an earlier layout
+// put the model on the same line, right-aligned and capped at 40% of the
+// width, which meant a long model name ate the name being searched for.
 import QtQuick
 import qs.Commons
 import qs.Ui
@@ -45,6 +52,27 @@ Item {
 
   readonly property color _secondary: emphasis ? emphasis.secondary : foreground
   readonly property color _tertiary: emphasis ? emphasis.tertiary : foreground
+
+  // The name's size, and the reason it is not `Style.font.bodySmall`.
+  //
+  // The row is two lines: a name at `bodySmall` over a meta line at `caption`.
+  // Those two tokens differ by about 1.5 px, which in a monospace face at this
+  // size is not a step the eye reads as a level — so the name, which is the
+  // thing the list is searched by and the thing every row is identified by,
+  // arrived looking like slightly brighter metadata.
+  //
+  // `title` — body + 2, 14 at the default base against caption's 10 — rather
+  // than a multiple of another token, so it tracks the user's font settings
+  // and any per-token theme override the way `Style.font.*` exists to. The
+  // design's step is 3.5-4 px between the name and the line under it; at
+  // `subtitle` (13) the name was a slightly brighter line rather than the
+  // thing the row is about.
+  //
+  // Sentence case, deliberately, and never the tracked-uppercase treatment
+  // `SectionHeader` uses: a device name is a proper noun the user typed into
+  // the search field, and upper-casing it breaks the match between what they
+  // searched for and what they are looking at.
+  readonly property real titleSize: Style.font.title
 
   implicitHeight: layout.implicitHeight
   height: implicitHeight
@@ -84,7 +112,7 @@ Item {
         text: root.row ? root.row.nameText : ""
         color: root.foreground
         font.family: root.fontFamily
-        font.pixelSize: Style.font.bodySmall
+        font.pixelSize: root.titleSize
         textFormat: Text.PlainText
         elide: Text.ElideRight
       }
@@ -105,7 +133,7 @@ Item {
         text: root.row ? root.row.tokenText : ""
         color: (root.row && root.row.tokenUrgent) ? root.urgent : root._tertiary
         font.family: root.fontFamily
-        font.pixelSize: Style.font.caption
+        font.pixelSize: Style.font.bodySmall
         textFormat: Text.PlainText
       }
     }
@@ -115,36 +143,51 @@ Item {
     // which is the whole reason this row was hard to read. The separator is
     // punctuation and carries no meaning, so composing it here is not a
     // decision (REQ-014); every word around it came from `vm`.
+    // Three fixed columns rather than a `·`-joined sentence: identity
+    // (model, or a client's address), then the two context slots. In a face
+    // where every glyph is one cell, a fixed x per column makes the addresses
+    // — and the uplinks on the client page — a column the eye can run down,
+    // where the joined line started each one somewhere different. The
+    // separators go with the alignment; they only ever stood in for it.
+    //
+    // All tertiary. The line is context for the name above it, and at
+    // secondary its first column competed with the name for the same glance.
     Item {
       id: metaLine
       width: parent.width
-      visible: secondary.text !== "" || meta.text !== ""
-      implicitHeight: visible ? Math.max(secondary.implicitHeight, meta.implicitHeight) : 0
+      readonly property var slots: root.row && root.row.metaColumns
+        ? root.row.metaColumns : ["", ""]
+      readonly property real columnWidth: Math.round(width * 0.3)
+      visible: secondary.text !== "" || slotA.text !== "" || slotB.text !== ""
+      implicitHeight: visible ? secondary.implicitHeight : 0
 
       Text {
         id: secondary
         anchors.left: parent.left
-        // Capped so a long model name cannot push the context off the row
-        // entirely, but generously — it no longer competes with the name, which
-        // now has the line above to itself.
-        width: Math.min(implicitWidth, Math.round(parent.width * 0.55))
+        width: metaLine.columnWidth - Style.spacing.md
         text: root.row ? root.row.secondaryText : ""
-        color: root._secondary
+        color: root._tertiary
         font.family: root.fontFamily
         font.pixelSize: Style.font.caption
         textFormat: Text.PlainText
         elide: Text.ElideRight
       }
-
       Text {
-        id: meta
-        anchors.left: secondary.right
-        anchors.right: parent.right
-        anchors.leftMargin: secondary.text !== "" && text !== "" ? Style.spacing.xs : 0
-        text: root.row
-          ? ((secondary.text !== "" && root.row.metaText !== "" ? "·  " : "")
-             + root.row.metaText)
-          : ""
+        id: slotA
+        x: metaLine.columnWidth
+        width: metaLine.columnWidth - Style.spacing.md
+        text: metaLine.slots[0] || ""
+        color: root._tertiary
+        font.family: root.fontFamily
+        font.pixelSize: Style.font.caption
+        textFormat: Text.PlainText
+        elide: Text.ElideRight
+      }
+      Text {
+        id: slotB
+        x: 2 * metaLine.columnWidth
+        width: metaLine.width - x
+        text: metaLine.slots[1] || ""
         color: root._tertiary
         font.family: root.fontFamily
         font.pixelSize: Style.font.caption
@@ -153,12 +196,12 @@ Item {
       }
     }
 
-    // REQ-B14's "update available" mark. `vm` decided whether to show it —
-    // `firmwareUpdatable === true` and not truthiness, because `null` means the
-    // controller did not say and a mark on that basis invents the fact.
     Text {
+      id: updateLine
       width: parent.width
-      visible: root.row ? root.row.updateAvailable === true : false
+      // On the collapsed row only: expanded, the Firmware row in the detail
+      // says it beside the version it is about.
+      visible: root.row ? root.row.updateAvailable === true && !root.expanded : false
       text: "Firmware update available"
       color: root.urgent
       font.family: root.fontFamily
@@ -226,14 +269,16 @@ Item {
   // transparent one with no text is INVISIBLE — and an invisible item takes no
   // mouse events at all. The row would simply not have been clickable.
   //
-  // It covers the two identity lines only. A target over the expanded detail
-  // would collapse the row when the user clicked in the port table they had
-  // just opened to read.
+  // It covers the collapsed row — the identity lines and the update notice
+  // under them — and stops there. A target over the expanded detail would
+  // collapse the row when the user clicked in the port table they had just
+  // opened to read.
   MouseArea {
     anchors.left: layout.left
     anchors.right: layout.right
     anchors.top: layout.top
     height: header.height + (metaLine.visible ? metaLine.height + layout.spacing : 0)
+      + (updateLine.visible ? updateLine.height + layout.spacing : 0)
     hoverEnabled: true
     acceptedButtons: Qt.LeftButton
     cursorShape: Qt.PointingHandCursor
@@ -244,6 +289,14 @@ Item {
     // moved, and the position is the only thing in the event that differs.
     onContainsMouseChanged: if (containsMouse) {
       root.hoverRequested(mapToItem(null, mouseX, mouseY))
+    }
+    // And on every movement inside the row, so the position the panel holds is
+    // where the pointer IS rather than where it came in. Entry alone left a
+    // hand that had moved a few pixels within the row reading as "moved" when
+    // the next tick rebuilt the delegate under it — and the list took the
+    // ring back from whatever the keyboard had moved to.
+    onPositionChanged: function (mouse) {
+      root.hoverRequested(mapToItem(null, mouse.x, mouse.y))
     }
     onClicked: root.toggleRequested()
   }

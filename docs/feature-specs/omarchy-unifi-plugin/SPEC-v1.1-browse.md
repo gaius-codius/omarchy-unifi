@@ -350,8 +350,24 @@ connected-since as a relative time.
 it is on the collapsed row as unlabelled context, which is legible at a glance
 and not something a reader can act on.
 
-**REQ-B15 — keyboard (extends UX-008).** Tab cycles segmented control → search
-→ list → Refresh → Open UniFi and wraps. *Amended by SPEC-AMD-5, 2026-09-08:*
+**REQ-B15 — keyboard (extends UX-008).** Tab cycles Refresh → segmented control
+→ search → list → Open UniFi and wraps. *Amended by SPEC-AMD-12, 2026-09-18:*
+originally segmented control → search → list → Refresh → Open UniFi, which was
+the order the controls were drawn in until Refresh moved into the header and
+Open UniFi to the foot; the order now follows the screen, top to bottom. The
+panel still opens with the segmented control focused. *Amended by SPEC-AMD-13,
+2026-09-18:* a stop the panel is not drawing is not a stop. With no snapshot
+the segmented control and the lists are hidden, so Tab cycles Refresh → Open
+UniFi and the panel opens on Refresh; a list with no rows (a search with no
+matches) is skipped, and a cursor on a stop that disappears moves to the search
+field above an emptied list, or else to where the panel opens. Overview's list
+is its Inventory rows — Refresh → segmented control → list → Open UniFi — which
+Up/Down walk, Enter opens and a moving pointer selects, as on a browse page. An
+Inventory row opens its page with that page's search cleared. Before the first
+reading Left/Right and `/` do nothing, since there are no pages to show; this
+is the one exception to AC-B25's "from every focus stop". The panel's opening
+stop is chosen when it opens, and a stop that is still drawn is not moved by a
+reading arriving. *Amended by SPEC-AMD-5, 2026-09-08:*
 Tab is the only key that moves focus; **Left/Right — and `h`/`l` — move between
 pages from any focus stop, clamped at both ends rather than wrapping**; Up/Down
 move the list cursor while the list holds focus, and walk the focus stops where
@@ -500,7 +516,7 @@ has, or the prefix being one everything starts with.
 | AC-B20 | LIVE | A full batch against the real controller completes within the REQ-017 budget with detail fetched for every device, and the measured wall time is recorded. |
 | AC-B21 | MAN | Both lists are legible in ≥3 themes including one light theme (AC-069's rule, extended). |
 | AC-B24 | AUTO | Only a known value is copyable and what is copied is the raw value, never the rendered one or the "unknown" placeholder; every detail and meta row carries the field so the view never tests for it (REQ-B24). |
-| AC-B25 | AUTO | Left/Right move between pages from every focus stop and clamp at both ends, and do not relocate the focus stop on the way (REQ-B15 as amended). |
+| AC-B25 | AUTO | Left/Right move between pages from every focus stop and clamp at both ends, and do not relocate the focus stop on the way (REQ-B15 as amended). Before the first reading they do nothing (SPEC-AMD-13). |
 | AC-B22 | AUTO | `tests/test_suite_integrity.js` reports a named, executing test for every criterion in this table. |
 
 ---

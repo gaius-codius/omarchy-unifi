@@ -296,7 +296,29 @@ function offlineList(snapshot) {
     devices: listed.map(deviceRow),
     total: total,
     truncated: remainder > 0,
-    moreLabel: remainder > 0 ? "and " + remainder + " more" : ""
+    moreLabel: remainder > 0 ? "and " + remainder + " more" : "",
+    // What this section says when it has no rows to show, and the reason it
+    // says anything at all.
+    //
+    // "Is anything broken?" is the question the widget exists to answer, and it
+    // was answered by the ABSENCE of this section. Absence is a weak signal: it
+    // is also what a rendering fault, a filtered view and a poll that never
+    // arrived all look like. A reader who sees nothing cannot tell "nothing is
+    // wrong" from "nothing was checked".
+    //
+    // The second case is the one the shipped Overview screenshot is in. The
+    // view's guard was `devices.length > 0 || total > 0`, so an envelope
+    // carrying a non-zero count with an empty array drew a separator, a heading
+    // and nothing else — a heading claiming content it did not have. The count
+    // is real and must still be reported; what it must not do is masquerade as
+    // a list. It gets a sentence of its own, and the heading is now the list's
+    // rather than the section's.
+    summaryText: total === 0
+      ? "Nothing offline or impaired"
+      : (listed.length === 0
+        ? (total === 1 ? "1 device offline or impaired"
+          : total + " devices offline or impaired")
+        : "")
   }
 }
 
@@ -424,6 +446,11 @@ function metricsBody(value) {
     ? value : null
 }
 
+function sameWords(a, b) {
+  const squash = (s) => String(s).toLowerCase().replace(/[^a-z0-9]/g, "")
+  return squash(a) === squash(b)
+}
+
 function gatewayRows(gateways, warnings) {
   const list = Array.isArray(gateways) ? gateways : []
   const failed = statisticsFailedIds(warnings)
@@ -466,7 +493,14 @@ function gatewayRows(gateways, warnings) {
       metricsState: metricsState,
       metricsText: metricsText,
       // The whole caption line. The view binds this and composes nothing.
-      detailText: modelText + "  ·  " + metricsText
+      detailText: modelText + "  ·  " + metricsText,
+      // Who the gateway is, in one string: the name, and the model after it
+      // only when it says something the name does not. A gateway left at its
+      // factory name is named after its model in a different spelling
+      // ("UDM-Pro" for a "UDM Pro"), and the two side by side read as a
+      // stutter — so they are compared ignoring case and punctuation.
+      identityText: sameWords(displayName(entry), modelText) || modelText === "unknown model"
+        ? displayName(entry) : displayName(entry) + "  ·  " + modelText
     })
   }
   return rows
@@ -506,8 +540,22 @@ function countRows(counts) {
     // REQ-B10a. The row is an entry point: activating it opens Devices filtered
     // to this role, so it carries the role value `devices[].roles` uses rather
     // than leaving the view to translate the counter's plural noun into it.
+    //
+    // `valueText` is the cells as one right-hand value — "3 online", or
+    // "2 online  ·  1 down" when a role is mixed. The view used to build this
+    // by laying the cells out in a Row of its own, which made the role rows the
+    // only rows in the section with no right-hand column: "Connected clients"
+    // put a dim label left and a bright value hard right, and four rows later
+    // "Gateways" put a bright label left and a dim caption underneath. Two
+    // scanning rules, eight rows apart, and only the second kind was clickable.
+    //
+    // Joining them is a decision about wording, so it is made here (REQ-014)
+    // and not in the delegate. `cells` stays exactly as it was: it is what the
+    // tests read, and a future column may want the parts back.
     rows.push({ key: roles[i].key, role: ROLE_FOR_COUNT_KEY[roles[i].key],
-      label: roles[i].label, total: total, cells: cells })
+      label: roles[i].label, total: total, cells: cells,
+      valueText: cells.map(function (c) { return c.value + " " + c.label })
+        .join("  ·  ") })
   }
   return rows
 }
@@ -870,7 +918,27 @@ function browseDeviceRow(device) {
     // The status word, carried under the SAME name the client row uses for the
     // same job, so the shared row delegate reads one field rather than
     // branching on which list it is drawing.
-    tokenText: wordCase(classWord(entry.class)),
+    //
+    // EMPTY for an online device, which is the whole point of the column. It
+    // exists so the eye can run down one edge and find the broken thing; on a
+    // healthy site it was printing "Online" once per row, in the quietest
+    // colour on screen, five times in a column whose value never varied. A
+    // column that always reads the same is one the eye stops checking, which
+    // loses it on the single day it has something to say.
+    //
+    // Only `online` is dropped, because only `online` is the expected state.
+    // `down`, `impaired`, `updating` and `unknown` keep their word — an
+    // exception is what this column is for. `classText` still carries the word
+    // unconditionally for anything that needs it regardless (the Overview's
+    // offline list does, and so do the tests).
+    //
+    // The client row does NOT do this, though its column is the more repetitive
+    // of the two. There is no expected value to suppress: Wired and Wireless
+    // are equally ordinary, and the filter chips default to All — so dropping
+    // the word would delete the only place a client's connection type appears
+    // rather than merely quieting a redundancy.
+    tokenText: entry.class === "online"
+      ? "" : wordCase(classWord(entry.class)),
     // Whether that token is the reason the row sorts where it does. The
     // delegate colours on this rather than comparing class words itself
     // (REQ-014), and `down` is not the only value that must stand out.
@@ -878,6 +946,12 @@ function browseDeviceRow(device) {
     ipText: formatOptional(ip === "" ? null : ip),
     uptimeText: formatUptime(uptime),
     metaText: segments.join("  ·  "),
+    // The same two facts as fixed SLOTS, for a row drawn as columns: the
+    // address, then the uptime or "". A slot is empty rather than absent, so
+    // an unknown uptime leaves a gap instead of pulling nothing into place —
+    // which is what keeps the columns columns.
+    metaColumns: [ip !== "" ? ip : "IP unknown",
+      uptimeKnown ? "up " + formatUptime(uptime) : ""],
     // REQ-B21: the MAC is not on the row, only in the detail. It is in the
     // search haystack, which renders nothing.
     searchText: haystackOf([nameText, entry.model, entry.ipAddress,
@@ -941,6 +1015,9 @@ function browseClientRow(client, uplinkName, nowWall) {
     uplinkText: uplinkName,
     connectedText: connected,
     metaText: segments.join("  ·  "),
+    // Fixed slots, as on the device row: the uplink, then connected-since.
+    metaColumns: [uplinkName !== "" ? "via " + uplinkName : "",
+      connected !== "" ? "connected " + connected : ""],
     searchText: haystackOf([nameText, entry.ipAddress, entry.macAddress,
       entry.type, uplinkName])
   }
@@ -1115,6 +1192,7 @@ function deviceDetail(device, context) {
   const fetched = detail !== null
   const ports = fetched ? (detail.ports || []) : []
   const radios = fetched ? (detail.radios || []) : []
+  const updateText = entry.firmwareUpdatable === true ? "update available" : ""
   return {
     id: typeof entry.id === "string" ? entry.id : "",
     nameText: displayName(entry),
@@ -1124,9 +1202,13 @@ function deviceDetail(device, context) {
     // present both pass a test that only looks at one device.
     unavailableText: fetched ? "" : DETAIL_NOT_FETCHED,
     updateAvailable: entry.firmwareUpdatable === true,
-    updateText: entry.firmwareUpdatable === true ? "update available" : "",
+    updateText: updateText,
     rows: withCopy([
-      { key: "firmware", label: "Firmware", value: formatOptional(entry.firmwareVersion) },
+      // REQ-B14's "update available" mark rides on the firmware row, which is
+      // what it is about. `updateText` alone was built, tested and never
+      // bound, so the expanded detail never said it.
+      { key: "firmware", label: "Firmware", value: formatOptional(entry.firmwareVersion)
+        + (updateText !== "" ? "  \u00b7  " + updateText : "") },
       // The device's own address. It is on the collapsed row inside the
       // `·`-joined context line, which is fine to glance at and useless to
       // copy from — the same gap the client rows had.
@@ -1143,12 +1225,26 @@ function deviceDetail(device, context) {
       // one client each".
       { key: "clients", label: "Clients",
         value: clientCountText(clientCounts, entry.id, ctx.clientsTruncated === true) },
-      { key: "cpu", label: "CPU", value: formatPct(metrics ? metrics.cpuUtilizationPct : null) },
-      { key: "memory", label: "Memory", value: formatPct(metrics ? metrics.memoryUtilizationPct : null) },
+      // `fraction` draws a bar behind the figure. Percentages are the one
+      // kind of number here with a known ceiling, so they are the only rows
+      // that get one; `null` whenever the figure is unknown, so a missing
+      // reading draws no bar rather than an empty one that reads as 0%.
+      { key: "cpu", label: "CPU", value: formatPct(metrics ? metrics.cpuUtilizationPct : null),
+        fraction: pctFraction(metrics ? metrics.cpuUtilizationPct : null) },
+      { key: "memory", label: "Memory", value: formatPct(metrics ? metrics.memoryUtilizationPct : null),
+        fraction: pctFraction(metrics ? metrics.memoryUtilizationPct : null) },
       { key: "download", label: "Download", value: formatBps(metrics ? metrics.downloadBps : null) },
       { key: "upload", label: "Upload", value: formatBps(metrics ? metrics.uploadBps : null) }
     ]),
     ports: mapRows(ports, portRow),
+    // The counts the port grid is read WITH.
+    //
+    // The ports used to be one line each, which on a 48-port switch is 48 lines
+    // inside a popup capped at 560 px — a detail nobody can open. As a grid of
+    // marks they are three lines, and a mark is not a word: this sentence is
+    // what keeps the shape from being the only signal (UX-002), and it is the
+    // part a screen reader and a bug report can both quote.
+    portsSummaryText: portsSummaryText(ports),
     radiosText: radioSummaryText(radios),
     // "The controller answered and there are none" — only ever said when the
     // detail was actually fetched.
@@ -1216,6 +1312,31 @@ function portStateWord(state) {
 // them told the reader the hardware's capability while looking like traffic.
 // The field is still carried by the envelope (the protocol table is frozen);
 // what is removed is the column.
+// "6 up  ·  6 down  ·  3 PoE", and nothing for an empty array — `portsEmptyText`
+// already says that, and says it in the one case where it is true (the detail
+// was fetched) rather than whenever the array happens to be empty.
+//
+// A class with no ports in it is dropped rather than printed as a zero, which
+// is the rule `countRows` applies to the Overview for the same reason: on a
+// healthy switch two thirds of these would read zero, and zeroes are what the
+// eye has to filter out before it can read the numbers that matter.
+function portsSummaryText(ports) {
+  const list = ports || []
+  if (list.length === 0) return ""
+  let up = 0
+  let poe = 0
+  for (let i = 0; i < list.length; i++) {
+    const port = list[i] || {}
+    if (port.state === "UP") up += 1
+    if (poeLive(port.poe)) poe += 1
+  }
+  const parts = []
+  if (up > 0) parts.push(up + " up")
+  if (list.length - up > 0) parts.push((list.length - up) + " down")
+  if (poe > 0) parts.push(poe + " PoE")
+  return parts.join("  \u00b7  ")
+}
+
 function portRow(port) {
   const entry = port || {}
   return {
@@ -1224,6 +1345,10 @@ function portRow(port) {
     connectorText: formatOptional(entry.connector),
     stateText: portStateWord(entry.state),
     poeText: poeText(entry.poe),
+    // The mark the port grid draws. Not `poeText !== ""`: that is also
+    // "PoE off", and a switch with PoE disabled everywhere would draw an
+    // accent bar under every port.
+    poeLive: poeLive(entry.poe),
     isUp: entry.state === "UP"
   }
 }
@@ -1233,6 +1358,10 @@ function portRow(port) {
 // setting respectively, and someone working out why a camera has no power needs
 // to be able to tell them apart — so the first renders nothing and the second
 // says so.
+function poeLive(poe) {
+  return poe !== null && typeof poe === "object" && poe.enabled === true
+}
+
 function poeText(poe) {
   if (poe === null || poe === undefined) return ""
   if (poe.enabled !== true) return "PoE off"
@@ -1278,6 +1407,14 @@ function radioText(radio) {
 // `formatBps` apply, extended to the two utilisation percentages, which are the
 // fields most likely to be absent because `statistics/latest` is the collection
 // DATA-B04's budget drops first.
+// A percentage as a bar length in [0, 1], or null when there is no figure. A
+// controller reporting 104% memory is clamped rather than refused: the digits
+// beside the bar still say 104.
+function pctFraction(value) {
+  if (typeof value !== "number" || !isFinite(value)) return null
+  return Math.max(0, Math.min(1, value / 100))
+}
+
 function formatPct(value) {
   if (value === null || value === undefined) return "unknown"
   if (typeof value !== "number" || !isFinite(value)) return "unknown"
@@ -1802,30 +1939,48 @@ function textOf(value) {
 // `Ui/TextField` does with a keystroke. What is decided here is the order and
 // the arithmetic.
 
-// REQ-B15's order, verbatim: segmented control, search, list, Refresh, Open
-// UniFi, wrapping. Overview has no search field and no list, so it has three
-// stops rather than five.
+// REQ-B15's order, verbatim (SPEC-AMD-12, SPEC-AMD-13): Refresh, segmented
+// control, search, list, Open UniFi, wrapping — top of the panel to the
+// bottom. Overview has no search field, and its "list" is the Inventory rows.
+//
+// `state` says what is on screen, because a stop the panel is not drawing is a
+// stop Tab lands on with no ring and Enter does nothing on:
+//   hasSnapshot: false — nothing has been read, so there are no pages and no
+//                        rows; Refresh and Open UniFi are all there is.
+//   hasList: false     — the page's list is empty (a search with no matches),
+//                        so it is skipped rather than walked onto.
+// Omitted, both are true.
 const FOCUS_SEGMENTS = "segments"
 const FOCUS_SEARCH = "search"
 const FOCUS_LIST = "list"
 const FOCUS_REFRESH = "refresh"
 const FOCUS_DASHBOARD = "dashboard"
 
-function focusStops(view) {
-  if (browseView(view) === "overview") {
-    return [FOCUS_SEGMENTS, FOCUS_REFRESH, FOCUS_DASHBOARD]
-  }
-  return [FOCUS_SEGMENTS, FOCUS_SEARCH, FOCUS_LIST, FOCUS_REFRESH, FOCUS_DASHBOARD]
+function focusStops(view, state) {
+  const s = state || {}
+  if (s.hasSnapshot === false) return [FOCUS_REFRESH, FOCUS_DASHBOARD]
+  const list = s.hasList === false ? [] : [FOCUS_LIST]
+  const search = browseView(view) === "overview" ? [] : [FOCUS_SEARCH]
+  return [FOCUS_REFRESH, FOCUS_SEGMENTS].concat(search, list, [FOCUS_DASHBOARD])
+}
+
+// Where the panel opens, and where a cursor that has lost its place lands: the
+// segmented control, unless there is nothing to browse — then Refresh, the one
+// action that can change that.
+function homeFocus(state) {
+  return state && state.hasSnapshot === false ? FOCUS_REFRESH : FOCUS_SEGMENTS
 }
 
 // The stop `direction` places along, wrapping. Takes and returns a NAME rather
 // than an index: an index only means anything against one view's stop list, and
 // the thing this has to get right is surviving a view change that shortens the
 // list under the cursor.
-function nextFocus(view, stop, direction) {
-  const stops = focusStops(view)
+function nextFocus(view, stop, direction, state) {
+  const stops = focusStops(view, state)
   const at = stops.indexOf(stop)
-  if (at === -1) return stops[0]
+  // Home, not `stops[0]`: since SPEC-AMD-12 the first stop is Refresh, and a
+  // cursor that has lost its place should land where the panel opens it.
+  if (at === -1) return homeFocus(state)
   if (direction === 0) return stop
   const step = direction > 0 ? 1 : -1
   return stops[(at + step + stops.length) % stops.length]
@@ -1834,10 +1989,21 @@ function nextFocus(view, stop, direction) {
 // Where the cursor lands when the view changes. Keeping the same stop is right
 // when it still exists — switching Devices to Clients should not move focus out
 // of the list — and impossible when it does not, so Overview takes anything
-// that was on the search field or the list back to the segmented control, which
-// is the control that got the user here.
-function focusAfterViewChange(view, stop) {
-  return focusStops(view).indexOf(stop) === -1 ? FOCUS_SEGMENTS : stop
+// that was on the search field back to the segmented control, which is the
+// control that got the user here.
+function focusAfterViewChange(view, stop, state) {
+  return focusStops(view, state).indexOf(stop) === -1 ? homeFocus(state) : stop
+}
+
+// Where the cursor goes when the screen changes under it without a page
+// change: the list emptied by a poll, or the snapshot lost. A list that
+// empties hands the cursor to the search field above it, which is what the
+// user is most likely to change next; anything else goes home.
+function settleFocus(view, stop, state) {
+  const stops = focusStops(view, state)
+  if (stops.indexOf(stop) !== -1) return stop
+  if (stop === FOCUS_LIST && stops.indexOf(FOCUS_SEARCH) !== -1) return FOCUS_SEARCH
+  return homeFocus(state)
 }
 
 // REQ-B15. Where the focus stop goes when the pointer lands on a list row.
@@ -2054,6 +2220,26 @@ function headline(healthLevel, hasSnapshot, lastUpdateText) {
     : word + "  \u00b7  never updated"
 }
 
+// The same two facts as `headline`, apart.
+//
+// `PanelHero` renders `meta` in tracked small caps — the most emphatic
+// typographic treatment anywhere in this panel — and `headline` handed it both
+// the verdict and the timestamp as one string. So "UPDATED JUST NOW" shouted
+// exactly as loud as "HEALTHY", which is not the order in which anyone asks the
+// two questions.
+//
+// Split, the hero puts the verdict in `meta` and the timestamp in `detail`,
+// where it drops to the quieter treatment it deserves. `headline` is kept
+// whole: the tooltip and the tests read it, and one string is still the right
+// answer for a surface with one line.
+function headlineWord(healthLevel) {
+  return wordCase(wordFor(healthLevel))
+}
+
+function headlineDetail(hasSnapshot, lastUpdateText) {
+  return hasSnapshot ? "updated " + lastUpdateText : "never updated"
+}
+
 function attemptLine(state) {
   if (state.errorKind) return "failed (" + state.errorKind + ")"
   if (state.hasSnapshot) return "succeeded"
@@ -2084,7 +2270,9 @@ function forNullService() {
     hasSnapshot: false,
     tooltip: "UniFi\nLast update: never\nLatest attempt: unavailable\n"
       + sentenceFor("service_unavailable"),
-    headline: headline("grey", false, "never")
+    headline: headline("grey", false, "never"),
+    headlineWord: headlineWord("grey"),
+    headlineDetail: headlineDetail(false, "never")
   })
 }
 
@@ -2102,6 +2290,8 @@ const EMPTY_MODEL = {
   hasSnapshot: false,
   tooltip: "",
   headline: "",
+  headlineWord: "",
+  headlineDetail: "",
   siteName: "",
   wan: null,
   wanRows: [],
@@ -2111,7 +2301,12 @@ const EMPTY_MODEL = {
   countRows: [],
   clientsText: "unknown",
   devicesTotalText: "unknown",
-  offline: { devices: [], total: 0, truncated: false, moreLabel: "" },
+  // `summaryText` is "" and not "Nothing offline or impaired": with no
+  // snapshot nothing has been checked, and an all-clear is a claim. The
+  // panel hides the section entirely in this state; the empty string is
+  // what makes that true rather than merely arranged by the view.
+  offline: { devices: [], total: 0, truncated: false, moreLabel: "",
+    summaryText: "" },
   roleCountsAreNotAPartition: false,
   warnings: [],
   warningRows: [],
@@ -2227,6 +2422,8 @@ function build(input) {
     hasSnapshot: hasSnapshot,
     tooltip: tooltip(tooltipModel),
     headline: headline(healthLevel, hasSnapshot, relativePast(secondsSinceSuccess)),
+    headlineWord: headlineWord(healthLevel),
+    headlineDetail: headlineDetail(hasSnapshot, relativePast(secondsSinceSuccess)),
     siteName: snapshot && snapshot.site ? snapshot.site.name : "",
     wan: snapshot ? snapshot.wan : null,
     wanRows: snapshot ? wanRows(snapshot.wan) : [],
@@ -2236,7 +2433,10 @@ function build(input) {
     countRows: countRows(counts),
     clientsText: formatOptional(counts ? counts.clients : null),
     devicesTotalText: formatOptional(counts ? counts.devicesTotal : null),
-    offline: offlineList(snapshot),
+    // Only from a snapshot. `offlineList(null)` reads a total of zero, and
+    // zero renders "Nothing offline or impaired" — an all-clear drawn under
+    // the error sentence of a site that has never been read.
+    offline: snapshot ? offlineList(snapshot) : EMPTY_MODEL.offline,
     // AC-025 requires the model to EXPOSE this, and it does. Nothing binds to
     // it: the panel used to carry a sentence explaining that the role rows
     // deliberately out-total the unique count, and the sentence was removed as
@@ -2400,6 +2600,8 @@ if (typeof module !== "undefined") module.exports = {
   dashboardUrlFor: dashboardUrlFor,
   tooltip: tooltip,
   headline: headline,
+  headlineWord: headlineWord,
+  headlineDetail: headlineDetail,
   forNullService: forNullService,
   EMPTY_MODEL: EMPTY_MODEL,
   build: build,
@@ -2435,12 +2637,14 @@ if (typeof module !== "undefined") module.exports = {
   clientDetail: clientDetail,
   portRow: portRow,
   poeText: poeText,
+  portsSummaryText: portsSummaryText,
   radioSummaryText: radioSummaryText,
   radioText: radioText,
   portStateWord: portStateWord,
   clientCountsByUplink: clientCountsByUplink,
   clientCountText: clientCountText,
   formatPct: formatPct,
+  pctFraction: pctFraction,
   parseRfc3339: parseRfc3339,
   formatInstant: formatInstant,
   connectedText: connectedText,
@@ -2463,5 +2667,8 @@ if (typeof module !== "undefined") module.exports = {
   focusStops: focusStops,
   nextFocus: nextFocus,
   focusAfterViewChange: focusAfterViewChange,
-  focusAfterHover: focusAfterHover
+  homeFocus: homeFocus,
+  settleFocus: settleFocus,
+  focusAfterHover: focusAfterHover,
+  pointerMoved: pointerMoved
 }
