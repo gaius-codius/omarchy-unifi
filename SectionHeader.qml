@@ -23,8 +23,13 @@
 //               or two short words. Costs nothing; at caption size it is
 //               slightly SHORTER than the body it heads.
 //
-// So: caption size, uppercase, tracked, at FULL foreground. The size stays
-// small and the colour stops apologising.
+// So: caption size, uppercase, tracked, at FULL foreground, regular weight.
+// The size stays small and the colour stops apologising.
+//
+// Regular, not bold. The base type sets `font.bold`, and bold on top of
+// tracked caps at caption size is two emphases where one was asked for: it
+// turned every heading into the heaviest text in the panel, and "DETAILS" out-
+// shouted the rows it hid.
 //
 // `color` is set rather than `foreground` because the base type derives a muted
 // colour from `foreground`, and muted is the half of the problem that space
@@ -52,6 +57,7 @@ PanelSectionHeader {
   fontSize: Style.font.caption
   color: emphasis ? emphasis.primary : foreground
 
+  font.bold: false
   font.capitalization: Font.AllUppercase
   // Derived from the size rather than set in pixels, so it tracks the user's
   // font scaling the way `Style.space` does.
