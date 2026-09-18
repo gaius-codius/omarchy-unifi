@@ -61,17 +61,19 @@ Item {
   // thing the list is searched by and the thing every row is identified by,
   // arrived looking like slightly brighter metadata.
   //
-  // Derived from the token rather than set in pixels so it still scales with
-  // the user's font settings, which is the whole point of `Style.font.*`.
-  // 1.18 puts it ~3.5 px clear of the caption line: a title, at a size that
-  // still costs the row nothing, because the row's height is set by the two
-  // lines together and the meta line did not grow.
+  // `subtitle` — the token between `body` and `title` (13 at the default
+  // base, against caption's 10) — rather than a multiple of another token, so
+  // it tracks the user's font settings and any per-token theme override the
+  // way `Style.font.*` exists to. It puts the name ~3 px clear of the caption
+  // line: a title, at a size that still costs the row nothing, because the
+  // row's height is set by the two lines together and the meta line did not
+  // grow.
   //
   // Sentence case, deliberately, and never the tracked-uppercase treatment
   // `SectionHeader` uses: a device name is a proper noun the user typed into
   // the search field, and upper-casing it breaks the match between what they
   // searched for and what they are looking at.
-  readonly property real titleSize: Math.round(Style.font.bodySmall * 1.18)
+  readonly property real titleSize: Style.font.subtitle
 
   implicitHeight: layout.implicitHeight
   height: implicitHeight
