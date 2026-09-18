@@ -102,6 +102,22 @@ Panel {
   // scale built from `Color.foreground` would drift from everything around it.
   Emphasis { id: emphasisTokens; foreground: root.foreground }
 
+  // The two disclosures at the foot of the panel (REQ-B10's view state, same
+  // rule: the panel owns what the panel shows).
+  //
+  // Both were permanent blocks. Details is five rows of site id, controller
+  // host, helper version and config generation — read once, during setup, and
+  // never again — sitting between the content and the actions on every page.
+  // The keyboard legend is two wrapped lines naming keys, at the very bottom:
+  // too far down for the newcomer who needs it, always present for the expert
+  // who does not, and the only place `f` was ever mentioned.
+  //
+  // Reset with the rest of the browse state when the panel closes, because
+  // reopening should answer the health question rather than resume a rummage.
+  property bool detailsOpen: false
+  property bool keysOpen: false
+  readonly property bool detailsExpanded: detailsOpen || vm.sentence !== ""
+
   // REQ-B24 (SPEC-AMD-6). The key of the value most recently copied, so the row
   // that was clicked can confirm it. Cleared by everything the user might do
   // next, which is why there is no Timer: a confirmation that expires on a
@@ -501,6 +517,8 @@ Panel {
 
   function resetBrowse() {
     copiedKey = ""
+    detailsOpen = false
+    keysOpen = false
     clearSearch()
     view = "overview"
     roleFilter = ""
@@ -622,7 +640,17 @@ Panel {
           PanelHero {
             width: parent.width
             title: root.vm.siteName === "" ? "UniFi" : root.vm.siteName
-            meta: root.vm.headline
+            // The verdict and its timestamp, apart. `PanelHero` renders `meta`
+            // in tracked small caps — the loudest treatment in this panel — and
+            // `headline` gave it both facts as one string, so "UPDATED JUST
+            // NOW" shouted exactly as loud as "HEALTHY". The verdict keeps the
+            // emphasis; the timestamp drops to `detail`, which is the quieter
+            // line the hero already had and was not using.
+            //
+            // It also frees the tracked treatment for `SectionHeader`, which
+            // now owns it alone: one treatment, one meaning.
+            meta: root.vm.headlineWord
+            detail: root.vm.headlineDetail
             foreground: root.foreground
             fontFamily: root.fontFamily
             iconComponent: Component {
@@ -715,6 +743,91 @@ Panel {
                 // A CLICK still sets it, in `onChanged` above, which is the case
                 // where the user did ask.
               }
+          }
+
+          // --- the two actions (REQ-011, REQ-012, UX-008) -------------------
+          //
+          // ABOVE the content, not below it.
+          //
+          // They were the last children of a scrolling column, under Details,
+          // under a list that may be 320 px tall in a panel capped at 560 — so
+          // on two of the three pages neither button was on screen, and the
+          // shipped Clients screenshot shows exactly that. Someone opening the
+          // panel to re-poll had to scroll past everything the stale poll
+          // produced in order to ask for a fresh one.
+          //
+          // Here they cost one row and Details (below) gives back five.
+          //
+          // The nicer version of this puts Refresh in `PanelHero`'s
+          // `trailingControl`, beside the timestamp it invalidates. That is
+          // left alone deliberately: this tree cannot run qmllint or Quickshell,
+          // the contract file records the property's NAME but not its type, and
+          // guessing wrong on a Component-versus-Item is a panel that fails to
+          // load rather than one that looks slightly off. Worth doing on a host
+          // where it can be checked.
+          Row {
+            spacing: Style.spacing.controlGap
+
+            Button {
+              id: refreshButton
+              text: "Refresh"
+              enabled: root.vm.refreshEnabled
+              opacity: enabled ? 1.0 : 0.45
+              hasCursor: root.focusStop === ViewModel.FOCUS_REFRESH
+              foreground: root.foreground
+              fontFamily: root.fontFamily
+              bordered: true
+              onClicked: root.doRefresh()
+            }
+
+            Button {
+              id: dashboardButton
+              text: "Open UniFi"
+              enabled: root.vm.dashboard ? root.vm.dashboard.accepted : false
+              opacity: enabled ? 1.0 : 0.45
+              hasCursor: root.focusStop === ViewModel.FOCUS_DASHBOARD
+              foreground: root.foreground
+              fontFamily: root.fontFamily
+              bordered: true
+              onClicked: root.openDashboard()
+            }
+          }
+
+          // REQ-011: disabled WITH an explanatory label. A greyed button that
+          // says nothing sends the user to look for a fault in the button.
+          Text {
+            visible: text !== ""
+            width: parent.width
+            text: root.vm.refreshDisabledReason === ""
+              ? "" : "Refresh is unavailable: " + root.vm.refreshDisabledReason
+            color: root.dim
+            font.family: root.fontFamily
+            font.pixelSize: Style.font.caption
+            textFormat: Text.PlainText
+            wrapMode: Text.WordWrap
+          }
+
+          // REQ-012's disabled label, and UX-010's warning. The warning is a
+          // BINDING, not something raised on click, which is precisely what
+          // "rendered before the launch occurs" requires: it is on screen for
+          // as long as the URL is plain HTTP, whether or not anyone presses the
+          // button.
+          Text {
+            visible: text !== ""
+            width: parent.width
+            text: !root.vm.dashboard ? ""
+              : !root.vm.dashboard.accepted
+                ? "Open UniFi is unavailable: " + root.vm.dashboard.reason + "."
+                : root.vm.dashboard.warnPlainHttp
+                  ? "This dashboard URL is plain HTTP. Your session, including "
+                    + "anything you type into it, will not be encrypted."
+                  : ""
+            color: root.vm.dashboard && root.vm.dashboard.warnPlainHttp
+              ? root.urgent : root.dim
+            font.family: root.fontFamily
+            font.pixelSize: Style.font.caption
+            textFormat: Text.PlainText
+            wrapMode: Text.WordWrap
           }
 
           // REQ-013 / UX-007. One sentence naming what failed and the single
@@ -902,11 +1015,45 @@ Panel {
           // places.
           PanelSeparator { foreground: root.foreground }
 
-          SectionHeader {
-            text: "Details"
-            foreground: root.foreground
-            fontFamily: root.fontFamily
-            emphasis: root.emphasis
+          // The heading is the control. Closed by default, and opened for you
+          // in any state that is not `ok` — where the controller host and the
+          // config generation stop being trivia and become the diagnosis.
+          // `sentence` is non-empty in exactly those states (see its binding
+          // above), so this reads the fact rather than re-deriving it.
+          Item {
+            width: parent.width
+            implicitHeight: detailsHeading.implicitHeight
+
+            SectionHeader {
+              id: detailsHeading
+              anchors.left: parent.left
+              text: "Details"
+              foreground: root.foreground
+              fontFamily: root.fontFamily
+              emphasis: root.emphasis
+            }
+            Text {
+              anchors.right: parent.right
+              anchors.baseline: detailsHeading.baseline
+              // Points down when open, right when closed. A shape rather than
+              // a glyph name, for the reason `UnifiGlyph` gives: a codepoint
+              // the user's font lacks renders as a tofu box, and these two are
+              // in every font that has ever shipped.
+              text: root.detailsExpanded ? "\u25be" : "\u25b8"
+              color: root.dim
+              font.family: root.fontFamily
+              font.pixelSize: Style.font.caption
+              textFormat: Text.PlainText
+            }
+            MouseArea {
+              anchors.fill: parent
+              anchors.leftMargin: -Style.spacing.xs
+              anchors.rightMargin: -Style.spacing.xs
+              hoverEnabled: true
+              acceptedButtons: Qt.LeftButton
+              cursorShape: Qt.PointingHandCursor
+              onClicked: root.detailsOpen = !root.detailsOpen
+            }
           }
 
           // `DetailRows`, not a second hand-rolled label/value Repeater. These
@@ -920,6 +1067,7 @@ Panel {
           // host and a long label could overlap rather than elide.
           DetailRows {
             width: parent.width
+            visible: root.detailsExpanded
             rows: root.vm.metaRows
             foreground: root.foreground
             fontFamily: root.fontFamily
@@ -942,95 +1090,55 @@ Panel {
             wrapMode: Text.WordWrap
           }
 
-          PanelSeparator { foreground: root.foreground }
-
-          // --- the two actions (REQ-011, REQ-012, UX-008) -------------------
-          Row {
-            spacing: Style.spacing.controlGap
-
-            Button {
-              id: refreshButton
-              text: "Refresh"
-              enabled: root.vm.refreshEnabled
-              opacity: enabled ? 1.0 : 0.45
-              hasCursor: root.focusStop === ViewModel.FOCUS_REFRESH
-              foreground: root.foreground
-              fontFamily: root.fontFamily
-              bordered: true
-              onClicked: root.doRefresh()
-            }
-
-            Button {
-              id: dashboardButton
-              text: "Open UniFi"
-              enabled: root.vm.dashboard ? root.vm.dashboard.accepted : false
-              opacity: enabled ? 1.0 : 0.45
-              hasCursor: root.focusStop === ViewModel.FOCUS_DASHBOARD
-              foreground: root.foreground
-              fontFamily: root.fontFamily
-              bordered: true
-              onClicked: root.openDashboard()
-            }
-          }
-
           // The keys work today and nothing said so — which is the same as
           // them not working. `Ui/PanelKeyCatcher` maps the arrows AND hjkl,
           // Tab/Shift-Tab, Enter, Space and Escape (PanelKeyCatcher.qml:51-83),
           // and this panel adds "/" and "r"; none of it was discoverable.
           //
           // Tertiary weight and one line: an affordance, not a manual.
-          Text {
+          Column {
             width: parent.width
             visible: root.vm.hasSnapshot
-            // `f` is named on both browse pages and on neither Overview,
-            // which has nothing to filter — a key named where it does nothing
-            // is worse than one that is not named.
-            text: root.browsing
-              ? "←→ pages  ·  ↑↓ select  ·  ⏎ open  ·  f filter  ·  / search  ·  Esc close"
-              : "←→ pages  ·  Tab move  ·  ⏎ activate  ·  / search  ·  Esc close"
-            color: root.dim
-            font.family: root.fontFamily
-            font.pixelSize: Style.font.caption
-            textFormat: Text.PlainText
-            wrapMode: Text.WordWrap
+            spacing: Style.spacing.xs
+
+            // One line at rest instead of two wrapped ones, and it is the
+            // control that opens the rest. The legend still exists for the
+            // newcomer who needs it and stops being furniture for everyone
+            // else.
+            Text {
+              text: root.keysOpen ? "\u25be  keys" : "?  keys"
+              color: root.dim
+              font.family: root.fontFamily
+              font.pixelSize: Style.font.caption
+              textFormat: Text.PlainText
+
+              MouseArea {
+                anchors.fill: parent
+                anchors.margins: -Style.spacing.xs
+                hoverEnabled: true
+                acceptedButtons: Qt.LeftButton
+                cursorShape: Qt.PointingHandCursor
+                onClicked: root.keysOpen = !root.keysOpen
+              }
+            }
+
+            Text {
+              width: parent.width
+              visible: root.keysOpen
+              // `f` is named on both browse pages and on neither Overview,
+              // which has nothing to filter — a key named where it does nothing
+              // is worse than one that is not named.
+              text: root.browsing
+                ? "←→ pages  ·  ↑↓ select  ·  ⏎ open  ·  f filter  ·  / search  ·  Esc close"
+                : "←→ pages  ·  Tab move  ·  ⏎ activate  ·  / search  ·  Esc close"
+              color: root.dim
+              font.family: root.fontFamily
+              font.pixelSize: Style.font.caption
+              textFormat: Text.PlainText
+              wrapMode: Text.WordWrap
+            }
           }
 
-          // REQ-011: disabled WITH an explanatory label. A greyed button that
-          // says nothing sends the user to look for a fault in the button.
-          Text {
-            visible: text !== ""
-            width: parent.width
-            text: root.vm.refreshDisabledReason === ""
-              ? "" : "Refresh is unavailable: " + root.vm.refreshDisabledReason
-            color: root.dim
-            font.family: root.fontFamily
-            font.pixelSize: Style.font.caption
-            textFormat: Text.PlainText
-            wrapMode: Text.WordWrap
-          }
-
-          // REQ-012's disabled label, and UX-010's warning. The warning is a
-          // BINDING, not something raised on click, which is precisely what
-          // "rendered before the launch occurs" requires: it is on screen for
-          // as long as the URL is plain HTTP, whether or not anyone presses the
-          // button.
-          Text {
-            visible: text !== ""
-            width: parent.width
-            text: !root.vm.dashboard ? ""
-              : !root.vm.dashboard.accepted
-                ? "Open UniFi is unavailable: " + root.vm.dashboard.reason + "."
-                : root.vm.dashboard.warnPlainHttp
-                  ? "This dashboard URL is plain HTTP. Your session, including "
-                    + "anything you type into it, will not be encrypted."
-                  : ""
-            color: root.vm.dashboard && root.vm.dashboard.warnPlainHttp
-              ? root.urgent : root.dim
-            font.family: root.fontFamily
-            font.pixelSize: Style.font.caption
-            textFormat: Text.PlainText
-            wrapMode: Text.WordWrap
-          }
         }
       }
     }

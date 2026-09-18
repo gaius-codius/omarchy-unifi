@@ -874,6 +874,34 @@ test("REQ-009: role rows carry their non-empty classes in a fixed order", () => 
   assert.strictEqual(ViewModel.countRows(null).length, 0)
 })
 
+test("F18: the hero's verdict and its timestamp are separate strings", () => {
+  // PanelHero renders `meta` in tracked small caps, the loudest treatment in
+  // the panel. `headline` handed it both facts at once, so the timestamp
+  // shouted as loud as the verdict.
+  const m = build()
+  assert.strictEqual(m.headlineWord, "Healthy")
+  assert.ok(m.headlineDetail.indexOf("updated") === 0, m.headlineDetail)
+  assert.strictEqual(m.headlineDetail.indexOf("Healthy"), -1,
+    "the detail line must not repeat the verdict")
+
+  // `headline` is unchanged: the tooltip and a surface with one line still
+  // want both facts in one string, and splitting is a rendering choice rather
+  // than a change to what the panel knows.
+  assert.ok(m.headline.indexOf("Healthy") !== -1)
+  assert.ok(m.headline.indexOf("updated") !== -1)
+
+  // The never-updated case keeps its wording in both shapes.
+  const cold = ViewModel.forNullService()
+  assert.strictEqual(cold.headlineDetail, "never updated")
+  assert.strictEqual(cold.headlineWord, ViewModel.headlineWord("grey"))
+
+  // Present and a string on every path, so the hero never binds to undefined.
+  for (const model of [m, cold, ViewModel.EMPTY_MODEL]) {
+    assert.strictEqual(typeof model.headlineWord, "string")
+    assert.strictEqual(typeof model.headlineDetail, "string")
+  }
+})
+
 test("F03: the offline section states the good case and never heads an empty list", () => {
   // A healthy site says so. The panel used to answer "is anything broken?" by
   // hiding the section, and a reader cannot tell an absent section from a

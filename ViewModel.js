@@ -2110,6 +2110,26 @@ function headline(healthLevel, hasSnapshot, lastUpdateText) {
     : word + "  \u00b7  never updated"
 }
 
+// The same two facts as `headline`, apart.
+//
+// `PanelHero` renders `meta` in tracked small caps — the most emphatic
+// typographic treatment anywhere in this panel — and `headline` handed it both
+// the verdict and the timestamp as one string. So "UPDATED JUST NOW" shouted
+// exactly as loud as "HEALTHY", which is not the order in which anyone asks the
+// two questions.
+//
+// Split, the hero puts the verdict in `meta` and the timestamp in `detail`,
+// where it drops to the quieter treatment it deserves. `headline` is kept
+// whole: the tooltip and the tests read it, and one string is still the right
+// answer for a surface with one line.
+function headlineWord(healthLevel) {
+  return wordCase(wordFor(healthLevel))
+}
+
+function headlineDetail(hasSnapshot, lastUpdateText) {
+  return hasSnapshot ? "updated " + lastUpdateText : "never updated"
+}
+
 function attemptLine(state) {
   if (state.errorKind) return "failed (" + state.errorKind + ")"
   if (state.hasSnapshot) return "succeeded"
@@ -2140,7 +2160,9 @@ function forNullService() {
     hasSnapshot: false,
     tooltip: "UniFi\nLast update: never\nLatest attempt: unavailable\n"
       + sentenceFor("service_unavailable"),
-    headline: headline("grey", false, "never")
+    headline: headline("grey", false, "never"),
+    headlineWord: headlineWord("grey"),
+    headlineDetail: headlineDetail(false, "never")
   })
 }
 
@@ -2158,6 +2180,8 @@ const EMPTY_MODEL = {
   hasSnapshot: false,
   tooltip: "",
   headline: "",
+  headlineWord: "",
+  headlineDetail: "",
   siteName: "",
   wan: null,
   wanRows: [],
@@ -2288,6 +2312,8 @@ function build(input) {
     hasSnapshot: hasSnapshot,
     tooltip: tooltip(tooltipModel),
     headline: headline(healthLevel, hasSnapshot, relativePast(secondsSinceSuccess)),
+    headlineWord: headlineWord(healthLevel),
+    headlineDetail: headlineDetail(hasSnapshot, relativePast(secondsSinceSuccess)),
     siteName: snapshot && snapshot.site ? snapshot.site.name : "",
     wan: snapshot ? snapshot.wan : null,
     wanRows: snapshot ? wanRows(snapshot.wan) : [],
@@ -2461,6 +2487,8 @@ if (typeof module !== "undefined") module.exports = {
   dashboardUrlFor: dashboardUrlFor,
   tooltip: tooltip,
   headline: headline,
+  headlineWord: headlineWord,
+  headlineDetail: headlineDetail,
   forNullService: forNullService,
   EMPTY_MODEL: EMPTY_MODEL,
   build: build,
