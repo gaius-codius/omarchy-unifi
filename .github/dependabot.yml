@@ -1,0 +1,11 @@
+# Dependabot version updates for the only ecosystem this repo currently
+# exposes: GitHub Actions used by .github/workflows/tests.yml.
+# Python/JS have no package manifests here (stdlib helper, plain QML/JS),
+# so there is nothing for those ecosystems to update.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
