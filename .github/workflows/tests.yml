@@ -101,7 +101,7 @@ jobs:
       # not setup-python/setup-node, which would put the versions CI tests in a
       # second place that can drift from the one developers use.
       - name: Install pinned toolchain
-        uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
+        uses: jdx/mise-action@8418fedb1110381a0d3ba51a7a415d7c1b884550 # v5.2.2
         with:
           install: true
           cache: true
