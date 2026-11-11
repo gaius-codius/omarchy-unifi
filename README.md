@@ -4,8 +4,8 @@ Check your UniFi network from the Omarchy bar. Click the icon to find offline
 or impaired devices, see connected clients, and browse device details. The
 plugin only reads from your controller; it never changes its configuration.
 
-Tested with a UDM Pro running UniFi Network 10.6.101 and 11.0.99, with manual checks across
-three Omarchy themes including one light theme.
+Tested with a UDM Pro running UniFi Network 10.6.101 and 11.0.99, with manual
+checks across three Omarchy themes including one light theme.
 
 ## Screenshots
 
@@ -30,8 +30,8 @@ You'll need:
 
 - Omarchy **4.0.3-1** with Quickshell **0.3.1-1**.
 - Python **3.9 or newer**. No pip packages are needed.
-- UniFi Network **10.6.x** or **11.0.x** for hardware-tested support, with the Network
-  Integration API available.
+- UniFi Network **10.6.x** or **11.0.x** for hardware-tested support, with the
+  Network Integration API available.
 - A dedicated API key from your UniFi console: **Settings → Control Plane →
   Integrations** (older firmware: **Settings → System → Advanced**). Copy the
   key when you create it; the console won't show it again.

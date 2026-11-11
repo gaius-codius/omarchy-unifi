@@ -403,9 +403,9 @@ Against REQ-017's 25 s budget this is negligible here, and the bound in
 ## §12c — Network 11.0 check, 2026-11-11
 
 The same UDM Pro, upgraded to Network **11.0.99**, with the user's approval.
-Read-only GETs to the six allowlisted routes, plus one access point's detail and
-statistics. Field names and types only were compared with the fixture corpus; no
-values entered this file.
+Read-only GETs to the six allowlisted routes. The per-device routes were read
+for one switch and one access point. Field names and types only were compared
+with the fixture corpus; no values entered this file.
 
 The 0.2.0 helper rejected the console as `unsupported`. With the gate widened in
 memory, a full batch succeeded: `ok: true`, nine devices, 41 clients, and the
