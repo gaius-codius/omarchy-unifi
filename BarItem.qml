@@ -5,7 +5,7 @@
 // has already resolved against `compactMetric` and BIZ-003's "unknown is not
 // zero". This file places them.
 import QtQuick
-import qs.Commons
+import qs.Commons as Commons
 
 Item {
   id: root
@@ -24,7 +24,7 @@ Item {
   Row {
     id: content
     anchors.centerIn: parent
-    spacing: compact.visible ? Style.spacing.sm : 0
+    spacing: compact.visible ? Commons.Style.spacing.sm : 0
 
     UnifiGlyph {
       id: glyph
@@ -36,7 +36,7 @@ Item {
       glyphColor: root.glyphColor
       badgeColor: root.palette.urgent
       fontFamily: root.palette.fontFamily
-      iconSize: Style.bar.iconFont
+      iconSize: Commons.Style.bar.iconFont
       showBadge: root.rendering ? root.rendering.badge === true : false
       // UX-003: a failed refresh over a snapshot that is still fresh. Not shown
       // once the snapshot has gone stale, because `stale` is already the greyed
@@ -62,7 +62,7 @@ Item {
       text: root.vm ? root.vm.compactText : ""
       color: root.glyphColor
       font.family: root.palette.fontFamily
-      font.pixelSize: Style.bar.iconFont
+      font.pixelSize: Commons.Style.bar.iconFont
       textFormat: Text.PlainText
       renderType: Text.NativeRendering
     }

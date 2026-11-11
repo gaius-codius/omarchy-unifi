@@ -30,7 +30,7 @@
 // put the model on the same line, right-aligned and capped at 40% of the
 // width, which meant a long model name ate the name being searched for.
 import QtQuick
-import qs.Commons
+import qs.Commons as Commons
 import qs.Ui
 
 Item {
@@ -40,9 +40,9 @@ Item {
   property bool expanded: false
   property bool hasCursor: false
   property var detail: null
-  property color foreground: Color.foreground
-  property color urgent: Color.urgent
-  property string fontFamily: Style.font.family
+  property color foreground: Commons.Color.foreground
+  property color urgent: Commons.Color.urgent
+  property string fontFamily: Commons.Style.font.family
   property var emphasis: null
   property string copiedKey: ""
 
@@ -72,7 +72,7 @@ Item {
   // `SectionHeader` uses: a device name is a proper noun the user typed into
   // the search field, and upper-casing it breaks the match between what they
   // searched for and what they are looking at.
-  readonly property real titleSize: Style.font.title
+  readonly property real titleSize: Commons.Style.font.title
 
   implicitHeight: layout.implicitHeight
   height: implicitHeight
@@ -83,17 +83,17 @@ Item {
   // expanded row also shows its detail, and the cursor moves with the keyboard.
   Rectangle {
     anchors.fill: parent
-    anchors.leftMargin: -Style.spacing.xs
-    anchors.rightMargin: -Style.spacing.xs
-    radius: Style.cornerRadius
-    color: Style.controlFill(false, root.hasCursor, root.foreground, root.foreground)
+    anchors.leftMargin: -Commons.Style.spacing.xs
+    anchors.rightMargin: -Commons.Style.spacing.xs
+    radius: Commons.Style.cornerRadius
+    color: Commons.Style.controlFill(false, root.hasCursor, root.foreground, root.foreground)
     visible: root.hasCursor
   }
 
   Column {
     id: layout
     width: parent.width
-    spacing: Style.spacing.xs
+    spacing: Commons.Style.spacing.xs
 
     // The header, and the only part that toggles. The click target covers this
     // Item and the line under it but not the whole row: a target over the
@@ -108,7 +108,7 @@ Item {
         id: primary
         anchors.left: parent.left
         anchors.right: token.left
-        anchors.rightMargin: Style.spacing.md
+        anchors.rightMargin: Commons.Style.spacing.md
         text: root.row ? root.row.nameText : ""
         color: root.foreground
         font.family: root.fontFamily
@@ -133,7 +133,7 @@ Item {
         text: root.row ? root.row.tokenText : ""
         color: (root.row && root.row.tokenUrgent) ? root.urgent : root._tertiary
         font.family: root.fontFamily
-        font.pixelSize: Style.font.bodySmall
+        font.pixelSize: Commons.Style.font.bodySmall
         textFormat: Text.PlainText
       }
     }
@@ -164,22 +164,22 @@ Item {
       Text {
         id: secondary
         anchors.left: parent.left
-        width: metaLine.columnWidth - Style.spacing.md
+        width: metaLine.columnWidth - Commons.Style.spacing.md
         text: root.row ? root.row.secondaryText : ""
         color: root._tertiary
         font.family: root.fontFamily
-        font.pixelSize: Style.font.caption
+        font.pixelSize: Commons.Style.font.caption
         textFormat: Text.PlainText
         elide: Text.ElideRight
       }
       Text {
         id: slotA
         x: metaLine.columnWidth
-        width: metaLine.columnWidth - Style.spacing.md
+        width: metaLine.columnWidth - Commons.Style.spacing.md
         text: metaLine.slots[0] || ""
         color: root._tertiary
         font.family: root.fontFamily
-        font.pixelSize: Style.font.caption
+        font.pixelSize: Commons.Style.font.caption
         textFormat: Text.PlainText
         elide: Text.ElideRight
       }
@@ -190,7 +190,7 @@ Item {
         text: metaLine.slots[1] || ""
         color: root._tertiary
         font.family: root.fontFamily
-        font.pixelSize: Style.font.caption
+        font.pixelSize: Commons.Style.font.caption
         textFormat: Text.PlainText
         elide: Text.ElideRight
       }
@@ -205,7 +205,7 @@ Item {
       text: "Firmware update available"
       color: root.urgent
       font.family: root.fontFamily
-      font.pixelSize: Style.font.caption
+      font.pixelSize: Commons.Style.font.caption
       textFormat: Text.PlainText
     }
 
@@ -215,9 +215,9 @@ Item {
     // every frame.
     Column {
       width: parent.width
-      spacing: Style.spacing.sm
+      spacing: Commons.Style.spacing.sm
       visible: root.expanded && root.detail !== null
-      topPadding: visible ? Style.spacing.xs : 0
+      topPadding: visible ? Commons.Style.spacing.xs : 0
 
       PanelSeparator { foreground: root.foreground }
 
@@ -242,7 +242,7 @@ Item {
           ? root.detail.unavailableText : ""
         color: root._tertiary
         font.family: root.fontFamily
-        font.pixelSize: Style.font.caption
+        font.pixelSize: Commons.Style.font.caption
         textFormat: Text.PlainText
         wrapMode: Text.WordWrap
       }

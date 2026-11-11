@@ -34,14 +34,14 @@
 // tertiary, caption, and read when looked at. See `SectionHeader.qml` for the
 // one level the panel does have.
 import QtQuick
-import qs.Commons
+import qs.Commons as Commons
 
 Column {
   id: root
 
   property var detail: null
-  property color foreground: Color.foreground
-  property string fontFamily: Style.font.family
+  property color foreground: Commons.Color.foreground
+  property string fontFamily: Commons.Style.font.family
   property var emphasis: null
 
   readonly property color _secondary: emphasis ? emphasis.secondary : foreground
@@ -57,7 +57,7 @@ Column {
   readonly property string radiosEmpty: detail && detail.radiosEmptyText
     ? detail.radiosEmptyText : ""
 
-  spacing: Style.spacing.xs
+  spacing: Commons.Style.spacing.xs
   visible: ports.length > 0 || radiosText !== ""
     || portsEmpty !== "" || radiosEmpty !== ""
 
@@ -79,7 +79,7 @@ Column {
       text: "Ports"
       color: root._tertiary
       font.family: root.fontFamily
-      font.pixelSize: Style.font.caption
+      font.pixelSize: Commons.Style.font.caption
       textFormat: Text.PlainText
     }
 
@@ -87,7 +87,7 @@ Column {
       id: portsBody
       x: root.labelWidth
       width: parent.width - root.labelWidth
-      spacing: Style.spacing.xs
+      spacing: Commons.Style.spacing.xs
 
       // The ports, as a grid of marks.
       //
@@ -108,7 +108,7 @@ Column {
       Flow {
         width: parent.width
         visible: root.ports.length > 0
-        spacing: Style.spacing.xs
+        spacing: Commons.Style.spacing.xs
 
         Repeater {
           model: root.ports
@@ -119,7 +119,7 @@ Column {
 
             // Square, and sized from the type rather than in pixels so it keeps
             // step with the user's font scaling like everything else here.
-            readonly property int side: Math.round(Style.font.caption * 1.5)
+            readonly property int side: Math.round(Commons.Style.font.caption * 1.5)
             width: side
             height: side
             radius: Math.max(1, Math.round(side / 7))
@@ -152,7 +152,7 @@ Column {
               font.family: root.fontFamily
               // A step below caption: the index identifies the mark, it does
               // not compete with the row's own text.
-              font.pixelSize: Math.max(8, Math.round(Style.font.caption * 0.85))
+              font.pixelSize: Math.max(8, Math.round(Commons.Style.font.caption * 0.85))
               textFormat: Text.PlainText
             }
 
@@ -169,7 +169,7 @@ Column {
               anchors.right: parent.right
               anchors.bottom: parent.bottom
               height: 2
-              color: Color.accent
+              color: Commons.Color.accent
               visible: mark.modelData.poeLive === true
             }
           }
@@ -184,7 +184,7 @@ Column {
         text: root.portsSummary
         color: root._tertiary
         font.family: root.fontFamily
-        font.pixelSize: Style.font.caption
+        font.pixelSize: Commons.Style.font.caption
         textFormat: Text.PlainText
         wrapMode: Text.WordWrap
       }
@@ -197,7 +197,7 @@ Column {
         text: root.portsEmpty
         color: root._tertiary
         font.family: root.fontFamily
-        font.pixelSize: Style.font.caption
+        font.pixelSize: Commons.Style.font.caption
         textFormat: Text.PlainText
       }
     }
@@ -215,7 +215,7 @@ Column {
       text: "Radios"
       color: root._tertiary
       font.family: root.fontFamily
-      font.pixelSize: Style.font.caption
+      font.pixelSize: Commons.Style.font.caption
       textFormat: Text.PlainText
     }
 
@@ -223,7 +223,7 @@ Column {
       id: radiosBody
       x: root.labelWidth
       width: parent.width - root.labelWidth
-      spacing: Style.spacing.xs
+      spacing: Commons.Style.spacing.xs
 
       Text {
         visible: root.radiosText !== ""
@@ -231,7 +231,7 @@ Column {
         text: root.radiosText
         color: root._secondary
         font.family: root.fontFamily
-        font.pixelSize: Style.font.caption
+        font.pixelSize: Commons.Style.font.caption
         textFormat: Text.PlainText
         wrapMode: Text.WordWrap
       }
@@ -242,7 +242,7 @@ Column {
         text: root.radiosEmpty
         color: root._tertiary
         font.family: root.fontFamily
-        font.pixelSize: Style.font.caption
+        font.pixelSize: Commons.Style.font.caption
         textFormat: Text.PlainText
       }
     }

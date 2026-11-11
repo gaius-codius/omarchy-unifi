@@ -24,7 +24,7 @@
 import QtQuick
 import QtQuick.Controls
 import Quickshell
-import qs.Commons
+import qs.Commons as Commons
 import qs.Ui
 import "ViewModel.js" as ViewModel
 
@@ -52,9 +52,9 @@ Panel {
     ? unifiService.viewModel : ViewModel.forNullService()
 
   // qmllint disable missing-property
-  readonly property color foreground: bar ? bar.foreground : Color.foreground
-  readonly property color urgent: bar ? bar.urgent : Color.urgent
-  readonly property string fontFamily: bar ? bar.fontFamily : Style.font.family
+  readonly property color foreground: bar ? bar.foreground : Commons.Color.foreground
+  readonly property color urgent: bar ? bar.urgent : Commons.Color.urgent
+  readonly property string fontFamily: bar ? bar.fontFamily : Commons.Style.font.family
   // qmllint enable missing-property
   // The one muted colour, from the one scale. It was `Qt.darker(foreground,
   // 1.4)` — the host's convention — which does not mute at all on a light
@@ -516,7 +516,7 @@ Panel {
     var pos = item.mapToItem(panelFlick.contentItem, 0, 0)
     panelFlick.contentY = ViewModel.scrollToReveal(
       pos.y, item.height, panelFlick.contentY, panelFlick.height,
-      panelFlick.contentHeight, Style.spacing.md)
+      panelFlick.contentHeight, Commons.Style.spacing.md)
   }
 
   // Deferred a turn, for the reason the list's own `keepCurrentVisible` is
@@ -646,7 +646,7 @@ Panel {
   TextMetrics {
     id: compactMetrics
     font.family: root.fontFamily
-    font.pixelSize: Style.bar.iconFont
+    font.pixelSize: Commons.Style.bar.iconFont
     text: root.vm.compactText
   }
 
@@ -657,8 +657,8 @@ Panel {
     // REQ-006. The tooltip states the condition in words, which is what makes
     // UX-002's "colour is never the sole signal" true for the bar item.
     tooltipText: root.vm.tooltip
-    slotSize: Style.bar.iconSlot
-      + (root.vm.compactText === "" ? 0 : compactMetrics.width + Style.space(4))
+    slotSize: Commons.Style.bar.iconSlot
+      + (root.vm.compactText === "" ? 0 : compactMetrics.width + Commons.Style.space(4))
 
     iconComponent: Component {
       BarItem {
@@ -685,8 +685,8 @@ Panel {
     bar: root.bar
     open: root.opened
     focusTarget: keyCatcher
-    contentWidth: panel.fittedContentWidth(Style.space(380))
-    contentHeight: panel.fittedContentHeight(column.implicitHeight, Style.space(560))
+    contentWidth: panel.fittedContentWidth(Commons.Style.space(380))
+    contentHeight: panel.fittedContentHeight(column.implicitHeight, Commons.Style.space(560))
 
     PanelKeyCatcher {
       id: keyCatcher
@@ -755,7 +755,7 @@ Panel {
           // screen said where one thing ended and the next began and the
           // whole panel read as one run of lines. Rows keep the small step;
           // blocks take the large one.
-          spacing: Style.spacing.xxl
+          spacing: Commons.Style.spacing.xxl
 
           // The hero, drawn here rather than by `Ui/PanelHero`, because the
           // host's hero cannot draw the design this panel asked for. It renders
@@ -784,7 +784,7 @@ Panel {
               objectName: "unifi-hero-glyph"
               anchors.left: parent.left
               anchors.verticalCenter: parent.verticalCenter
-              iconSize: Style.font.display
+              iconSize: Commons.Style.font.display
               glyphColor: health.colorFor(root.vm.rendering)
               badgeColor: root.urgent
               fontFamily: root.fontFamily
@@ -794,11 +794,11 @@ Panel {
             Column {
               id: heroLabels
               anchors.left: heroGlyph.right
-              anchors.leftMargin: Style.space(14)
+              anchors.leftMargin: Commons.Style.space(14)
               anchors.right: refreshButton.left
-              anchors.rightMargin: Style.spacing.lg
+              anchors.rightMargin: Commons.Style.spacing.lg
               anchors.verticalCenter: parent.verticalCenter
-              spacing: Style.space(2)
+              spacing: Commons.Style.space(2)
 
               Text {
                 width: parent.width
@@ -811,7 +811,7 @@ Panel {
                 // design's 21 px at the default 12, and scales with the user's
                 // font size as the tokens do; no token sits between `heading`
                 // (16) and `display` (24).
-                font.pixelSize: Math.round(Style.font.body * 1.75)
+                font.pixelSize: Math.round(Commons.Style.font.body * 1.75)
                 textFormat: Text.PlainText
                 elide: Text.ElideRight
               }
@@ -823,7 +823,7 @@ Panel {
                 text: root.vm.headlineWord
                 color: root.foreground
                 font.family: root.fontFamily
-                font.pixelSize: Style.font.body
+                font.pixelSize: Commons.Style.font.body
                 textFormat: Text.PlainText
                 elide: Text.ElideRight
               }
@@ -833,7 +833,7 @@ Panel {
                 text: root.vm.headlineDetail
                 color: root.dim
                 font.family: root.fontFamily
-                font.pixelSize: Style.font.caption
+                font.pixelSize: Commons.Style.font.caption
                 textFormat: Text.PlainText
                 elide: Text.ElideRight
               }
@@ -885,11 +885,11 @@ Panel {
 
             Rectangle {
               anchors.fill: segments
-              anchors.margins: -Style.spacing.xs
-              radius: Style.cornerRadius
+              anchors.margins: -Commons.Style.spacing.xs
+              radius: Commons.Style.cornerRadius
               color: "transparent"
-              border.width: Style.controlBorderWidth(true, false)
-              border.color: Style.controlBorder(true, false, root.foreground, root.foreground)
+              border.width: Commons.Style.controlBorderWidth(true, false)
+              border.color: Commons.Style.controlBorder(true, false, root.foreground, root.foreground)
               visible: root.focusStop === ViewModel.FOCUS_SEGMENTS
             }
 
@@ -923,7 +923,7 @@ Panel {
                 // The kit's gap between buttons, not ButtonGroup's `md`: the
                 // group is built for a dense row of options in a form, and at
                 // 6 px three page tabs read as one control split in three.
-                spacing: Style.spacing.controlGap
+                spacing: Commons.Style.spacing.controlGap
                 foreground: root.foreground
                 fontFamily: root.fontFamily
                 onChanged: function (next) {
@@ -953,7 +953,7 @@ Panel {
               ? "" : "Refresh is unavailable: " + root.vm.refreshDisabledReason
             color: root.dim
             font.family: root.fontFamily
-            font.pixelSize: Style.font.caption
+            font.pixelSize: Commons.Style.font.caption
             textFormat: Text.PlainText
             wrapMode: Text.WordWrap
           }
@@ -968,7 +968,7 @@ Panel {
             text: root.vm.sentence
             color: root.foreground
             font.family: root.fontFamily
-            font.pixelSize: Style.font.bodySmall
+            font.pixelSize: Commons.Style.font.bodySmall
             textFormat: Text.PlainText
             wrapMode: Text.WordWrap
           }
@@ -983,7 +983,7 @@ Panel {
               ? "" : "Next attempt " + root.vm.nextAttemptText
             color: root.dim
             font.family: root.fontFamily
-            font.pixelSize: Style.font.caption
+            font.pixelSize: Commons.Style.font.caption
             textFormat: Text.PlainText
           }
 
@@ -1008,7 +1008,7 @@ Panel {
                 text: modelData.label
                 color: root.foreground
                 font.family: root.fontFamily
-                font.pixelSize: Style.font.bodySmall
+                font.pixelSize: Commons.Style.font.bodySmall
                 textFormat: Text.PlainText
                 elide: Text.ElideRight
               }
@@ -1026,7 +1026,7 @@ Panel {
               + "Anything on the network path can read and alter what is shown here."
             color: root.urgent
             font.family: root.fontFamily
-            font.pixelSize: Style.font.bodySmall
+            font.pixelSize: Commons.Style.font.bodySmall
             textFormat: Text.PlainText
             wrapMode: Text.WordWrap
           }
@@ -1183,12 +1183,12 @@ Panel {
               text: (root.detailsExpanded ? "\u25be" : "\u25b8") + "  Details"
               color: root.dim
               font.family: root.fontFamily
-              font.pixelSize: Style.font.bodySmall
+              font.pixelSize: Commons.Style.font.bodySmall
               textFormat: Text.PlainText
 
               MouseArea {
                 anchors.fill: parent
-                anchors.margins: -Style.spacing.xs
+                anchors.margins: -Commons.Style.spacing.xs
                 hoverEnabled: true
                 acceptedButtons: Qt.LeftButton
                 cursorShape: Qt.PointingHandCursor
@@ -1203,12 +1203,12 @@ Panel {
               text: root.keysOpen ? "\u25be  keys" : "?  keys"
               color: root.dim
               font.family: root.fontFamily
-              font.pixelSize: Style.font.bodySmall
+              font.pixelSize: Commons.Style.font.bodySmall
               textFormat: Text.PlainText
 
               MouseArea {
                 anchors.fill: parent
-                anchors.margins: -Style.spacing.xs
+                anchors.margins: -Commons.Style.spacing.xs
                 hoverEnabled: true
                 acceptedButtons: Qt.LeftButton
                 cursorShape: Qt.PointingHandCursor
@@ -1246,7 +1246,7 @@ Panel {
             text: root.vm.errorMessage
             color: root.dim
             font.family: root.fontFamily
-            font.pixelSize: Style.font.caption
+            font.pixelSize: Commons.Style.font.caption
             textFormat: Text.PlainText
             wrapMode: Text.WordWrap
           }
@@ -1263,7 +1263,7 @@ Panel {
               : "←→ pages  ·  Tab move  ·  ↑↓ select  ·  ⏎ open  ·  / search  ·  r refresh  ·  d details  ·  ? keys  ·  Esc close"
             color: root.dim
             font.family: root.fontFamily
-            font.pixelSize: Style.font.caption
+            font.pixelSize: Commons.Style.font.caption
             textFormat: Text.PlainText
             wrapMode: Text.WordWrap
           }
@@ -1301,7 +1301,7 @@ Panel {
             color: root.vm.dashboard && root.vm.dashboard.warnPlainHttp
               ? root.urgent : root.dim
             font.family: root.fontFamily
-            font.pixelSize: Style.font.caption
+            font.pixelSize: Commons.Style.font.caption
             textFormat: Text.PlainText
             wrapMode: Text.WordWrap
           }
