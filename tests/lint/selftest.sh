@@ -108,6 +108,12 @@ check no_hex_colors copy \
 # HC-23: an unqualified qs.Commons import is shadowed by QtQuick's Color.
 check qualified_commons copy \
   'printf "import QtQuick\nimport qs.Commons\nItem {}\n" > Seed.qml'
+check qualified_commons copy \
+  'printf "import QtQuick\nimport qs.Commons 1.0\nItem {}\n" > Seed.qml'
+check qualified_commons copy \
+  'printf "import QtQuick\nimport qs.Commons // theme\nItem {}\n" > Seed.qml'
+check qualified_commons copy \
+  'printf "import QtQuick\nimport qs.Commons /* x */\nItem {}\n" > Seed.qml'
 
 check no_default_ssl_context copy \
   'mkdir -p helper && printf "import ssl\nctx = ssl.create_default_context()\n" > helper/seed.py'

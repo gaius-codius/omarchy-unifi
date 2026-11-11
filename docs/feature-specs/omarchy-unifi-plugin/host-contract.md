@@ -460,9 +460,14 @@ itself — see HC-13.
 signals `moveRequested` `:38`, `activateRequested` `:39`, `returnRequested`
 `:40`, `closeRequested` `:41`, `deleteRequested` `:42`, `tabRequested` `:43`,
 `textKey` `:44`. Bindings at `:51-83`: Esc closes; Tab/Backtab cycle;
-(Omarchy 4.5.0-3: the signal is `textKey(string text, int modifiers)` `:49`.
-A handler taking one argument still works; an emitter must pass both.)
 `hjkl` and arrows move; Return/Space activate.
+
+Omarchy 4.5.0-3 (re-verified 2026-11-11): `blocked` `:36`, `moveRequested`
+`:41`, a new `reorderRequested(int dy)` `:42`, `activateRequested` `:43`,
+`returnRequested` `:44`, `closeRequested` `:45`, `deleteRequested` `:46`,
+`tabRequested` `:47`, and **`textKey(string text, int modifiers)` `:49`**, with
+bindings at `:53-99`. A handler taking one argument still works; an emitter
+must pass both.
 
 `Ui/Button` (`Ui/Button.qml`): `text` `:23`, `tooltipText` `:25`,
 `hasCursor` `:30`, `focusable` `:31`, `bordered` `:33`, `foreground` `:35`,
@@ -619,7 +624,9 @@ a type it *can* resolve still reads `not found on type "Text"` and still fails;
 ## 8. Theme tokens
 
 `import qs.Commons` gives the singletons `Border`, `Color`, `Style`, `Util`
-(`Commons/qmldir`). **Import it as `import qs.Commons as Commons` and write
+(`Commons/qmldir`; Omarchy 4.5.0-3 declares ten, adding `AudioNodes`, `I18n`,
+`InputDevices`, `IpcRegistry`, `InputMethodState` and `UntypedInput`, none of
+which the plugin uses). **Import it as `import qs.Commons as Commons` and write
 `Commons.Color` / `Commons.Style`.** Unqualified, `Color` is shadowed by
 QtQuick's own `Color` singleton from Qt 6.12 on (HC-23).
 
@@ -1084,5 +1091,5 @@ rejects an unqualified import.
 | HC-15 | `python3 -I` strips the script dir from `sys.path` on 3.11+ but not 3.9 | Launch with `-B -E -s` and bootstrap `sys.path` in the entry point |
 | HC-16 | Dual-use QML/Node `.js` files cannot `.import` each other or hold top-level state | JS modules form an antichain of pure functions; compose in QML |
 | HC-17 | `qs.X` maps to `<root>/X`, so a harness root outside the repo with `Ui`/`Commons` symlinks loads the real UI layer | `Panel.qml` is testable without staging; the `LIVE` tier splits into live-harness and live-staged |
-| HC-23 | Qt 6.12's QtQuick `Color` singleton shadows an unqualified `qs.Commons` `Color` | `import qs.Commons as Commons`; enforced by the `qualified_commons` gate |
 | HC-22 | 4.0.3 injects `PluginShellApi` + `publicPluginManifest`, not ShellRoot | `property var shell`; bind `barConfig`; `sourceDir` from `Qt.resolvedUrl` |
+| HC-23 | Qt 6.12's QtQuick `Color` singleton shadows an unqualified `qs.Commons` `Color` | `import qs.Commons as Commons`; enforced by the `qualified_commons` gate |
