@@ -4,7 +4,7 @@ Check your UniFi network from the Omarchy bar. Click the icon to find offline
 or impaired devices, see connected clients, and browse device details. The
 plugin only reads from your controller; it never changes its configuration.
 
-Tested with a UDM Pro running UniFi Network 10.6.101, with manual checks across
+Tested with a UDM Pro running UniFi Network 10.6.101 and 11.0.99, with manual checks across
 three Omarchy themes including one light theme.
 
 ## Screenshots
@@ -30,7 +30,7 @@ You'll need:
 
 - Omarchy **4.0.3-1** with Quickshell **0.3.1-1**.
 - Python **3.9 or newer**. No pip packages are needed.
-- UniFi Network **10.6.x** for hardware-tested support, with the Network
+- UniFi Network **10.6.x** or **11.0.x** for hardware-tested support, with the Network
   Integration API available.
 - A dedicated API key from your UniFi console: **Settings → Control Plane →
   Integrations** (older firmware: **Settings → System → Advanced**). Copy the
@@ -125,7 +125,7 @@ changes apply live without a restart.
 | Problem | What to do |
 |---|---|
 | No widget or updates | Add the widget to the bar; enabling the plugin alone doesn't start its service. |
-| Unsupported controller version | Use a supported version; only 10.6.x has been tested on hardware. |
+| Unsupported controller version | Use a supported version; only 10.6.x and 11.0.x have been tested on hardware. |
 | TLS error | Check the hostname and certificate using the [setup guide](docs/controller-setup.md). |
 | Controller can't be reached, or its name won't resolve | Check `getent hosts <name>`. If it prints nothing, see [name resolution](docs/controller-setup.md). Omarchy ships the mDNS entry *ahead of* `files` on the `hosts:` line of `/etc/nsswitch.conf`, which stops `/etc/hosts` from being read for a `.local` name; move `files` ahead of it. |
 | WAN status is unknown | See the gateway limitation above. |
