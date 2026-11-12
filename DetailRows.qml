@@ -13,14 +13,14 @@
 // when there is a real value behind the rendered one, so this file never has to
 // know that "unknown" is a placeholder and not an address.
 import QtQuick
-import qs.Commons
+import qs.Commons as Commons
 
 Column {
   id: root
 
   property var rows: []
-  property color foreground: Color.foreground
-  property string fontFamily: Style.font.family
+  property color foreground: Commons.Color.foreground
+  property string fontFamily: Commons.Style.font.family
   property var emphasis: null
   // The key of the row most recently copied, or "". Owned by the panel, which
   // also clears it — this component is rebuilt on every poll and could not hold
@@ -35,7 +35,7 @@ Column {
 
   signal copyRequested(string key, string text)
 
-  spacing: Style.spacing.xs
+  spacing: Commons.Style.spacing.xs
 
   Repeater {
     model: root.rows
@@ -53,10 +53,10 @@ Column {
       // has to answer the pointer, or the feature is invisible.
       Rectangle {
         anchors.fill: parent
-        anchors.leftMargin: -Style.spacing.xs
-        anchors.rightMargin: -Style.spacing.xs
-        radius: Style.cornerRadius
-        color: Style.controlFill(false, true, root.foreground, root.foreground)
+        anchors.leftMargin: -Commons.Style.spacing.xs
+        anchors.rightMargin: -Commons.Style.spacing.xs
+        radius: Commons.Style.cornerRadius
+        color: Commons.Style.controlFill(false, true, root.foreground, root.foreground)
         visible: detailRow.copyable && copyArea.containsMouse
       }
 
@@ -67,7 +67,7 @@ Column {
         text: modelData.label
         color: root._tertiary
         font.family: root.fontFamily
-        font.pixelSize: Style.font.caption
+        font.pixelSize: Commons.Style.font.caption
         textFormat: Text.PlainText
         elide: Text.ElideRight
       }
@@ -80,11 +80,11 @@ Column {
         // bars all start at one x; every other row lets the value run.
         anchors.right: detailRow.hasBar ? undefined : copiedMark.left
         width: detailRow.hasBar ? barSlot.width : undefined
-        anchors.rightMargin: copiedMark.visible ? Style.spacing.xs : 0
+        anchors.rightMargin: copiedMark.visible ? Commons.Style.spacing.xs : 0
         text: modelData.value
         color: root._secondary
         font.family: root.fontFamily
-        font.pixelSize: Style.font.caption
+        font.pixelSize: Commons.Style.font.caption
         textFormat: Text.PlainText
         elide: Text.ElideRight
       }
@@ -93,7 +93,7 @@ Column {
       TextMetrics {
         id: barSlot
         font.family: root.fontFamily
-        font.pixelSize: Style.font.caption
+        font.pixelSize: Commons.Style.font.caption
         text: "100.0%"
       }
 
@@ -103,7 +103,7 @@ Column {
       Rectangle {
         visible: detailRow.hasBar
         anchors.left: detailValue.right
-        anchors.leftMargin: Style.spacing.lg
+        anchors.leftMargin: Commons.Style.spacing.lg
         anchors.right: parent.right
         anchors.verticalCenter: detailValue.verticalCenter
         height: 2
@@ -135,7 +135,7 @@ Column {
         text: "Copied"
         color: root._tertiary
         font.family: root.fontFamily
-        font.pixelSize: Style.font.caption
+        font.pixelSize: Commons.Style.font.caption
         textFormat: Text.PlainText
       }
 

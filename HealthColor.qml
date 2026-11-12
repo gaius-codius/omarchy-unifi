@@ -22,7 +22,7 @@
 // element, and a harness looking for the bar's figure by name found the hidden
 // one first.
 import QtQuick
-import qs.Commons
+import qs.Commons as Commons
 
 QtObject {
   id: root
@@ -34,9 +34,9 @@ QtObject {
   // `barForeground` rather than `foreground` is the transparency-aware variant
   // and is the right choice for bar chrome (Bar.qml:69).
   // qmllint disable missing-property
-  readonly property color foreground: bar ? bar.barForeground : Color.foreground
-  readonly property color urgent: bar ? bar.urgent : Color.urgent
-  readonly property string fontFamily: bar ? bar.fontFamily : Style.font.family
+  readonly property color foreground: bar ? bar.barForeground : Commons.Color.foreground
+  readonly property color urgent: bar ? bar.urgent : Commons.Color.urgent
+  readonly property string fontFamily: bar ? bar.fontFamily : Commons.Style.font.family
   // qmllint enable missing-property
 
   // Total over every descriptor, including a missing one. An absent descriptor

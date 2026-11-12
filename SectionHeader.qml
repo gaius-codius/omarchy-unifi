@@ -44,7 +44,7 @@
 // meta line. That is deliberately given up (see Panel.qml's hero) so this file
 // holds it alone: one treatment, one meaning.
 import QtQuick
-import qs.Commons
+import qs.Commons as Commons
 import qs.Ui
 
 PanelSectionHeader {
@@ -54,7 +54,7 @@ PanelSectionHeader {
   // first frame and not worth a branch at every call site.
   property var emphasis: null
 
-  fontSize: Style.font.caption
+  fontSize: Commons.Style.font.caption
   color: emphasis ? emphasis.primary : foreground
 
   font.bold: false

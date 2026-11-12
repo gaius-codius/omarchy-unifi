@@ -7,8 +7,9 @@ been run against, and anything else is reported as `unsupported` with a message
 that says so — rather than being attempted and misreported as an authentication
 or connectivity failure when a shape turns out to have changed.
 
-The matrix now holds two entries: the synthetic one the fixture corpus was
-generated against, and one observed against a real controller in Phase 12a.
+The matrix holds three entries: the synthetic one the fixture corpus was
+generated against, one observed against a real controller in Phase 12a, and one
+observed against the same controller after its upgrade to 11.0.
 """
 
 import re
@@ -34,7 +35,13 @@ _VERSION_RE = re.compile(r"\A(\d{1,4})\.(\d{1,4})(?:[.\-+].*)?\Z")
 #            was found and it is NOT a version problem — the console device
 #            reports `features: ["switching"]` rather than including `gateway`
 #            — so it does not belong in this gate. See api-contract.md.
-TESTED_VERSIONS = ((9, 1), (10, 6))
+#
+#   (11, 0)  OBSERVED — `applicationVersion: "11.0.99"`, same UDM Pro after
+#            its upgrade, 2026-11-11. A full batch succeeded with the same
+#            warnings as 10.6, and all six routes kept every field this plugin
+#            reads. The only differences were added fields the plugin ignores.
+#            See api-contract.md §12c.
+TESTED_VERSIONS = ((9, 1), (10, 6), (11, 0))
 
 MAX_VERSION_CHARS = 64
 

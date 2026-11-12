@@ -4,8 +4,8 @@ Check your UniFi network from the Omarchy bar. Click the icon to find offline
 or impaired devices, see connected clients, and browse device details. The
 plugin only reads from your controller; it never changes its configuration.
 
-Tested with a UDM Pro running UniFi Network 10.6.101, with manual checks across
-three Omarchy themes including one light theme.
+Tested with a UDM Pro running UniFi Network 10.6.101 and 11.0.99, with manual
+checks across three Omarchy themes including one light theme.
 
 ## Screenshots
 
@@ -28,10 +28,11 @@ filled when up, outlined when down, and underlined when it carries PoE.
 
 You'll need:
 
-- Omarchy **4.0.3-1** with Quickshell **0.3.1-1**.
+- Omarchy **4.0.3-1** with Quickshell **0.3.1-1**, or Omarchy **4.5.0-3** with
+  Quickshell **0.3.2** and Qt **6.12**.
 - Python **3.9 or newer**. No pip packages are needed.
-- UniFi Network **10.6.x** for hardware-tested support, with the Network
-  Integration API available.
+- UniFi Network **10.6.x** or **11.0.x** for hardware-tested support, with the
+  Network Integration API available.
 - A dedicated API key from your UniFi console: **Settings → Control Plane →
   Integrations** (older firmware: **Settings → System → Advanced**). Copy the
   key when you create it; the console won't show it again.
@@ -130,7 +131,7 @@ configuration until the new one is verified.
 | Problem | What to do |
 |---|---|
 | No widget or updates | Add the widget to the bar; enabling the plugin alone doesn't start its service. |
-| Unsupported controller version | Use a supported version; only 10.6.x has been tested on hardware. |
+| Unsupported controller version | Use a supported version; only 10.6.x and 11.0.x have been tested on hardware. |
 | TLS error | The console's certificate may have changed. Run setup again; see the [setup guide](docs/controller-setup.md). |
 | Times out, or can't be reached, while the internet works | A VPN may be routing local traffic away; for example, a Tailscale exit node without LAN access. Turn it off, or allow LAN access, and check that `https://<console-ip>` loads. |
 | Controller can't be reached, or its name won't resolve | Run setup again with the console's IP address (`ip route show default` shows the gateway). A `.local` name breaks after Omarchy updates. |

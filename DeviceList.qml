@@ -10,15 +10,15 @@
 // and putting an access point that is merely updating next to one that is down
 // would make a routine firmware push look like a fault.
 import QtQuick
-import qs.Commons
+import qs.Commons as Commons
 import qs.Ui
 
 Column {
   id: root
 
   property var vm: null
-  property color foreground: Color.foreground
-  property string fontFamily: Style.font.family
+  property color foreground: Commons.Color.foreground
+  property string fontFamily: Commons.Style.font.family
   // The panel's scale, handed down rather than rebuilt. This was a local copy
   // of `Emphasis.qml`'s `level(0.52)` — "one level is all it uses" was true,
   // and still made this the third file a change to the scale had to be made
@@ -32,7 +32,7 @@ Column {
 
   readonly property int listed: offline ? offline.devices.length : 0
 
-  spacing: Style.spacing.xs
+  spacing: Commons.Style.spacing.xs
   // Present whenever there is a reading, whatever the reading says. The
   // section's whole job is to answer "is anything broken?", and it used to
   // answer it by not being there — which is also what a rendering fault and a
@@ -83,7 +83,7 @@ Column {
       : (root.offline.total === 0 ? "\u2713  " : "") + root.offline.summaryText
     color: root.dim
     font.family: root.fontFamily
-    font.pixelSize: Style.font.bodySmall
+    font.pixelSize: Commons.Style.font.bodySmall
     textFormat: Text.PlainText
     wrapMode: Text.WordWrap
   }
@@ -99,11 +99,11 @@ Column {
         id: deviceName
         anchors.left: parent.left
         anchors.right: deviceState.left
-        anchors.rightMargin: Style.spacing.lg
+        anchors.rightMargin: Commons.Style.spacing.lg
         text: modelData.nameText + "  ·  " + modelData.modelText
         color: root.foreground
         font.family: root.fontFamily
-        font.pixelSize: Style.font.bodySmall
+        font.pixelSize: Commons.Style.font.bodySmall
         textFormat: Text.PlainText
         elide: Text.ElideRight
       }
@@ -113,7 +113,7 @@ Column {
         text: modelData.classText
         color: root.dim
         font.family: root.fontFamily
-        font.pixelSize: Style.font.bodySmall
+        font.pixelSize: Commons.Style.font.bodySmall
         textFormat: Text.PlainText
       }
     }
@@ -125,7 +125,7 @@ Column {
     text: root.offline ? root.offline.moreLabel : ""
     color: root.dim
     font.family: root.fontFamily
-    font.pixelSize: Style.font.caption
+    font.pixelSize: Commons.Style.font.caption
     textFormat: Text.PlainText
   }
 }

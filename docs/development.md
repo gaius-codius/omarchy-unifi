@@ -17,7 +17,9 @@ the `qmllint` gate or the Quickshell harness there. These checks are reported as
 skipped, and the result is `SUITE PASS (PARTIAL)`. A passing CI run does not
 replace the local QML checks.
 
-The pre-release has been exercised against a UDM Pro on Network 10.6.101. A
+The pre-release has been exercised against a UDM Pro on Network 10.6.101. The
+same console on Network 11.0.99 was checked before 0.2.1 accepted it, by a
+full batch with the gate widened. On 10.6.101, a
 full Devices and Clients batch, including per-device details, completed in
 under half a second against a 25-second budget on that controller. This is a
 measurement from that setup, not a performance guarantee.

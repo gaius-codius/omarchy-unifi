@@ -21,7 +21,7 @@
 // It decides nothing: `options` and `value` arrive from the list model and a
 // click emits. Which page a change applies to is the panel's business (REQ-014).
 import QtQuick
-import qs.Commons
+import qs.Commons as Commons
 
 Item {
   id: root
@@ -29,8 +29,8 @@ Item {
   // `[{ value, label }]`, from `list.filterChips`.
   property var options: []
   property string value: ""
-  property color foreground: Color.foreground
-  property string fontFamily: Style.font.family
+  property color foreground: Commons.Color.foreground
+  property string fontFamily: Commons.Style.font.family
   property var emphasis: null
 
   signal changed(string value)
@@ -54,7 +54,7 @@ Item {
     // At `md` the words ran together into one phrase — "All Gateways
     // Switches Access points" — which is the opposite of a choice. 16 px at
     // the default font size, from `Style.space` so it scales with it.
-    spacing: Style.space(16)
+    spacing: Commons.Style.space(16)
 
     Repeater {
       model: root.options
@@ -65,7 +65,7 @@ Item {
         readonly property bool selected: root.value === modelData.value
 
         width: chipLabel.implicitWidth
-        implicitHeight: chipLabel.implicitHeight + Style.spacing.xs
+        implicitHeight: chipLabel.implicitHeight + Commons.Style.spacing.xs
         height: implicitHeight
 
         Text {
@@ -80,7 +80,7 @@ Item {
           font.family: root.fontFamily
           // One step under the page tabs (`body`), not two. At caption the
           // row was the smallest text in the panel beside the largest gaps.
-          font.pixelSize: Style.font.bodySmall
+          font.pixelSize: Commons.Style.font.bodySmall
           textFormat: Text.PlainText
         }
 
@@ -91,7 +91,7 @@ Item {
           anchors.left: chipLabel.left
           anchors.right: chipLabel.right
           anchors.top: chipLabel.bottom
-          anchors.topMargin: Math.max(2, Math.round(Style.spacing.xs * 0.75))
+          anchors.topMargin: Math.max(2, Math.round(Commons.Style.spacing.xs * 0.75))
           height: 1
           color: root.foreground
           visible: chip.selected
@@ -99,8 +99,8 @@ Item {
 
         MouseArea {
           anchors.fill: parent
-          anchors.leftMargin: -Style.spacing.xs
-          anchors.rightMargin: -Style.spacing.xs
+          anchors.leftMargin: -Commons.Style.spacing.xs
+          anchors.rightMargin: -Commons.Style.spacing.xs
           hoverEnabled: true
           acceptedButtons: Qt.LeftButton
           cursorShape: Qt.PointingHandCursor

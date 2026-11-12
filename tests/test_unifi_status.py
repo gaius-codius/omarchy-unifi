@@ -2906,7 +2906,8 @@ class VersionGate(unittest.TestCase):
         # being added because someone hoped it worked. Each entry must be
         # accounted for in the module's own comment, so adding one without
         # saying where it came from fails the build.
-        self.assertEqual(version_gate.TESTED_VERSIONS, ((9, 1), (10, 6)))
+        self.assertEqual(version_gate.TESTED_VERSIONS,
+                         ((9, 1), (10, 6), (11, 0)))
         source = inspect.getsource(version_gate)
         for major, minor in version_gate.TESTED_VERSIONS:
             marker = "#   (%d, %d)" % (major, minor)
@@ -2923,6 +2924,15 @@ class VersionGate(unittest.TestCase):
         # And the gate is still a gate: a neighbouring minor is not implied.
         self.assertFalse(version_gate.is_supported("10.5.0"))
         self.assertFalse(version_gate.is_supported("10.7.0"))
+
+    def test_the_11_0_entry_is_the_version_observed_after_the_upgrade(self):
+        # api-contract.md §12c: the same console after its upgrade, 2026-11-11.
+        self.assertTrue(version_gate.is_supported("11.0.99"))
+        self.assertEqual(version_gate.check({"applicationVersion": "11.0.99"}),
+                         "11.0.99")
+        # The next minor is not implied by this one.
+        self.assertFalse(version_gate.is_supported("11.1.0"))
+        self.assertFalse(version_gate.is_supported("12.0.0"))
 
     def test_the_synthetic_entry_matches_the_fixture_corpus(self):
         with open(os.path.join(_REPO, "tests", "fixtures", "api", "scenarios",

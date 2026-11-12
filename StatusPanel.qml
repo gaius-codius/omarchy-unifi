@@ -6,15 +6,15 @@
 // it, and the "unknown is not zero" rule (BIZ-003) is applied there exactly
 // once. If a number is being computed in this file, it is in the wrong file.
 import QtQuick
-import qs.Commons
+import qs.Commons as Commons
 
 Column {
   id: root
 
   property var vm: null
-  property color foreground: Color.foreground
-  property color urgent: Color.urgent
-  property string fontFamily: Style.font.family
+  property color foreground: Commons.Color.foreground
+  property color urgent: Commons.Color.urgent
+  property string fontFamily: Commons.Style.font.family
 
   // REQ-B10a. Emitted with the role value `devices[].roles` uses, for the panel
   // to turn into a filtered Devices page. This component does not know what a
@@ -66,12 +66,12 @@ Column {
   // (`SectionHeader.qml`). The rules that survive in this panel are the two
   // where the KIND of content changes — Warnings, and Details — and they mean
   // something again.
-  spacing: Style.spacing.xxl
+  spacing: Commons.Style.spacing.xxl
 
   // --- REQ-008 / REQ-008a: the uplink -------------------------------------
   Column {
     width: root.width
-    spacing: Style.spacing.md
+    spacing: Commons.Style.spacing.md
 
     // The heading, and on a single-gateway site the gateway's model beside it.
     //
@@ -108,7 +108,7 @@ Column {
           ? "  \u00b7  " + root.vm.gatewayRows[0].identityText : ""
         color: root.dim
         font.family: root.fontFamily
-        font.pixelSize: Style.font.caption
+        font.pixelSize: Commons.Style.font.caption
         textFormat: Text.PlainText
         elide: Text.ElideRight
       }
@@ -128,7 +128,7 @@ Column {
           text: modelData.label
           color: root.dim
           font.family: root.fontFamily
-          font.pixelSize: Style.font.body
+          font.pixelSize: Commons.Style.font.body
           textFormat: Text.PlainText
         }
         Text {
@@ -138,7 +138,7 @@ Column {
           text: modelData.value
           color: root.foreground
           font.family: root.fontFamily
-          font.pixelSize: Style.font.body
+          font.pixelSize: Commons.Style.font.body
           textFormat: Text.PlainText
         }
       }
@@ -161,7 +161,7 @@ Column {
   Column {
     id: gatewayList
     width: root.width
-    spacing: Style.spacing.xs
+    spacing: Commons.Style.spacing.xs
     visible: root.vm ? root.vm.gatewayRows.length > 1 : false
 
     SectionHeader {
@@ -182,7 +182,7 @@ Column {
           text: modelData.nameText + "  \u00b7  " + modelData.classText
           color: root.foreground
           font.family: root.fontFamily
-          font.pixelSize: Style.font.bodySmall
+          font.pixelSize: Commons.Style.font.bodySmall
           textFormat: Text.PlainText
           elide: Text.ElideRight
           width: parent.width
@@ -198,7 +198,7 @@ Column {
           text: modelData.detailText
           color: root.dim
           font.family: root.fontFamily
-          font.pixelSize: Style.font.caption
+          font.pixelSize: Commons.Style.font.caption
           textFormat: Text.PlainText
           elide: Text.ElideRight
           width: parent.width
@@ -211,7 +211,7 @@ Column {
   Column {
     id: inventory
     width: root.width
-    spacing: Style.spacing.xs
+    spacing: Commons.Style.spacing.xs
 
     SectionHeader {
       text: "Inventory"
@@ -276,9 +276,9 @@ Column {
     id: roleRow
     // Passed in rather than read from `root`: an inline component does not
     // share the enclosing file's id scope.
-    property color foreground: Color.foreground
+    property color foreground: Commons.Color.foreground
     property color dim: foreground
-    property string fontFamily: Style.font.family
+    property string fontFamily: Commons.Style.font.family
     property string label: ""
     property string valueText: ""
     // The keyboard's cursor, drawn as the pointer's hover is: this is the row
@@ -292,7 +292,7 @@ Column {
     // sitting on its ascenders, and the rows get the same air the Uplink rows
     // take from their column's spacing.
     implicitHeight: Math.max(roleLabel.implicitHeight, roleValue.implicitHeight)
-      + 2 * Style.spacing.xs
+      + 2 * Commons.Style.spacing.xs
     height: implicitHeight
 
     // The resting and hover affordances this row never had. It is the only
@@ -303,10 +303,10 @@ Column {
     // row under the pointer here reads exactly as it does there.
     Rectangle {
       anchors.fill: parent
-      anchors.leftMargin: -Style.spacing.xs
-      anchors.rightMargin: -Style.spacing.xs
-      radius: Style.cornerRadius
-      color: Style.controlFill(false, true, roleRow.foreground, roleRow.foreground)
+      anchors.leftMargin: -Commons.Style.spacing.xs
+      anchors.rightMargin: -Commons.Style.spacing.xs
+      radius: Commons.Style.cornerRadius
+      color: Commons.Style.controlFill(false, true, roleRow.foreground, roleRow.foreground)
       // One row reads as selected, never two: while the list stop has the
       // cursor the fill is the cursor's (a moving pointer takes it, so it is
       // still under the pointer when the hand is what is driving). Otherwise
@@ -318,12 +318,12 @@ Column {
       id: roleLabel
       anchors.left: parent.left
       anchors.right: roleValue.left
-      anchors.rightMargin: Style.spacing.md
+      anchors.rightMargin: Commons.Style.spacing.md
       anchors.verticalCenter: parent.verticalCenter
       text: roleRow.label
       color: roleRow.dim
       font.family: roleRow.fontFamily
-      font.pixelSize: Style.font.body
+      font.pixelSize: Commons.Style.font.body
       textFormat: Text.PlainText
       elide: Text.ElideRight
     }
@@ -331,7 +331,7 @@ Column {
     Text {
       id: roleValue
       anchors.right: chevron.left
-      anchors.rightMargin: Style.spacing.md
+      anchors.rightMargin: Commons.Style.spacing.md
       anchors.verticalCenter: parent.verticalCenter
       // SPEC-AMD-3: every cell behind this string is non-zero, because
       // `countRows` drops the empty classes. The colour is unconditional for
@@ -341,7 +341,7 @@ Column {
       text: roleRow.valueText
       color: roleRow.foreground
       font.family: roleRow.fontFamily
-      font.pixelSize: Style.font.body
+      font.pixelSize: Commons.Style.font.body
       textFormat: Text.PlainText
     }
 
@@ -356,7 +356,7 @@ Column {
       text: "\u203a"
       color: roleRow.dim
       font.family: roleRow.fontFamily
-      font.pixelSize: Style.font.body
+      font.pixelSize: Commons.Style.font.body
       textFormat: Text.PlainText
     }
 

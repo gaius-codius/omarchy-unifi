@@ -32,7 +32,7 @@ import "Schedule.js" as Schedule
 // HC-17. The view layer needs the real theme singletons, which resolve because
 // run_harness.sh links every shell module directory into the harness root.
 // Nothing is staged: this is a root under /tmp that Omarchy never reads.
-import qs.Commons
+import qs.Commons as Commons
 
 ShellRoot {
   id: harness
@@ -710,9 +710,9 @@ ShellRoot {
       property color foreground: "darkseagreen"
       property color barForeground: "steelblue"
       property color urgent: "firebrick"
-      property string fontFamily: Style.font.family
+      property string fontFamily: Commons.Style.font.family
       property bool vertical: false
-      property int barSize: Style.bar.sizeHorizontal
+      property int barSize: Commons.Style.bar.sizeHorizontal
       property string position: "top"
       property bool foregroundAnimationEnabled: false
       property var activePopout: null
@@ -1591,7 +1591,7 @@ ShellRoot {
           else {
             coldKeys.moveRequested(1, 0)
             check("Right does nothing before a first reading", "overview", panelWidget.view)
-            coldKeys.textKey("/")
+            coldKeys.textKey("/", 0)
             check("and / does nothing either", "overview", panelWidget.view)
             check("and the cursor stays on Refresh", "refresh", panelWidget.focusStop)
           }
@@ -1611,7 +1611,7 @@ ShellRoot {
             var keys = findByObjectName(panelWidget, "unifi-key-catcher", 0)
             if (keys === null) bad("the key catcher is reachable")
             else {
-              keys.textKey("d")
+              keys.textKey("d", 0)
               check("and d opens it again", true, panelWidget.detailsExpanded)
             }
             panelWidget.detailsChoice = null
@@ -2038,10 +2038,10 @@ ShellRoot {
         var catcher = findByObjectName(panelWidget, "unifi-key-catcher", 0)
         if (catcher === null) { bad("the key catcher is reachable"); return }
         check("the legend starts closed", false, panelWidget.keysOpen)
-        catcher.textKey("?")
+        catcher.textKey("?", 0)
         check("? opens the legend", true, panelWidget.keysOpen)
         check("the legend is on screen", true, panelTextContains("Esc close"))
-        catcher.textKey("?")
+        catcher.textKey("?", 0)
         check("? closes it again", false, panelWidget.keysOpen)
       }
     })
@@ -2212,7 +2212,7 @@ ShellRoot {
       scrollProbe = null
       if (list === null || list === undefined) return
       list.height = Qt.binding(function () {
-        return Math.min(list.contentHeight, Style.space(320))
+        return Math.min(list.contentHeight, Commons.Style.space(320))
       })
     }
 
