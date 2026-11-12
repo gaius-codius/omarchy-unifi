@@ -56,8 +56,16 @@ LEAF_EXTENSIONS = """\
 basicConstraints = CA:FALSE
 keyUsage = critical,digitalSignature,keyEncipherment
 extendedKeyUsage = serverAuth
-subjectAltName = DNS:localhost,IP:127.0.0.1
+subjectAltName = %(san)s
 """
+
+DEFAULT_SAN = "DNS:localhost,IP:127.0.0.1"
+
+# What a stock UniFi console presents (api-contract.md): self-signed, naming
+# unifi.local and loopback, and never the LAN address it is reached on. The
+# loopback IP SAN is left out deliberately, because the stub IS on 127.0.0.1 and
+# a SAN for it would let the library's own name check pass.
+CONSOLE_SAN = "DNS:unifi.local,DNS:localhost"
 
 
 class OpensslMissing(Exception):
@@ -116,7 +124,7 @@ def mint_ca(workdir, name):
     return Authority(cert, key)
 
 
-def mint_server_cert(workdir, authority, name="server"):
+def mint_server_cert(workdir, authority, name="server", san=DEFAULT_SAN):
     """Mint a `localhost` server certificate signed by `authority`."""
     openssl = require_openssl()
     config = os.path.join(workdir, name + ".cnf")
@@ -129,13 +137,28 @@ def mint_server_cert(workdir, authority, name="server"):
     # subjectAltName is not optional: every current Python rejects a
     # certificate that carries only a CN, so a leaf without it would fail for a
     # reason that has nothing to do with what the test is checking.
-    _write(extensions, LEAF_EXTENSIONS)
+    _write(extensions, LEAF_EXTENSIONS % {"san": san})
 
     _run([openssl, "req", "-new", "-newkey", "rsa:2048", "-nodes",
           "-keyout", key, "-out", csr, "-config", config])
     _run([openssl, "x509", "-req", "-in", csr, "-CA", authority.cert_path,
           "-CAkey", authority.key_path, "-CAcreateserial", "-out", cert,
           "-days", DAYS, "-sha256", "-extfile", extensions])
+    return cert, key
+
+
+def mint_self_signed(workdir, name, san=CONSOLE_SAN):
+    """Mint a self-signed server certificate, the way a UniFi console ships one.
+
+    Returns `(cert_path, key_path)`. Two calls with the same `san` give two
+    certificates with identical names and different keys: the impostor case.
+    """
+    openssl = require_openssl()
+    cert = os.path.join(workdir, name + ".pem")
+    key = os.path.join(workdir, name + ".key")
+    _run([openssl, "req", "-x509", "-newkey", "rsa:2048", "-nodes",
+          "-keyout", key, "-out", cert, "-days", DAYS, "-sha256",
+          "-subj", "/CN=unifi.local", "-addext", "subjectAltName=" + san])
     return cert, key
 
 

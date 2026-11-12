@@ -10,7 +10,12 @@ using the existing configuration transaction and read-only API client.
 
 ## Requirements
 
-- REQ-001: Ask for controller address (default `unifi.local`) and hidden API key.
+*Amended 2026-11-12 by `../omarchy-unifi-plugin/SPEC-v1.2-connect-by-ip.md` §3:
+REQ-001's default is now the default gateway's IP address, and REQ-003's
+hostname check is, for an IP address, the SEC-014 pin check.*
+
+- REQ-001: Ask for controller address (default: the default gateway's IP address;
+  was `unifi.local` before 2026-11-12) and hidden API key.
   Accept an API-key file for non-interactive use; never accept the key as argv.
 - REQ-002: Verify ordinary system-trusted TLS automatically. For unfamiliar
   certificates, retrieve without credentials, display SHA-256 fingerprint and

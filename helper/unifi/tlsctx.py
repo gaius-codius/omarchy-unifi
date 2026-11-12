@@ -29,7 +29,10 @@
 # attacker CA hands the credential to a man-in-the-middle while
 # `allowInsecureTls` is still false.
 
+import hashlib
+import ipaddress
 import os
+import re
 import ssl
 
 from . import errors
@@ -55,19 +58,141 @@ def scrub_environment(environ=None):
     return removed
 
 
-def build_context(allow_insecure=False, ca_pem=None):
+# SEC-014: CONNECTING BY IP ADDRESS
+#
+# A stock UniFi console ships a self-signed certificate naming `unifi.local`
+# and loopback addresses, never its LAN address (api-contract.md, "The IP form
+# cannot be verified"). Requiring that name meant every user had to make
+# `unifi.local` resolve, and on Omarchy that breaks on every update, because
+# omarchy-settings rewrites /etc/nsswitch.conf.
+#
+# When the apiRoot host is an IP literal AND a certificate file is pinned, the
+# name check is replaced by an identity check that is at least as strict:
+#
+#   1. The chain is still verified against the pinned file and nothing else
+#      (CERT_REQUIRED, expiry included). Only the name check is off.
+#   2. After the handshake, and before a byte of HTTP is written, the server's
+#      leaf must be byte-for-byte one of the certificates in the pinned file,
+#      OR carry an IP-address SAN equal to the address that was dialled.
+#
+# Rule 2's first half is the pin: the handshake proves the server holds that
+# certificate's private key, so it is the console whatever address answered.
+# Rule 2's second half keeps a private CA with an IP SAN working exactly as it
+# did when the check was the library's.
+#
+# Turning check_hostname off WITHOUT rule 2 would be a hole, not a shortcut: a
+# pinned private CA would then vouch for every certificate it ever issued, for
+# any name. That is why the check lives in the socket class the context hands
+# out, so no caller can get the relaxed context without it.
+
+PEM_CERT_RE = re.compile(
+    r"-----BEGIN CERTIFICATE-----[A-Za-z0-9+/=\s]+?-----END CERTIFICATE-----")
+
+
+def is_ip_literal(host):
+    """True for an IPv4 or IPv6 address, as `urlsplit().hostname` gives it."""
+    if not isinstance(host, str) or not host:
+        return False
+    try:
+        ipaddress.ip_address(host)
+    except ValueError:
+        return False
+    return True
+
+
+def pinned_fingerprints(ca_pem):
+    """SHA-256 of every certificate in the captured PEM text, as hex."""
+    pins = set()
+    for block in PEM_CERT_RE.findall(ca_pem):
+        try:
+            der = ssl.PEM_cert_to_DER_cert(block)
+        except ValueError:
+            raise errors.TlsError(
+                "The configured CA file holds a certificate that cannot be read.")
+        pins.add(hashlib.sha256(der).hexdigest())
+    if not pins:
+        raise errors.TlsError("The configured CA file holds no certificate.")
+    return frozenset(pins)
+
+
+def _ip_san_matches(peer, address):
+    """True when the verified peer certificate names `address` as an IP SAN."""
+    try:
+        wanted = ipaddress.ip_address(address)
+    except ValueError:
+        return False
+    for kind, value in (peer or {}).get("subjectAltName", ()):
+        if kind != "IP Address":
+            continue
+        try:
+            if ipaddress.ip_address(value.strip()) == wanted:
+                return True
+        except ValueError:
+            continue
+    return False
+
+
+class _PinnedSocket(ssl.SSLSocket):
+    """Rule 2 of SEC-014, run at the end of every handshake."""
+
+    def do_handshake(self, *args, **kwargs):
+        super(_PinnedSocket, self).do_handshake(*args, **kwargs)
+        der = self.getpeercert(binary_form=True)
+        if der is not None and hashlib.sha256(der).hexdigest() in self.context.pins:
+            return
+        if der is not None and _ip_san_matches(self.getpeercert(), self.server_hostname):
+            return
+        # The message is fixed: sanitize.describe_exception discards it anyway,
+        # and nothing about the presented certificate is worth echoing.
+        raise ssl.SSLCertVerificationError(
+            "certificate is not the pinned certificate and does not name this address")
+
+
+class _PinnedContext(ssl.SSLContext):
+    """A client context whose sockets enforce SEC-014 after the handshake.
+
+    Built by the same direct constructor as every other context here, so
+    SEC-007 holds: `keylog_filename` is never assigned.
+    """
+
+    sslsocket_class = _PinnedSocket
+
+    def wrap_socket(self, sock, server_side=False, do_handshake_on_connect=True,
+                    suppress_ragged_eofs=True, server_hostname=None, session=None):
+        # A deferred handshake would let the first read or write complete it
+        # inside OpenSSL, past the override that checks the pin.
+        if not do_handshake_on_connect:
+            raise errors.InternalError(
+                "A pinned connection must complete its handshake on connect.")
+        return super(_PinnedContext, self).wrap_socket(
+            sock, server_side=server_side, do_handshake_on_connect=True,
+            suppress_ragged_eofs=suppress_ragged_eofs,
+            server_hostname=server_hostname, session=session)
+
+    def wrap_bio(self, *args, **kwargs):
+        # SSLObject has no handshake hook to put the pin on.
+        raise errors.InternalError("A pinned context cannot wrap a BIO.")
+
+
+def build_context(allow_insecure=False, ca_pem=None, host=None):
     """Build the one kind of TLS context this helper uses.
 
     `ca_pem` is the CA bundle's *captured text* (SEC-006), never a path: a
     pathname that was validated and then handed back to the SSL library to
     reopen is a TOCTOU window with extra steps.
+
+    `host` is the apiRoot host the context will connect to. It only selects
+    the mode: an IP literal with `ca_pem` gets SEC-014's pinned check, and
+    anything else gets the library's hostname check, as before.
     """
     # Unconditional, and first. Not `if not scrubbed_yet` and not the caller's
     # job — this is the line that makes "no context is ever built from a
     # hostile environment" a property of the code rather than of a convention.
     scrub_environment()
 
-    context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+    pinned = (not allow_insecure and ca_pem is not None and is_ip_literal(host))
+    constructor = _PinnedContext if pinned else ssl.SSLContext
+    context = constructor(ssl.PROTOCOL_TLS_CLIENT)
 
     # TLS 1.2 floor. Below it the negotiated ciphers are ones nobody should be
     # protecting a credential with, and a UniFi controller that cannot manage
@@ -88,7 +213,9 @@ def build_context(allow_insecure=False, ca_pem=None):
         # troubleshooting is the last place to relax this.
         return context
 
-    context.check_hostname = True
+    # SEC-014 replaces the name check with the pin; see the block above. The
+    # chain is still verified either way.
+    context.check_hostname = not pinned
     context.verify_mode = ssl.CERT_REQUIRED
 
     # Set explicitly rather than inherited, per SEC-007. VERIFY_X509_STRICT is
@@ -107,5 +234,11 @@ def build_context(allow_insecure=False, ca_pem=None):
                 "The configured CA file is not usable as a trust anchor (%s)." % exc)
     else:
         context.load_default_certs(ssl.Purpose.SERVER_AUTH)
+
+    if pinned:
+        context.pins = pinned_fingerprints(ca_pem)
+        # The pin is checked once, after the first handshake. A TLS 1.2
+        # renegotiation could present a different certificate afterwards.
+        context.options |= ssl.OP_NO_RENEGOTIATION
 
     return context

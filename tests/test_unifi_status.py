@@ -14,6 +14,7 @@ the service will.
 
 import atexit
 import errno
+import hashlib
 import http.client
 import io
 import inspect
@@ -697,6 +698,183 @@ class TlsVerification(TempTree):
             peer, body = stub.connect(tlsctx.build_context(allow_insecure=True))
         self.assertEqual(peer, {}, "CERT_NONE means there is nothing verified to show")
         self.assertIn(b'{"ok":true}', body)
+
+
+# --- SEC-014: connecting by IP address, with the console's certificate pinned -
+
+class PinnedByAddress(TempTree):
+    """A stock console's certificate names `unifi.local`, never its LAN address.
+
+    Every case here dials 127.0.0.1, which the console-style certificate does
+    NOT name, so the only thing that can make a handshake succeed is the pin.
+    """
+
+    ADDRESS = "127.0.0.1"
+
+    def setUp(self):
+        super(PinnedByAddress, self).setUp()
+        tls_stub.require_openssl()
+        self.console_cert, self.console_key = tls_stub.mint_self_signed(self.root, "console")
+        with open(self.console_cert) as handle:
+            self.console_pem = handle.read()
+
+    def assertNothingSent(self, stub):
+        # The stub can log an empty record when the client hangs up after a
+        # failed handshake; what matters is that no request line or header
+        # (and so no X-API-Key) arrived.
+        self.assertFalse(any(r.get("method") or r.get("headers") for r in stub.received()),
+                         "a request reached a server that failed the pin")
+
+    def pinned(self, pem=None):
+        return tlsctx.build_context(ca_pem=pem or self.console_pem, host=self.ADDRESS)
+
+    def test_the_pinned_console_certificate_is_accepted_by_address(self):
+        with tls_stub.TlsStub(self.console_cert, self.console_key) as stub:
+            peer, body = stub.connect(self.pinned(), server_hostname=self.ADDRESS)
+        self.assertTrue(peer)
+        self.assertIn(b'{"ok":true}', body)
+
+    def test_the_control_without_the_pin_the_same_connection_fails(self):
+        # The reason SEC-014 exists: the library's name check refuses the IP
+        # form for a stock console, however the certificate is trusted.
+        context = tlsctx.build_context(ca_pem=self.console_pem)
+        with tls_stub.TlsStub(self.console_cert, self.console_key) as stub:
+            with self.assertRaises(ssl.SSLCertVerificationError):
+                stub.connect(context, server_hostname=self.ADDRESS)
+
+    def test_an_impostor_with_the_same_names_is_refused_before_any_request(self):
+        impostor_cert, impostor_key = tls_stub.mint_self_signed(self.root, "impostor")
+        with tls_stub.TlsStub(impostor_cert, impostor_key) as stub:
+            with self.assertRaises(ssl.SSLError):
+                stub.connect(self.pinned(), server_hostname=self.ADDRESS)
+            self.assertNothingSent(stub)
+
+    def test_a_pinned_ca_does_not_vouch_for_a_leaf_that_does_not_name_the_address(self):
+        # THE TRAP. Turning check_hostname off is only safe because the pin is
+        # checked instead. A private CA that is pinned would otherwise vouch
+        # for every certificate it ever issued, for any name or none.
+        authority = tls_stub.mint_ca(self.root, "private")
+        cert, key = tls_stub.mint_server_cert(self.root, authority, name="other-host",
+                                              san="DNS:elsewhere.example")
+        with tls_stub.TlsStub(cert, key) as stub:
+            with self.assertRaises(ssl.SSLCertVerificationError):
+                stub.connect(self.pinned(authority.cert_pem), server_hostname=self.ADDRESS)
+            self.assertNothingSent(stub)
+
+    def test_a_pinned_ca_still_accepts_a_leaf_with_a_matching_ip_san(self):
+        # The behaviour a private-CA user had before SEC-014, kept.
+        authority = tls_stub.mint_ca(self.root, "private-ip")
+        cert, key = tls_stub.mint_server_cert(self.root, authority, name="ip-host",
+                                              san="IP:127.0.0.1")
+        with tls_stub.TlsStub(cert, key) as stub:
+            peer, _body = stub.connect(self.pinned(authority.cert_pem),
+                                       server_hostname=self.ADDRESS)
+        self.assertTrue(peer)
+
+    def test_a_pinned_ca_refuses_a_leaf_naming_a_different_address(self):
+        authority = tls_stub.mint_ca(self.root, "private-other-ip")
+        cert, key = tls_stub.mint_server_cert(self.root, authority, name="other-ip",
+                                              san="IP:192.0.2.9")
+        with tls_stub.TlsStub(cert, key) as stub:
+            with self.assertRaises(ssl.SSLCertVerificationError):
+                stub.connect(self.pinned(authority.cert_pem), server_hostname=self.ADDRESS)
+            self.assertNothingSent(stub)
+
+    def test_the_chain_is_still_verified_only_the_name_check_is_replaced(self):
+        context = self.pinned()
+        self.assertFalse(context.check_hostname)
+        self.assertEqual(context.verify_mode, ssl.CERT_REQUIRED)
+        self.assertEqual(len(context.get_ca_certs()), 1,
+                         "the pinned file, and nothing from the system store")
+        self.assertIsNone(context.keylog_filename)
+        # The pin is checked once; a renegotiation must not swap the
+        # certificate afterwards.
+        self.assertTrue(context.options & ssl.OP_NO_RENEGOTIATION)
+
+    def test_the_mode_is_chosen_by_the_host_and_nothing_else(self):
+        for host in ("unifi.local", "localhost", None, "192.0.2.9.example"):
+            self.assertTrue(tlsctx.build_context(ca_pem=self.console_pem, host=host).check_hostname,
+                            "a hostname keeps the library's name check: %r" % host)
+        for host in ("192.0.2.9", "::1", "fe80::1"):
+            self.assertFalse(tlsctx.build_context(ca_pem=self.console_pem, host=host).check_hostname,
+                             host)
+        # No pinned file: by IP, system trust and the name check, as before.
+        self.assertTrue(tlsctx.build_context(host="192.0.2.9").check_hostname)
+        # The insecure opt-in is unchanged and is not the pinned class.
+        insecure = tlsctx.build_context(allow_insecure=True, ca_pem=self.console_pem,
+                                        host="192.0.2.9")
+        self.assertEqual(insecure.verify_mode, ssl.CERT_NONE)
+        self.assertFalse(hasattr(insecure, "pins"))
+
+    def test_the_pins_are_every_certificate_in_the_file(self):
+        authority = tls_stub.mint_ca(self.root, "bundle")
+        pins = tlsctx.pinned_fingerprints(self.console_pem + authority.cert_pem)
+        expected = set()
+        for pem in (self.console_pem, authority.cert_pem):
+            expected.add(hashlib.sha256(ssl.PEM_cert_to_DER_cert(pem)).hexdigest())
+        self.assertEqual(pins, expected)
+        with self.assertRaises(errors.TlsError):
+            tlsctx.pinned_fingerprints("no certificate here")
+
+    def test_a_deferred_handshake_cannot_skip_the_pin(self):
+        # With the handshake deferred, the first read or write would complete
+        # it inside OpenSSL, past the override that checks the pin.
+        context = self.pinned()
+        raw = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.addCleanup(raw.close)
+        with self.assertRaises(errors.InternalError):
+            context.wrap_socket(raw, server_hostname=self.ADDRESS,
+                                do_handshake_on_connect=False)
+        with self.assertRaises(errors.InternalError):
+            context.wrap_bio(ssl.MemoryBIO(), ssl.MemoryBIO())
+
+    def test_transport_sends_nothing_to_an_impostor_and_reports_a_tls_error(self):
+        impostor_cert, impostor_key = tls_stub.mint_self_signed(self.root, "impostor-t")
+        with tls_stub.TlsStub(impostor_cert, impostor_key) as stub:
+            request = routes.build("https://127.0.0.1:%d/proxy/network/integration" % stub.port, "info")
+            with self.assertRaises(errors.TlsError):
+                transport.get_json(request, _StubCredential(), self.pinned(), deadline.Deadline())
+            self.assertNothingSent(stub)
+
+    def test_transport_sends_no_key_when_a_pinned_ca_leaf_does_not_name_the_address(self):
+        # The mutation-sensitive transport case: the chain VERIFIES (the CA is
+        # pinned), so only the pin check stands between this server and the
+        # X-API-Key. Removing it makes the stub receive the header.
+        authority = tls_stub.mint_ca(self.root, "private-t")
+        cert, key = tls_stub.mint_server_cert(self.root, authority, name="elsewhere-t",
+                                              san="DNS:elsewhere.example")
+        with tls_stub.TlsStub(cert, key) as stub:
+            request = routes.build("https://127.0.0.1:%d/proxy/network/integration" % stub.port, "info")
+            with self.assertRaises(errors.TlsError):
+                transport.get_json(request, _StubCredential(),
+                                   self.pinned(authority.cert_pem), deadline.Deadline())
+            self.assertNothingSent(stub)
+
+    def test_transport_completes_a_get_against_the_pinned_console(self):
+        payload = b'{"applicationVersion":"11.0.99"}'
+        with tls_stub.TlsStub(self.console_cert, self.console_key,
+                              handler=lambda req, i: tls_stub.response(200, body=payload)) as stub:
+            request = routes.build("https://127.0.0.1:%d/proxy/network/integration" % stub.port, "info")
+            body, _size = transport.get_json(request, _StubCredential(), self.pinned(),
+                                             deadline.Deadline())
+            self.assertEqual(body, {"applicationVersion": "11.0.99"})
+            self.assertEqual(stub.received()[0]["headers"]["x-api-key"], _StubCredential.VALUE)
+
+    def test_the_helper_passes_the_apiroot_host_to_the_context_builder(self):
+        self.commit(config=json.dumps({"apiRoot": "https://192.0.2.9/proxy/network/integration",
+                                       "customCaPath": "/pinned.pem"}).encode("utf-8"))
+        seen = {}
+
+        def record(**kwargs):
+            seen.update(kwargs)
+            raise errors.TlsError("stop here")
+
+        with _patched(paths, "read_custom_ca", lambda path: self.console_pem), \
+                _patched(tlsctx, "build_context", record):
+            built = unifi_status.run("abc", self.config_dir, "2026-01-15T12:00:00Z")
+        self.assertEqual(seen.get("host"), "192.0.2.9")
+        self.assertEqual(seen.get("ca_pem"), self.console_pem)
+        self.assertEqual(built["error"]["kind"], "tls")
 
 
 # --- SEC-006 / AC-016: the CA file's negative matrix -------------------------

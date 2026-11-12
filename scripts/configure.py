@@ -312,7 +312,7 @@ def parse_args(argv):
         allow_abbrev=False)
     parser.add_argument("--config-dir", default=DEFAULT_CONFIG_DIR)
     parser.add_argument("--api-root",
-                        help="https://<console>/proxy/network/integration")
+                        help="https://<console-ip>/proxy/network/integration")
     parser.add_argument("--site", help="the site UUID to display")
     parser.add_argument("--api-key-file", help="read the API key from this file")
     parser.add_argument("--api-key-stdin", action="store_true",
