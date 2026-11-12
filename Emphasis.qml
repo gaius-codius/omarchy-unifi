@@ -27,11 +27,11 @@
 // Colours rather than `opacity`, so a muted string is a colour like any other
 // and nothing has to worry about opacity inheriting onto a child item.
 import QtQuick
-import qs.Commons
+import qs.Commons as Commons
 
 QtObject {
-  property color foreground: Color.foreground
-  property color background: Color.background
+  property color foreground: Commons.Color.foreground
+  property color background: Commons.Color.background
 
   // Foreground blended toward the background by `amount`. This is the whole
   // mechanism: 1.0 is the foreground itself, 0 is invisible, and every value

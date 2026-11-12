@@ -4,8 +4,8 @@ Check your UniFi network from the Omarchy bar. Click the icon to find offline
 or impaired devices, see connected clients, and browse device details. The
 plugin only reads from your controller; it never changes its configuration.
 
-Tested with a UDM Pro running UniFi Network 10.6.101, with manual checks across
-three Omarchy themes including one light theme.
+Tested with a UDM Pro running UniFi Network 10.6.101 and 11.0.99, with manual
+checks across three Omarchy themes including one light theme.
 
 ## Screenshots
 
@@ -28,10 +28,11 @@ filled when up, outlined when down, and underlined when it carries PoE.
 
 You'll need:
 
-- Omarchy **4.0.3-1** with Quickshell **0.3.1-1**.
+- Omarchy **4.0.3-1** with Quickshell **0.3.1-1**, or Omarchy **4.5.0-3** with
+  Quickshell **0.3.2** and Qt **6.12**.
 - Python **3.9 or newer**. No pip packages are needed.
-- UniFi Network **10.6.x** for hardware-tested support, with the Network
-  Integration API available.
+- UniFi Network **10.6.x** or **11.0.x** for hardware-tested support, with the
+  Network Integration API available.
 - A dedicated API key from your UniFi console: **Settings → Control Plane →
   Integrations** (older firmware: **Settings → System → Advanced**). Copy the
   key when you create it; the console won't show it again.
@@ -64,20 +65,20 @@ Run the wizard from the installed plugin:
 ~/.config/omarchy/plugins/gaius-codius.unifi/scripts/setup
 ```
 
-It asks for your controller address (default `unifi.local`) and API key, checks
-the connection, selects a site, saves the configuration and adds the widget to
-the bar. Key input is hidden. With multiple sites, it asks which one to use.
+It asks for your controller address (default: your gateway's IP address) and
+API key, checks the connection, selects a site, saves the configuration and adds
+the widget to the bar. Key input is hidden. With multiple sites, it asks which one to use.
 
 For a self-signed certificate, the wizard retrieves it for you and displays its
 SHA-256 fingerprint. Compare it through an independent trusted connection to
 your controller, then paste the verified fingerprint to approve it. The wizard
 saves the certificate and keeps TLS verification enabled.
 
-Use a hostname that resolves on your machine and matches the certificate.
-Setup checks this first and tells you how to fix it if it doesn't — on
-Omarchy a `.local` name needs an `/etc/nsswitch.conf` change as well as an
-`/etc/hosts` entry; see [name resolution](docs/controller-setup.md).
-The wizard won't change your DNS settings or accept a mismatched or expired
+Use the console's IP address. By IP, the plugin checks that the console
+presents exactly the certificate you approved, so it needs no name resolution
+and survives Omarchy updates. A hostname also works if it resolves and the
+certificate covers it; see [choosing the address](docs/controller-setup.md).
+The wizard won't change your DNS settings or accept an unapproved or expired
 certificate. See [certificate troubleshooting](docs/controller-setup.md) if it
 cannot verify the connection.
 
@@ -120,14 +121,20 @@ omarchy restart shell
 A shell restart is required so the new code loads. Configuration and bar-layout
 changes apply live without a restart.
 
+**Set up with `unifi.local` before?** That configuration keeps working while the
+name resolves, but Omarchy updates break `.local` names. Run setup again and
+accept the gateway IP address it offers. It reuses nothing from the old
+configuration until the new one is verified.
+
 ## Troubleshooting
 
 | Problem | What to do |
 |---|---|
 | No widget or updates | Add the widget to the bar; enabling the plugin alone doesn't start its service. |
-| Unsupported controller version | Use a supported version; only 10.6.x has been tested on hardware. |
-| TLS error | Check the hostname and certificate using the [setup guide](docs/controller-setup.md). |
-| Controller can't be reached, or its name won't resolve | Check `getent hosts <name>`. If it prints nothing, see [name resolution](docs/controller-setup.md). Omarchy ships the mDNS entry *ahead of* `files` on the `hosts:` line of `/etc/nsswitch.conf`, which stops `/etc/hosts` from being read for a `.local` name; move `files` ahead of it. |
+| Unsupported controller version | Use a supported version; only 10.6.x and 11.0.x have been tested on hardware. |
+| TLS error | The console's certificate may have changed. Run setup again; see the [setup guide](docs/controller-setup.md). |
+| Times out, or can't be reached, while the internet works | A VPN may be routing local traffic away; for example, a Tailscale exit node without LAN access. Turn it off, or allow LAN access, and check that `https://<console-ip>` loads. |
+| Controller can't be reached, or its name won't resolve | Run setup again with the console's IP address (`ip route show default` shows the gateway). A `.local` name breaks after Omarchy updates. |
 | WAN status is unknown | See the gateway limitation above. |
 | Edited config files by hand | Run `~/.config/omarchy/plugins/gaius-codius.unifi/scripts/configure --commit`. |
 | Duplicate widgets disagree | If the widget was added twice in `shell.json`, give both entries the same `refreshIntervalSec`, or remove the extra copy. |

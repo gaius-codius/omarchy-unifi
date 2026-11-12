@@ -12,7 +12,7 @@
 // the right place.
 import QtQuick
 import QtQuick.Controls
-import qs.Commons
+import qs.Commons as Commons
 import qs.Ui
 
 Column {
@@ -20,9 +20,9 @@ Column {
 
   // The list model from `vm` — `vm.deviceList` or `vm.clientList`.
   property var list: null
-  property color foreground: Color.foreground
-  property color urgent: Color.urgent
-  property string fontFamily: Style.font.family
+  property color foreground: Commons.Color.foreground
+  property color urgent: Commons.Color.urgent
+  property string fontFamily: Commons.Style.font.family
   property string placeholder: "Search"
   property var emphasis: null
   property string copiedKey: ""
@@ -79,7 +79,7 @@ Column {
   // Bound to the SAME condition that drives `interactive`, so a list that does
   // not scroll gives the space back rather than carrying an empty margin for a
   // scrollbar that is not there.
-  readonly property int gutter: view.interactive ? Style.space(10) : 0
+  readonly property int gutter: view.interactive ? Commons.Style.space(10) : 0
 
   // The panel needs to know where the caret is to satisfy REQ-B15's
   // "the panel's own key handling is suspended while the search field holds
@@ -120,7 +120,7 @@ Column {
   // The filter row, the field and the list are three different things and
   // need air between them; at `sm` the underline of the chosen filter sat on
   // the field's border.
-  spacing: Style.spacing.xl
+  spacing: Commons.Style.spacing.xl
 
   // REQ-B10a's filter, offered here rather than only from Overview — a device
   // role on one page, a client's connection type on the other (SPEC-AMD-10).
@@ -165,7 +165,7 @@ Column {
     // `Ui/TextField` sizes from `font.pixelSize` + `verticalPadding`, and its
     // 30 px default is for dialog forms. A panel row is 22-26 px, which is what
     // the host's own inline field does (host-contract §7).
-    verticalPadding: Style.space(4)
+    verticalPadding: Commons.Style.space(4)
     foreground: root.foreground
     hasCursor: root.searchFocused && !activeFocus
     // One direction only. `text` is NOT bound to `list.searchText`: the field
@@ -179,13 +179,13 @@ Column {
     // key has done its job, and text would run under it.
     Text {
       anchors.right: parent.right
-      anchors.rightMargin: Style.spacing.lg
+      anchors.rightMargin: Commons.Style.spacing.lg
       anchors.verticalCenter: parent.verticalCenter
       visible: !searchField.activeFocus && searchField.text === ""
       text: "/"
       color: root._tertiary
       font.family: root.fontFamily
-      font.pixelSize: Style.font.caption
+      font.pixelSize: Commons.Style.font.caption
       textFormat: Text.PlainText
     }
 
@@ -227,7 +227,7 @@ Column {
     text: root.list ? root.list.truncationText : ""
     color: root._tertiary
     font.family: root.fontFamily
-    font.pixelSize: Style.font.caption
+    font.pixelSize: Commons.Style.font.caption
     textFormat: Text.PlainText
     wrapMode: Text.WordWrap
   }
@@ -238,7 +238,7 @@ Column {
     text: root.list ? root.list.emptyText : ""
     color: root._tertiary
     font.family: root.fontFamily
-    font.pixelSize: Style.font.bodySmall
+    font.pixelSize: Commons.Style.font.bodySmall
     textFormat: Text.PlainText
     wrapMode: Text.WordWrap
   }
@@ -282,8 +282,8 @@ Column {
     // scrolling past the end of the list. That matters because Open UniFi, its
     // disabled reason and the plain-HTTP warning sit BELOW the list, at the
     // foot of the panel.
-    height: Math.min(contentHeight, Style.space(320))
-    spacing: Style.spacing.sm
+    height: Math.min(contentHeight, Commons.Style.space(320))
+    spacing: Commons.Style.spacing.sm
     clip: true
     boundsBehavior: Flickable.StopAtBounds
     // AC-B18's line. A list shorter than its viewport must not become a drag
@@ -306,7 +306,7 @@ Column {
     // A notch is 120 units of `angleDelta`; a touchpad reports pixels.
     function chainWheel(event) {
       var dy = event.pixelDelta.y !== 0 ? event.pixelDelta.y
-        : event.angleDelta.y / 120 * Style.space(48)
+        : event.angleDelta.y / 120 * Commons.Style.space(48)
       if (dy === 0) return
       var wanted = contentY - dy
       var top = originY

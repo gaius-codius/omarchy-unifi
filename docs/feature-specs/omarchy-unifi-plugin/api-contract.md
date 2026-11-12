@@ -26,6 +26,10 @@ fixture-tested for request construction.
 
 ### The IP form cannot be verified (observed 2026-09-06, Phase 12a)
 
+*Superseded 2026-11-12 by SEC-014 (`SPEC-v1.2-connect-by-ip.md`): by IP
+address, the pinned certificate replaces the hostname check, so the IP form now
+verifies. The observations below still explain why that was needed.*
+
 `https://{consoleIP}/...` is the form the specification advertises and the form
 the worked example above uses. **On a stock UniFi console it cannot be used with
 TLS verification enabled**, and this is not a local quirk — it follows from the
@@ -399,3 +403,32 @@ a 6-request probe of the batch's routes                        total 0.09s
 
 Against REQ-017's 25 s budget this is negligible here, and the bound in
 `SPEC-v1.1-browse.md` REQ-B02 exists for consoles that are not.
+
+## §12c — Network 11.0 check, 2026-11-11
+
+The same UDM Pro, upgraded to Network **11.0.99**, with the user's approval.
+Read-only GETs to the six allowlisted routes. The per-device routes were read
+for one switch and one access point. Field names and types only were compared
+with the fixture corpus; no values entered this file.
+
+The 0.2.0 helper rejected the console as `unsupported`. With the gate widened in
+memory, a full batch succeeded: `ok: true`, nine devices, 41 clients, and the
+same two warnings as on 10.6 (`custom_ca_in_use`, `site_auto_selected`).
+SPEC-AMD-1's off-LAN address clause still finds the gateway. No device reports
+the `gateway` feature, as on 10.6.
+
+### Differences from the fixture corpus
+
+Every difference is an added field. No field the plugin reads was removed,
+renamed or retyped.
+
+| Route | Added on 11.0.99 |
+|---|---|
+| `GET /devices/{deviceId}` (switch) | `interfaces.ports[].speedMbps` |
+| `GET /devices/{deviceId}` (access point) | `features.accessPoint`, `interfaces.radios[].{channel, channelWidthMHz, txPowerMode, wlanStandard}` |
+| `statistics/latest` | none beyond §12b (`lastHeartbeatAt`, `nextHeartbeatAt` were already recorded) |
+| `info`, `sites`, `devices`, `clients` | none |
+
+§12b recorded field names for the detail route but not for its radios, so some
+of these may predate 11.0. The plugin ignores all of them. `(11, 0)` joins
+`version_gate.TESTED_VERSIONS` on this evidence.

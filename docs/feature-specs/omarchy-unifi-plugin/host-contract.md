@@ -462,6 +462,13 @@ signals `moveRequested` `:38`, `activateRequested` `:39`, `returnRequested`
 `textKey` `:44`. Bindings at `:51-83`: Esc closes; Tab/Backtab cycle;
 `hjkl` and arrows move; Return/Space activate.
 
+Omarchy 4.5.0-3 (re-verified 2026-11-11): `blocked` `:36`, `moveRequested`
+`:41`, a new `reorderRequested(int dy)` `:42`, `activateRequested` `:43`,
+`returnRequested` `:44`, `closeRequested` `:45`, `deleteRequested` `:46`,
+`tabRequested` `:47`, and **`textKey(string text, int modifiers)` `:49`**, with
+bindings at `:53-99`. A handler taking one argument still works; an emitter
+must pass both.
+
 `Ui/Button` (`Ui/Button.qml`): `text` `:23`, `tooltipText` `:25`,
 `hasCursor` `:30`, `focusable` `:31`, `bordered` `:33`, `foreground` `:35`,
 `fontFamily` `:40`, `signal clicked()` `:61`. It carries no `enabled` property
@@ -617,7 +624,11 @@ a type it *can* resolve still reads `not found on type "Text"` and still fails;
 ## 8. Theme tokens
 
 `import qs.Commons` gives the singletons `Border`, `Color`, `Style`, `Util`
-(`Commons/qmldir`).
+(`Commons/qmldir`; Omarchy 4.5.0-3 declares ten, adding `AudioNodes`, `I18n`,
+`InputDevices`, `IpcRegistry`, `InputMethodState` and `UntypedInput`, none of
+which the plugin uses). **Import it as `import qs.Commons as Commons` and write
+`Commons.Color` / `Commons.Style`.** Unqualified, `Color` is shadowed by
+QtQuick's own `Color` singleton from Qt 6.12 on (HC-23).
 
 Colours (`Commons/Color.qml`): `Color.foreground` `:19`, `background` `:20`,
 `accent` `:21`, `urgent` `:22`, `muted` `:23`; groups `Color.bar.*` `:73-77`,
@@ -1040,6 +1051,25 @@ only while running — the host's own plugin shells out to `wl-copy` partly for
 that reason. For copying an address into a terminal a second later this does not
 arise, and no requirement here depends on persistence.
 
+### HC-23: Qt 6.12's `Color` shadows an unqualified `qs.Commons` (verified 2026-11-11)
+
+Omarchy 4.5.0-3 ships with `qt6-declarative 6.12.0-2`, which adds a `Color`
+singleton to `QtQuick` (`QtQuick/plugins.qmltypes`, `exports:
+["QtQuick/Color 6.12"]`). In a file that imports `QtQuick` and then an
+unqualified `qs.Commons`, `Color` resolves to QtQuick's. `Color.foreground` and
+`Color.urgent` are then `undefined`, the log shows `Unable to assign
+[undefined] to QColor`, and the colour falls back to `#000000`.
+
+In the live shell this hit every `Color.*` fallback: the panel's own text and
+the hero's colour whenever `bar` was not yet injected. In the harness, where no
+bar is injected, all four health levels painted the same black, so AC-034's
+"unknown is dimmed" checks failed.
+
+Omarchy's own files avoid it: none of the 102 that import `qs.Commons`
+unqualified uses `Color.`; the 73 that need it import `qs.Commons as Commons`.
+The plugin now does the same everywhere, and `tests/lint/qualified_commons.sh`
+rejects an unqualified import.
+
 ## 12. Summary of constraints that change the design
 
 | ID | Constraint | Design impact |
@@ -1062,3 +1092,4 @@ arise, and no requirement here depends on persistence.
 | HC-16 | Dual-use QML/Node `.js` files cannot `.import` each other or hold top-level state | JS modules form an antichain of pure functions; compose in QML |
 | HC-17 | `qs.X` maps to `<root>/X`, so a harness root outside the repo with `Ui`/`Commons` symlinks loads the real UI layer | `Panel.qml` is testable without staging; the `LIVE` tier splits into live-harness and live-staged |
 | HC-22 | 4.0.3 injects `PluginShellApi` + `publicPluginManifest`, not ShellRoot | `property var shell`; bind `barConfig`; `sourceDir` from `Qt.resolvedUrl` |
+| HC-23 | Qt 6.12's QtQuick `Color` singleton shadows an unqualified `qs.Commons` `Color` | `import qs.Commons as Commons`; enforced by the `qualified_commons` gate |

@@ -31,7 +31,7 @@ file containing the key; the key itself must not appear in the command.
 
 ```bash
 ~/.config/omarchy/plugins/gaius-codius.unifi/scripts/setup \
-  --non-interactive --controller unifi.local \
+  --non-interactive --controller 192.168.1.1 \
   --api-key-file /path/to/private-key-file
 ```
 
@@ -48,16 +48,18 @@ Use `scripts/setup --help` for the full interface.
 ## What to check
 
 - The controller uses a supported Network version and exposes the Integration API.
-- The controller hostname resolves and is covered by the certificate. A matching
-  fingerprint alone doesn't fix a hostname mismatch or expired certificate.
+- The controller is addressed by IP (usually the gateway, from
+  `ip route show default`). By IP, the approved fingerprint is what's checked.
+  With a hostname instead, it must resolve and be covered by the certificate.
+  A matching fingerprint never fixes an expired certificate.
 - The wizard reports that its connection check and configuration save succeeded.
 - Bar placement succeeded, or the user has the explicit command to finish it.
 - The panel shows the selected site and a recent refresh. A successful API check
   does not prove the QML panel rendered correctly.
 
-If the certificate cannot be verified or the hostname doesn't resolve, explain
+If the certificate cannot be verified or a hostname doesn't resolve, explain
 the specific blocker and use the
-[name resolution and certificate guide](controller-setup.md).
+[address and certificate guide](controller-setup.md).
 Do not disable TLS verification, rewrite host resolver settings, or approve
 certificate trust on the user's behalf.
 
