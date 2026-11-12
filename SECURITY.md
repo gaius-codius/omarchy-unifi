@@ -59,6 +59,11 @@ a way to *exploit* one beyond its stated boundary would be:
   it asks you to compare the fingerprint against the console UI before
   configuring. An attacker on-path during that one step can have their
   certificate pinned.
+- **By IP address, the pin replaces the name check.** A stock console's
+  certificate never names its LAN address, so when the apiRoot host is an IP
+  literal and a certificate file is configured, the connection is accepted only
+  if the console presents a certificate from that file (or one with a matching
+  IP-address entry). The chain and expiry are still verified.
 - **The API key is stored on disk at mode `0600`,** unencrypted, in
   `~/.config/omarchy-unifi/api-key`. There is no keyring integration. Anyone who
   can read your home directory as you can read the key.

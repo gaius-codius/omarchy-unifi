@@ -119,12 +119,13 @@ const PANEL_SENTENCES = {
     "The controller's certificate could not be verified. Point customCaPath at "
     + "your CA in config.json, or set allowInsecureTls if you accept the risk.",
   network:
-    "The controller could not be reached. Check that it is powered on, that "
-    + "apiRoot points at it, and that its name resolves — getent hosts <name>.",
+    "The controller could not be reached. Check that it is powered on and that "
+    + "apiRoot points at it. Its IP address avoids name resolution; rerun "
+    + "scripts/setup to switch.",
   timeout:
     "The controller did not answer within the time budget. The next attempt is "
-    + "already scheduled; if it keeps happening, check the controller's load or "
-    + "raise refreshIntervalSec.",
+    + "already scheduled; if it keeps happening, check that a VPN is not routing "
+    + "local traffic away, the controller's load, or raise refreshIntervalSec.",
   rate_limited:
     "The controller is rate limiting requests. Raise refreshIntervalSec if this "
     + "keeps happening.",

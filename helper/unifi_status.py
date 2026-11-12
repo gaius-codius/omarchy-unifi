@@ -38,6 +38,7 @@ from unifi import deadline as deadline_module  # noqa: E402
 from unifi import envelope                     # noqa: E402
 from unifi import errors                       # noqa: E402
 from unifi import paths                        # noqa: E402
+from unifi import routes                       # noqa: E402
 from unifi import tlsctx                       # noqa: E402
 from unifi import warn                         # noqa: E402
 
@@ -139,7 +140,8 @@ def run(nonce, config_dir, attempted_at, connect=None):
         meta = envelope.meta(config, committed,
                              custom_ca_in_use=ca_pem is not None)
         context = tlsctx.build_context(
-            allow_insecure=config.allow_insecure_tls, ca_pem=ca_pem)
+            allow_insecure=config.allow_insecure_tls, ca_pem=ca_pem,
+            host=routes.parse_api_root(config.api_root)[1])
 
         budget = deadline_module.Deadline()
         kwargs = {}

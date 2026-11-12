@@ -26,6 +26,10 @@ fixture-tested for request construction.
 
 ### The IP form cannot be verified (observed 2026-09-06, Phase 12a)
 
+*Superseded 2026-11-12 by SEC-014 (`SPEC-v1.2-connect-by-ip.md`): by IP
+address, the pinned certificate replaces the hostname check, so the IP form now
+verifies. The observations below still explain why that was needed.*
+
 `https://{consoleIP}/...` is the form the specification advertises and the form
 the worked example above uses. **On a stock UniFi console it cannot be used with
 TLS verification enabled**, and this is not a local quirk — it follows from the

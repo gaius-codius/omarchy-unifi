@@ -28,7 +28,7 @@ class SetupError(Exception):
 def normalize_controller(value):
     value = value.strip()
     if any(ord(c) < 33 for c in value):
-        raise SetupError('Enter a controller hostname or HTTPS URL without spaces.')
+        raise SetupError('Enter a controller IP address, hostname or HTTPS URL without spaces.')
     if '://' not in value:
         value = 'https://' + value
     parts = urlsplit(value)
@@ -105,15 +105,53 @@ def establish_trust(root, fingerprint, interactive):
         expected = normalize_fingerprint(input('Paste the independently verified SHA-256 fingerprint (Ctrl-C to cancel): '))
     if actual != expected:
         raise SetupError('The controller certificate does not match the approved fingerprint.')
-    context = tlsctx.build_context(ca_pem=pem)
+    # By IP address, this context checks the pin rather than the name
+    # (SEC-014), which is what lets a stock console be set up by its address.
+    host = routes.parse_api_root(root)[1]
+    context = tlsctx.build_context(ca_pem=pem, host=host)
     try:
         probe_certificate(root, context)
     except ssl.SSLCertVerificationError:
-        raise SetupError('The approved certificate still fails verification. Use a resolvable hostname covered by the certificate '
-                         '(shown above), or repair an expired certificate/missing issuer chain. '
-                         'Rerun with --controller using that hostname; setup does not change DNS or /etc/hosts. '
+        if tlsctx.is_ip_literal(host):
+            raise SetupError('The approved certificate still fails verification by IP address. It may have expired, '
+                             'or it is not self-signed and does not name this address. Repair the certificate on the '
+                             'console, or for a private CA follow docs/controller-setup.md and scripts/configure --custom-ca.')
+        raise SetupError('The approved certificate still fails verification. Use the console\'s IP address, '
+                         'or a resolvable hostname covered by the certificate (shown above), '
+                         'or repair an expired certificate/missing issuer chain. '
+                         'Rerun with --controller using that address; setup does not change DNS or /etc/hosts. '
                          'For a private CA, follow docs/controller-setup.md and scripts/configure --custom-ca.')
     return context, pem
+
+
+def default_gateway(route_table='/proc/net/route'):
+    """The IPv4 default gateway, or None. Usually the UniFi console itself.
+
+    Read from the kernel's route table rather than by running `ip`, so the
+    default costs no subprocess and cannot be steered by PATH. Only offered as
+    the prompt's default: the certificate fingerprint is still what decides
+    whether the address that answers is the console.
+    """
+    try:
+        with open(route_table, encoding='ascii') as handle:
+            lines = handle.read(65536).splitlines()[1:]
+    except (OSError, UnicodeDecodeError):
+        return None
+    for line in lines:
+        fields = line.split()
+        # Destination 0 with mask 0: the default route, not a 0.0.0.0/8 one.
+        if len(fields) < 8 or fields[1] != '00000000' or fields[7] != '00000000':
+            continue
+        try:
+            flags = int(fields[3], 16)
+            # The kernel writes the address in host byte order.
+            gateway = socket.inet_ntoa(int(fields[2], 16).to_bytes(4, sys.byteorder))
+        except (ValueError, OverflowError, OSError):
+            continue
+        # RTF_UP and RTF_GATEWAY: a live route through a router.
+        if flags & 0x3 == 0x3 and gateway != '0.0.0.0':
+            return gateway
+    return None
 
 
 def check_resolvable(root):
@@ -123,11 +161,9 @@ def check_resolvable(root):
     probe, which main() catches as an OSError and reports as "check
     connectivity, file permissions and the controller certificate" — three
     things that are all typically fine. The cause is name resolution, and it is
-    worth naming because a `.local` name is the one case where adding an
-    /etc/hosts entry does not fix it: nss-mdns claims the name and a following
-    `[NOTFOUND=return]` ends the search before `files` is ever consulted.
-    UniFi consoles ship a certificate issued for `unifi.local`, so that name is
-    the common case here rather than an exotic one.
+    worth naming. An IP address always passes; since SEC-014 that is what the
+    message steers a user to, because a `.local` name on Omarchy breaks again
+    whenever omarchy-settings rewrites /etc/nsswitch.conf.
 
     This resolves the name that establish_trust is about to resolve again a
     moment later. The duplicate lookup is deliberate: reporting the failure
@@ -177,14 +213,11 @@ def resolution_help(host):
     """
     return (
         'The controller address ' + host + ' does not resolve on this computer.\n'
-        'Setup does not change DNS or /etc/hosts. Check resolution with:\n'
-        '  getent hosts ' + host + '\n'
-        'If that prints nothing, point the name at your console:\n'
-        "  echo '<controller-ip>  " + host + "' | sudo tee -a /etc/hosts\n"
-        'If a .local name still fails after that, an mDNS source followed by\n'
-        '[NOTFOUND=return] ahead of files on the hosts: line of /etc/nsswitch.conf\n'
-        'is stopping the search before /etc/hosts is read; move files ahead of it.\n'
-        'See docs/controller-setup.md step 1.')
+        'Use the console\'s IP address instead, which needs no name resolution:\n'
+        '  scripts/setup --controller <console-ip>\n'
+        'The console is usually your gateway; `ip route` shows it after "default via".\n'
+        'To keep using the name instead, check it with: getent hosts ' + host + '\n'
+        'Setup does not change DNS or /etc/hosts. See docs/controller-setup.md step 1.')
 
 
 def temporary_resolution_help(host):
@@ -313,7 +346,7 @@ def configure_bar():
 
 def parse_args(argv):
     parser = argparse.ArgumentParser(description='Set up the UniFi bar widget using verified TLS.', allow_abbrev=False)
-    parser.add_argument('--controller', help='hostname or full HTTPS Integration API root')
+    parser.add_argument('--controller', help='console IP address, hostname or full HTTPS Integration API root')
     parser.add_argument('--api-key-file', help='read the secret from a file, never the command line')
     parser.add_argument('--trust-fingerprint', help='independently verified SHA-256 certificate fingerprint')
     parser.add_argument('--site', help='site UUID (required when multiple sites exist without a terminal)')
@@ -336,7 +369,15 @@ def run(argv):
         raise SetupError('A nondefault --config-dir requires --skip-bar; the widget uses ~/.config/omarchy-unifi.')
     if shutil.which('omarchy') is None:
         raise SetupError('The omarchy command is required. Run setup on your Omarchy desktop.')
-    root = normalize_controller(args.controller or input('Controller address [unifi.local]: ').strip() or 'unifi.local')
+    if args.controller:
+        address = args.controller
+    else:
+        gateway = default_gateway()
+        prompt = 'Controller address' + (' [' + gateway + ']' if gateway else '') + ': '
+        address = input(prompt).strip() or gateway
+        if not address:
+            raise SetupError('Enter the controller address, usually your gateway\'s IP address.')
+    root = normalize_controller(address)
     check_resolvable(root)
     try:
         context, pem = establish_trust(root, args.trust_fingerprint, interactive)

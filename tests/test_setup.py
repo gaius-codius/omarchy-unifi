@@ -59,19 +59,20 @@ class SetupResolution(unittest.TestCase):
 
     def test_the_refusal_names_every_step_of_the_fix(self):
         message = setup.resolution_help("unifi.local")
-        # Each half is a separate assertion: on an mDNS system the /etc/hosts
-        # entry alone does nothing, so a message that dropped the nsswitch
-        # sentence would send the reader to a fix that cannot work.
-        self.assertIn("getent hosts", message)
-        self.assertIn("/etc/hosts", message)
-        self.assertIn("/etc/nsswitch.conf", message)
-        self.assertIn("[NOTFOUND=return]", message)
+        # The IP address is the fix that cannot be undone by the next distro
+        # update (SEC-014). The hosts-file and nsswitch steps it replaces were
+        # reset by every omarchy-settings upgrade, so they are gone, not kept
+        # as a second option.
+        self.assertIn("--controller <console-ip>", message)
+        self.assertIn("default via", message)
+        self.assertIn("getent hosts unifi.local", message)
+        self.assertNotIn("/etc/nsswitch.conf", message)
+        self.assertNotIn("sudo", message)
         self.assertIn("docs/controller-setup.md", message)
         # Substring checks alone pass for a bag of keywords with no sentences,
         # so pin the shape too: the host named, and one step per line.
         self.assertIn("unifi.local", message.splitlines()[0])
-        self.assertGreaterEqual(len(message.splitlines()), 8)
-        self.assertIn("move files ahead of it", message)
+        self.assertGreaterEqual(len(message.splitlines()), 6)
 
     def test_a_resolvable_host_is_accepted(self):
         with mock.patch.object(setup.socket, "getaddrinfo",
@@ -180,7 +181,7 @@ class SetupResolution(unittest.TestCase):
         # it; this is the only test that reads what actually reached stderr.
         self.assertIn("unifi.local", stderr.getvalue())
         self.assertIn("getent hosts", stderr.getvalue())
-        self.assertIn("/etc/nsswitch.conf", stderr.getvalue())
+        self.assertIn("--controller <console-ip>", stderr.getvalue())
 
     def test_resolution_lost_after_the_preflight_still_names_the_host(self):
         """The preflight can pass and the handshake still hit a gaierror.
@@ -275,10 +276,48 @@ class SetupTLS(SetupCertificates):
             with contextlib.redirect_stdout(io.StringIO()):
                 context, pem = setup.establish_trust(root, self.fingerprint, False)
             self.assertEqual(context.verify_mode, ssl.CERT_REQUIRED)
-            self.assertTrue(context.check_hostname)
+            # By IP address the approved certificate is pinned instead of the
+            # name being checked (SEC-014).
+            self.assertFalse(context.check_hostname)
+            self.assertEqual(context.pins, {self.fingerprint})
             self.assertTrue(pem)
             self.assertEqual(setup.probe_certificate(root, context), self.der)
             self.assertFalse(any(request.get("headers") for request in server.received()))
+
+    def test_by_hostname_the_approved_certificate_still_needs_the_name(self):
+        with tls_stub.TlsStub(self.cert, self.key) as server, \
+                mock.patch.object(setup, 'probe_certificate',
+                                  side_effect=self.probe_ipv4(server)):
+            with contextlib.redirect_stdout(io.StringIO()):
+                context, _pem = setup.establish_trust("https://localhost:%d" % server.port,
+                                                      self.fingerprint, False)
+        self.assertTrue(context.check_hostname)
+
+    def test_a_stock_console_certificate_is_set_up_by_ip_address(self):
+        # The case SEC-014 exists for: self-signed, naming unifi.local and not
+        # the address dialled. Before it, this ended in "still fails
+        # verification" and a request to make unifi.local resolve.
+        with tempfile.TemporaryDirectory() as work:
+            cert, key = tls_stub.mint_self_signed(work, "console")
+            with open(cert) as handle:
+                der = ssl.PEM_cert_to_DER_cert(handle.read())
+            with tls_stub.TlsStub(cert, key) as server:
+                root = "https://127.0.0.1:%d" % server.port
+                with contextlib.redirect_stdout(io.StringIO()):
+                    context, pem = setup.establish_trust(
+                        root, hashlib.sha256(der).hexdigest(), False)
+                self.assertEqual(setup.probe_certificate(root, context), der)
+                self.assertFalse(any(r.get("method") or r.get("headers") for r in server.received()))
+        self.assertEqual(ssl.PEM_cert_to_DER_cert(pem), der)
+
+    @staticmethod
+    def probe_ipv4(server):
+        # localhost may resolve to ::1 first; the stub binds IPv4 only.
+        def probe(root, context):
+            with setup.socket.create_connection(('127.0.0.1', server.port), timeout=5) as sock:
+                with context.wrap_socket(sock, server_hostname='localhost') as secure:
+                    return secure.getpeercert(binary_form=True)
+        return probe
 
     def test_redirect_does_not_forward_credential(self):
         def redirect(request, index):
@@ -428,7 +467,9 @@ class SetupAcceptance(SetupCertificates):
                 mock.patch.object(setup, 'probe_certificate', side_effect=wrong_host) as probe, \
                 mock.patch.object(setup, 'read_key') as key, \
                 contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(stderr):
-            result = setup.main(['--controller', 'https://127.0.0.1:%d' % server.port,
+            # A hostname, not 127.0.0.1: by IP address the pin replaces the
+            # name check (SEC-014), so there is no name to mismatch.
+            result = setup.main(['--controller', 'https://localhost:%d' % server.port,
                                  '--api-key-file', '/not/read',
                                  '--trust-fingerprint', self.fingerprint, '--non-interactive', '--skip-bar'])
             self.assertEqual(result, 1)
@@ -457,6 +498,68 @@ class SetupAcceptance(SetupCertificates):
             prompt.assert_not_called()
             self.assertFalse(any(r.get("method") or r.get("headers") for r in server.received()))
 
+
+
+class DefaultGateway(unittest.TestCase):
+    """The prompt's default is the gateway, which is usually the console."""
+
+    HEADER = "Iface\tDestination\tGateway \tFlags\tRefCnt\tUse\tMetric\tMask\t\tMTU\tWindow\tIRTT\n"
+
+    def table(self, *rows):
+        handle = tempfile.NamedTemporaryFile('w', delete=False, suffix='.route')
+        self.addCleanup(os.unlink, handle.name)
+        handle.write(self.HEADER + ''.join(row + '\n' for row in rows))
+        handle.close()
+        return handle.name
+
+    def test_the_default_route_gives_the_gateway(self):
+        path = self.table("eth0\t0001A8C0\t00000000\t0001\t0\t0\t100\t00FFFFFF\t0\t0\t0",
+                          "eth0\t00000000\t0101A8C0\t0003\t0\t0\t100\t00000000\t0\t0\t0")
+        self.assertEqual(setup.default_gateway(path), '192.168.1.1')
+
+    def test_no_default_route_or_no_table_gives_none(self):
+        path = self.table("eth0\t0001A8C0\t00000000\t0001\t0\t0\t100\t00FFFFFF\t0\t0\t0")
+        self.assertIsNone(setup.default_gateway(path))
+        self.assertIsNone(setup.default_gateway('/nonexistent/route'))
+
+    def test_a_route_that_is_down_or_not_through_a_gateway_is_skipped(self):
+        path = self.table("eth0\t00000000\t0101A8C0\t0002\t0\t0\t100\t00000000\t0\t0\t0",
+                          "wg0\t00000000\t00000000\t0001\t0\t0\t50\t00000000\t0\t0\t0",
+                          "eth1\t00000000\tZZZZ\t0003\t0\t0\t100\t00000000\t0\t0\t0")
+        self.assertIsNone(setup.default_gateway(path))
+
+    def test_the_prompt_offers_the_gateway_and_an_empty_answer_takes_it(self):
+        seen = {}
+        def stop(root):
+            seen['root'] = root
+            raise setup.SetupError('stop')
+        # stderr is redirected FIRST, so the isatty patch lands on the stream
+        # setup will actually test.
+        with contextlib.redirect_stderr(io.StringIO()), \
+                mock.patch.object(setup.shutil, 'which', return_value='/mock/omarchy'), \
+                mock.patch.object(setup.sys.stdin, 'isatty', return_value=True), \
+                mock.patch.object(setup.sys.stderr, 'isatty', return_value=True), \
+                mock.patch.object(setup, 'default_gateway', return_value='192.168.1.1'), \
+                mock.patch('builtins.input', return_value='') as prompt, \
+                mock.patch.object(setup, 'check_resolvable', side_effect=stop):
+            self.assertEqual(setup.main(['--skip-bar']), 1)
+        self.assertIn('[192.168.1.1]', prompt.call_args[0][0])
+        self.assertEqual(seen['root'], 'https://192.168.1.1/proxy/network/integration')
+
+    def test_without_a_gateway_an_empty_answer_is_refused(self):
+        stderr = io.StringIO()
+        # stderr is redirected FIRST, so the isatty patch lands on the stream
+        # setup will actually test.
+        with contextlib.redirect_stderr(stderr), \
+                mock.patch.object(setup.shutil, 'which', return_value='/mock/omarchy'), \
+                mock.patch.object(setup.sys.stdin, 'isatty', return_value=True), \
+                mock.patch.object(setup.sys.stderr, 'isatty', return_value=True), \
+                mock.patch.object(setup, 'default_gateway', return_value=None), \
+                mock.patch('builtins.input', return_value=''), \
+                mock.patch.object(setup, 'check_resolvable') as resolve:
+            self.assertEqual(setup.main(['--skip-bar']), 1)
+        resolve.assert_not_called()
+        self.assertIn("gateway's IP address", stderr.getvalue())
 
 
 class CertificatePersistence(unittest.TestCase):

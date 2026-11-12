@@ -114,7 +114,7 @@ Existing values are retained when you omit their options.
 
 | Option | Effect |
 |---|---|
-| `--api-root <url>` | Set the Network Integration API root |
+| `--api-root <url>` | Set the Network Integration API root, e.g. `https://192.168.1.1/proxy/network/integration`. Use the console's IP address; see [choosing the address](controller-setup.md) |
 | `--api-key-stdin` | Read a key from standard input through end-of-file |
 | `--api-key-file <file>` | Read a key from an existing file |
 | `--site <uuid>` | Choose the site |
