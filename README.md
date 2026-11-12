@@ -28,7 +28,8 @@ filled when up, outlined when down, and underlined when it carries PoE.
 
 You'll need:
 
-- Omarchy **4.0.3-1** with Quickshell **0.3.1-1**.
+- Omarchy **4.0.3-1** with Quickshell **0.3.1-1**, or Omarchy **4.5.0-3** with
+  Quickshell **0.3.2** and Qt **6.12**.
 - Python **3.9 or newer**. No pip packages are needed.
 - UniFi Network **10.6.x** or **11.0.x** for hardware-tested support, with the
   Network Integration API available.

@@ -21,7 +21,7 @@
 // Colour is never the sole signal (UX-002): the tooltip and the panel state
 // both conditions in words, and this file is only the glance-able half.
 import QtQuick
-import qs.Commons
+import qs.Commons as Commons
 
 Item {
   id: root
@@ -33,10 +33,10 @@ Item {
   // Style.fontFamily resolves to on this system (Style.qml:269-272).
   readonly property string glyph: "\udb80\udf17"
 
-  property color glyphColor: Color.foreground
-  property color badgeColor: Color.urgent
-  property string fontFamily: Style.font.family
-  property real iconSize: Style.bar.iconFont
+  property color glyphColor: Commons.Color.foreground
+  property color badgeColor: Commons.Color.urgent
+  property string fontFamily: Commons.Style.font.family
+  property real iconSize: Commons.Style.bar.iconFont
 
   property bool showBadge: false
   property bool showRefreshFailure: false
